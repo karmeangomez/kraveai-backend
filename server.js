@@ -1,7 +1,7 @@
-const express = require('express');
-const cors = require('cors');
-const bodyParser = require('body-parser');
-const OpenAI = require('openai');
+const express = require("express");
+const cors = require("cors");
+const bodyParser = require("body-parser");
+const OpenAI = require("openai");
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -11,25 +11,26 @@ app.use(bodyParser.json());
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
-app.post('/api/chat', async (req, res) => {
-  const { userMessage } = req.body;
+app.post("/api/chat", async (req, res) => {
+  const { message } = req.body;
 
   try {
     const completion = await openai.chat.completions.create({
       model: "gpt-4o",
-      messages: [{ role: "user", content: userMessage }]
+      messages: [{ role: "user", content: message }]
     });
 
     const aiResponse = completion.choices[0].message.content;
     res.json({ response: aiResponse });
   } catch (err) {
+    console.error(err);
     res.status(500).json({ error: "Error en /api/chat", details: err.message });
   }
 });
 
 app.post("/api/ordenes-avanzadas", async (req, res) => {
   const orden = req.body.orden;
-  const respuesta = `Recibido: "${orden}". Listo para expandir el sistema automáticamente cuando se active.`;
+  const respuesta = `Recibido: "${orden}". Listo para expandir el sistema automáticamente.`;
   res.json({ status: "preparado", message: respuesta });
 });
 
