@@ -2,6 +2,7 @@ const express = require("express");
 const cors = require("cors");
 const bodyParser = require("body-parser");
 const OpenAI = require("openai");
+const fetch = require('node-fetch');
 require('dotenv').config();
 
 const app = express();
@@ -12,6 +13,7 @@ const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 app.use(cors());
 app.use(bodyParser.json());
 
+// 🔥 Ruta IA Chat (GPT-4o)
 app.post("/api/chat", async (req, res) => {
   const { message } = req.body;
 
@@ -29,8 +31,7 @@ app.post("/api/chat", async (req, res) => {
   }
 });
 
-// ↓↓↓ NUEVA FUNCIÓN PARA IA JUVENIL MASCULINA ↓↓↓
-
+// 🎙️ Función IA Voz juvenil masculina
 async function generarAudio(texto) {
     const response = await openai.audio.speech.create({
         model: 'tts-1-hd',
@@ -41,6 +42,7 @@ async function generarAudio(texto) {
     return audioBuffer;
 }
 
+// 🎙️ Ruta IA voz juvenil masculina (prueba)
 app.get('/voz-prueba', async (req, res) => {
     try {
         const audioBuffer = await generarAudio("Hola Karmean, esta es tu IA juvenil masculina integrada correctamente.");
@@ -54,10 +56,8 @@ app.get('/voz-prueba', async (req, res) => {
         res.status(500).send('Error generando audio.');
     }
 });
-const fetch = require('node-fetch');
-require('dotenv').config();
 
-// Función exacta para generar enlace Bitly acortado:
+// 🔗 Función generar enlace Bitly acortado
 async function generarLinkBitly(urlLarga) {
   const BITLY_API_KEY = process.env.BITLY_API_KEY;
   const response = await fetch('https://api-ssl.bitly.com/v4/shorten', {
@@ -71,14 +71,14 @@ async function generarLinkBitly(urlLarga) {
 
   const data = await response.json();
   if (response.ok) {
-    return data.link;  // Retorna enlace acortado Bitly
+    return data.link; 
   } else {
     console.error('Error en Bitly:', data);
     throw new Error('Error generando enlace Bitly.');
   }
 }
 
-// Ruta para probar Bitly rápidamente
+// 🔗 Ruta prueba rápida Bitly
 app.get('/bitly-prueba', async (req, res) => {
   try {
     const enlaceOriginal = "https://instagram.com";
@@ -89,8 +89,7 @@ app.get('/bitly-prueba', async (req, res) => {
   }
 });
 
-
-// INICIO DEL SERVIDOR
+// 🚀 Inicio del servidor
 app.listen(PORT, () => {
   console.log(`Servidor activo en puerto ${PORT}`);
 });
