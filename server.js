@@ -2,14 +2,15 @@ const express = require("express");
 const cors = require("cors");
 const bodyParser = require("body-parser");
 const OpenAI = require("openai");
+require('dotenv').config();
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+
 app.use(cors());
 app.use(bodyParser.json());
-
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 app.post("/api/chat", async (req, res) => {
   const { message } = req.body;
@@ -28,16 +29,33 @@ app.post("/api/chat", async (req, res) => {
   }
 });
 
-app.post("/api/ordenes-avanzadas", async (req, res) => {
-  const orden = req.body.orden;
-  const respuesta = `Recibido: "${orden}". Listo para expandir el sistema automáticamente.`;
-  res.json({ status: "preparado", message: respuesta });
+// ↓↓↓ NUEVA FUNCIÓN PARA IA JUVENIL MASCULINA ↓↓↓
+
+async function generarAudio(texto) {
+    const response = await openai.audio.speech.create({
+        model: 'tts-1-hd',
+        voice: 'onyx',
+        input: texto,
+    });
+    const audioBuffer = Buffer.from(await response.arrayBuffer());
+    return audioBuffer;
+}
+
+app.get('/voz-prueba', async (req, res) => {
+    try {
+        const audioBuffer = await generarAudio("Hola Karmean, esta es tu IA juvenil masculina integrada correctamente.");
+        res.set({
+            'Content-Type': 'audio/mpeg',
+            'Content-Disposition': 'attachment; filename="respuesta.mp3"'
+        });
+        res.send(audioBuffer);
+    } catch (error) {
+        console.error(error);
+        res.status(500).send('Error generando audio.');
+    }
 });
 
-app.get("/", (req, res) => {
-  res.send("KraveAI backend está activo.");
-});
-
+// INICIO DEL SERVIDOR
 app.listen(PORT, () => {
-  console.log(`Servidor en puerto ${PORT}`);
+  console.log(`Servidor activo en puerto ${PORT}`);
 });
