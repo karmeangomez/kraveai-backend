@@ -2,8 +2,9 @@ const express = require("express");
 const cors = require("cors");
 const bodyParser = require("body-parser");
 const OpenAI = require("openai");
-const fetch = require('node-fetch');
 require('dotenv').config();
+
+const fetch = (...args) => import('node-fetch').then(({ default: fetch }) => fetch(...args));
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -13,7 +14,7 @@ const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 app.use(cors());
 app.use(bodyParser.json());
 
-// 🔥 Ruta IA Chat (GPT-4o)
+// 🔥 IA Chat (GPT-4o)
 app.post("/api/chat", async (req, res) => {
   const { message } = req.body;
 
@@ -31,33 +32,33 @@ app.post("/api/chat", async (req, res) => {
   }
 });
 
-// 🎙️ Función IA Voz juvenil masculina
+// 🎙️ IA con Voz juvenil masculina ("onyx")
 async function generarAudio(texto) {
-    const response = await openai.audio.speech.create({
-        model: 'tts-1-hd',
-        voice: 'onyx',
-        input: texto,
-    });
-    const audioBuffer = Buffer.from(await response.arrayBuffer());
-    return audioBuffer;
+  const response = await openai.audio.speech.create({
+    model: 'tts-1-hd',
+    voice: 'onyx',
+    input: texto,
+  });
+  const audioBuffer = Buffer.from(await response.arrayBuffer());
+  return audioBuffer;
 }
 
-// 🎙️ Ruta IA voz juvenil masculina (prueba)
+// 🎙️ Ruta de prueba para IA Voz juvenil masculina
 app.get('/voz-prueba', async (req, res) => {
-    try {
-        const audioBuffer = await generarAudio("Hola Karmean, esta es tu IA juvenil masculina integrada correctamente.");
-        res.set({
-            'Content-Type': 'audio/mpeg',
-            'Content-Disposition': 'attachment; filename="respuesta.mp3"'
-        });
-        res.send(audioBuffer);
-    } catch (error) {
-        console.error(error);
-        res.status(500).send('Error generando audio.');
-    }
+  try {
+    const audioBuffer = await generarAudio("Hola Karmean, esta es tu IA juvenil masculina integrada correctamente.");
+    res.set({
+      'Content-Type': 'audio/mpeg',
+      'Content-Disposition': 'attachment; filename="respuesta.mp3"'
+    });
+    res.send(audioBuffer);
+  } catch (error) {
+    console.error(error);
+    res.status(500).send('Error generando audio.');
+  }
 });
 
-// 🔗 Función generar enlace Bitly acortado
+// 🔗 Bitly API para generar enlaces acortados
 async function generarLinkBitly(urlLarga) {
   const BITLY_API_KEY = process.env.BITLY_API_KEY;
   const response = await fetch('https://api-ssl.bitly.com/v4/shorten', {
@@ -71,20 +72,21 @@ async function generarLinkBitly(urlLarga) {
 
   const data = await response.json();
   if (response.ok) {
-    return data.link; 
+    return data.link;
   } else {
     console.error('Error en Bitly:', data);
     throw new Error('Error generando enlace Bitly.');
   }
 }
 
-// 🔗 Ruta prueba rápida Bitly
+// 🔗 Ruta de prueba para Bitly API
 app.get('/bitly-prueba', async (req, res) => {
   try {
     const enlaceOriginal = "https://instagram.com";
     const enlaceAcortado = await generarLinkBitly(enlaceOriginal);
     res.json({ enlaceOriginal, enlaceAcortado });
   } catch (error) {
+    console.error(error);
     res.status(500).json({ error: error.message });
   }
 });
