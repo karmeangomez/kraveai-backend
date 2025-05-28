@@ -54,6 +54,41 @@ app.get('/voz-prueba', async (req, res) => {
         res.status(500).send('Error generando audio.');
     }
 });
+const fetch = require('node-fetch');
+require('dotenv').config();
+
+// Función exacta para generar enlace Bitly acortado:
+async function generarLinkBitly(urlLarga) {
+  const BITLY_API_KEY = process.env.BITLY_API_KEY;
+  const response = await fetch('https://api-ssl.bitly.com/v4/shorten', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${BITLY_API_KEY}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({ long_url: urlLarga })
+  });
+
+  const data = await response.json();
+  if (response.ok) {
+    return data.link;  // Retorna enlace acortado Bitly
+  } else {
+    console.error('Error en Bitly:', data);
+    throw new Error('Error generando enlace Bitly.');
+  }
+}
+
+// Ruta para probar Bitly rápidamente
+app.get('/bitly-prueba', async (req, res) => {
+  try {
+    const enlaceOriginal = "https://instagram.com";
+    const enlaceAcortado = await generarLinkBitly(enlaceOriginal);
+    res.json({ enlaceOriginal, enlaceAcortado });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 
 // INICIO DEL SERVIDOR
 app.listen(PORT, () => {
