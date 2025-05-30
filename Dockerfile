@@ -1,6 +1,6 @@
 # Dockerfile para kraveai-backend
 
-FROM node:18-bullseye
+FROM node:18-bullseye-slim
 
 # Instalar dependencias necesarias para Chromium
 RUN apt-get update && \
@@ -44,11 +44,13 @@ RUN apt-get update && \
     libnss3 \
     lsb-release \
     xdg-utils \
-    wget
+    wget && \
+    rm -rf /var/lib/apt/lists/*
 
 # Configurar Chromium para Puppeteer
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
 ENV CHROMIUM_PATH=/usr/bin/chromium
+ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
 
 # Crear directorio de trabajo
 WORKDIR /app
