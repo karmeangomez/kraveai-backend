@@ -1,6 +1,6 @@
 {
   "name": "kraveai-backend",
-  "version": "1.0.0",
+  "version": "3.0.0",
   "description": "Backend for KraveAI Instagram Scraper",
   "main": "server.js",
   "scripts": {
@@ -10,18 +10,5 @@
   "dependencies": {
     "express": "^4.18.2",
     "puppeteer": "^22.6.0"
-  },
-  "puppeteer": {
-    "executablePath": "/usr/bin/chromium",
-    "args": [
-      "--no-sandbox",
-      "--disable-setuid-sandbox",
-      "--disable-dev-shm-usage",
-      "--disable-accelerated-2d-canvas",
-      "--no-first-run",
-      "--no-zygote",
-      "--single-process",
-      "--disable-gpu"
-    ]
   }
 }
