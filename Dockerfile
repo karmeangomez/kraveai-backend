@@ -1,10 +1,13 @@
 # Dockerfile para kraveai-backend
 FROM node:18-bullseye-slim
 
-# Instalar dependencias para Chromium y crear enlace simbólico
-RUN apt-get update && \
-    apt-get install -y \
+# 1. Actualizar lista de paquetes
+RUN apt-get update
+
+# 2. Instalar Chromium con dependencias mínimas
+RUN apt-get install -y --no-install-recommends \
     chromium \
+    ca-certificates \
     fonts-liberation \
     libasound2 \
     libatk-bridge2.0-0 \
@@ -13,58 +16,49 @@ RUN apt-get update && \
     libcairo2 \
     libcups2 \
     libdbus-1-3 \
+    libdrm2 \
     libexpat1 \
-    libfontconfig1 \
     libgbm1 \
-    libgcc1 \
     libglib2.0-0 \
-    libgtk-3-0 \
     libnspr4 \
     libnss3 \
     libpango-1.0-0 \
-    libpangocairo-1.0-0 \
-    libstdc++6 \
     libx11-6 \
-    libx11-xcb1 \
     libxcb1 \
     libxcomposite1 \
-    libxcursor1 \
     libxdamage1 \
     libxext6 \
     libxfixes3 \
-    libxi6 \
     libxrandr2 \
-    libxrender1 \
-    libxss1 \
-    libxtst6 \
-    ca-certificates \
-    fonts-liberation \
-    libappindicator1 \
-    libnss3 \
-    lsb-release \
-    xdg-utils \
-    wget && \
-    rm -rf /var/lib/apt/lists/* && \
-    # Crear enlace simbólico para Chromium
-    ln -s /usr/bin/chromium /usr/bin/chromium-browser
+    libxshmfence1 \
+    wget \
+    xdg-utils
 
-# Configurar Chromium para Puppeteer
+# 3. Limpiar caché para reducir tamaño
+RUN apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
+
+# 4. Verificar instalación de Chromium
+RUN echo "Chromium instalado en:" && \
+    which chromium && \
+    ls -la /usr/bin/chromium*
+
+# 5. Configurar variables para Puppeteer
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
-ENV CHROMIUM_PATH=/usr/bin/chromium-browser
-ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser
+ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
 
-# Crear directorio de trabajo
+# 6. Crear directorio de trabajo
 WORKDIR /app
 
-# Copiar archivos del proyecto
+# 7. Copiar archivos del proyecto
 COPY package*.json ./
 COPY . .
 
-# Instalar dependencias de Node.js
+# 8. Instalar dependencias de Node.js
 RUN npm install --production
 
-# Exponer el puerto 10000
+# 9. Exponer el puerto
 EXPOSE 10000
 
-# Comando para iniciar la aplicación
+# 10. Comando para iniciar la aplicación
 CMD ["node", "server.js"]
