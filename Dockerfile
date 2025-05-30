@@ -2,7 +2,7 @@ FROM node:18-bullseye-slim
 
 WORKDIR /usr/src/app
 
-# 🛠 Instalar dependencias del sistema para Puppeteer
+# Instalar dependencias para Chromium
 RUN apt-get update && \
     apt-get install -y \
     chromium \
@@ -23,16 +23,17 @@ RUN apt-get update && \
     libasound2 \
     --no-install-recommends
 
-# 📦 Copiar e instalar dependencias Node.js
+# Copiar e instalar dependencias Node
 COPY package*.json ./
 RUN npm install --production
 
-# 📂 Copiar código fuente
+# Copiar código fuente
 COPY . .
 
-# 🔧 Configuración de entorno
+# Variables de entorno
 ENV CHROMIUM_PATH=/usr/bin/chromium
 ENV PORT=3000
+ENV NODE_ENV=production
 
-EXPOSE ${PORT}
-CMD ["npm", "start"]
+EXPOSE 3000
+CMD ["node", "server.js"]
