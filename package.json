@@ -1,21 +1,27 @@
 {
-  "name": "instagram-scraper",
+  "name": "kraveai-backend",
   "version": "1.0.0",
+  "description": "Backend for KraveAI Instagram Scraper",
+  "main": "index.js",
   "scripts": {
-    "start": "node server.js"
+    "start": "node index.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
   },
   "dependencies": {
-    "body-parser": "^1.20.2",
-    "cors": "^2.8.5",
-    "dotenv": "^16.4.1",
-    "express": "^4.19.2",
-    "helmet": "^7.0.0",
-    "node-fetch": "^3.3.2",
-    "openai": "^4.52.0",
-    "puppeteer-core": "^22.11.0",
-    "express-rate-limit": "^7.1.3"
+    "express": "^4.18.2",
+    "puppeteer": "^22.6.0"
   },
-  "engines": {
-    "node": ">=18.x"
+  "puppeteer": {
+    "executablePath": "/usr/bin/chromium",
+    "args": [
+      "--no-sandbox",
+      "--disable-setuid-sandbox",
+      "--disable-dev-shm-usage",
+      "--disable-accelerated-2d-canvas",
+      "--no-first-run",
+      "--no-zygote",
+      "--single-process",
+      "--disable-gpu"
+    ]
   }
 }
