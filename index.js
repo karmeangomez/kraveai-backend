@@ -1,3 +1,11 @@
+// Verificar configuración de Puppeteer
+console.log('Configuración de Puppeteer desde package.json:');
+console.log({
+  executablePath: puppeteerConfig.executablePath,
+  args: puppeteerConfig.args
+});
+console.log('Configuración final de lanzamiento:');
+console.log(launchOptions);
 const express = require('express');
 const puppeteer = require('puppeteer');
 const app = express();
