@@ -2,7 +2,7 @@ FROM node:18-bullseye-slim
 
 WORKDIR /usr/src/app
 
-# Instalar Chromium para Puppeteer
+# Instalar Chromium
 RUN apt-get update && apt-get install -y chromium
 
 COPY package*.json ./
