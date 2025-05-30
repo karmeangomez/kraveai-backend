@@ -1,9 +1,14 @@
-# render.yaml
-buildCommand: |
-  sudo apt-get update
-  sudo apt-get install -y chromium-browser
-  npm install
-
-envVars:
-  - key: CHROMIUM_PATH
-    value: /usr/bin/chromium-browser  # Ruta estándar en Ubuntu
+services:
+  - type: web
+    name: krave-ai
+    env: node
+    buildCommand: |
+      # Descarga Chromium específico para Render
+      curl -LO https://github.com/Sparticuz/chromium/releases/download/v125.0.0/chromium-v125.0.0-pack.tar
+      tar xf chromium-v125.0.0-pack.tar
+      chmod +x chromium/chrome  # ¡Permisos esenciales!
+      npm install
+    startCommand: node server.js
+    envVars:
+      - key: CHROMIUM_PATH
+        value: ./chromium/chrome  # Ruta exacta
