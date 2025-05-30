@@ -1,13 +1,9 @@
-services:
-  - type: web
-    name: kraveai-backend
-    env: node
-    buildCommand: npm install
-    startCommand: node server.js
-    envVars:
-      - key: NODE_ENV
-        value: production
-      - key: PORT
-        value: 10000
-      - key: CHROMIUM_PATH
-        value: /usr/bin/chromium
+# render.yaml
+buildCommand: |
+  sudo apt-get update
+  sudo apt-get install -y chromium-browser
+  npm install
+
+envVars:
+  - key: CHROMIUM_PATH
+    value: /usr/bin/chromium-browser  # Ruta estándar en Ubuntu
