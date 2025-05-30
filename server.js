@@ -5,6 +5,7 @@ const OpenAI = require("openai");
 const puppeteer = require("puppeteer-core");
 const rateLimit = require("express-rate-limit");
 const helmet = require("helmet");
+const fs = require('fs');
 
 require("dotenv").config();
 const fetch = (...args) => import('node-fetch').then(({ default: fetch }) => fetch(...args));
@@ -44,7 +45,21 @@ app.get('/health', (req, res) => {
   });
 });
 
-// 🔥 Scraping de Instagram
+// 🌐 Endpoint raíz para evitar reinicios en Render (¡LISTO PARA USAR!)
+app.get('/', (req, res) => {
+  res.json({
+    status: 'active',
+    message: 'Bienvenido a la API de Instagram Scraper',
+    endpoints: {
+      health_check: '/health',
+      instagram_scrape: '/api/scrape?username=USERNAME',
+      documentation: 'https://github.com/tu-usuario/tu-repositorio'
+    },
+    uptime: process.uptime().toFixed(2) + ' seconds'
+  });
+});
+
+// 🔥 Scraping de Instagram optimizado para Render
 app.get("/api/scrape", async (req, res) => {
   const { username } = req.query;
   if (!username) return res.status(400).json({ error: "Parámetro ?username= requerido" });
@@ -57,7 +72,7 @@ app.get("/api/scrape", async (req, res) => {
   } catch (error) {
     console.error(`[SCRAPE ERROR] @${username}:`, error.message);
     
-    // Manejo de errores específicos
+    // Manejo específico de errores
     let statusCode = 500;
     let errorMessage = "Error en el scraping";
     
@@ -82,10 +97,9 @@ app.get("/api/scrape", async (req, res) => {
   }
 });
 
-// 🚀 Función de scraping
+// 🚀 Función de scraping mejorada
 async function scrapeInstagram(username) {
   // Verificar existencia de Chromium
-  const fs = require('fs');
   const chromiumPath = process.env.CHROMIUM_PATH || '/usr/bin/chromium';
   
   if (!fs.existsSync(chromiumPath)) {
@@ -131,7 +145,7 @@ async function scrapeInstagram(username) {
       throw new Error(`Usuario @${username} no encontrado`);
     }
     
-    // Detectar bloqueo de Instagram
+    // Detectar redirección a login (bloqueo)
     if (page.url().includes('/accounts/login/')) {
       throw new Error('Instagram ha bloqueado el acceso (requiere login)');
     }
@@ -140,7 +154,7 @@ async function scrapeInstagram(username) {
     await page.waitForSelector('meta[property="og:title"]', { timeout: 15000 });
     await page.waitForSelector('header', { timeout: 15000 });
     
-    // Extracción de datos
+    // Extracción de datos más confiable
     const data = await page.evaluate(() => {
       const getMeta = (property) => 
         document.querySelector(`meta[property="${property}"]`)?.content;
@@ -166,7 +180,7 @@ async function scrapeInstagram(username) {
   }
 }
 
-// 🚀 Iniciar servidor
+// 🚀 Iniciar servidor con manejo de errores
 app.listen(PORT, () => {
   console.log(`🚀 Servidor funcionando en puerto ${PORT}`);
   console.log(`🔗 Health check: http://localhost:${PORT}/health`);
