@@ -4,35 +4,59 @@ const bodyParser = require("body-parser");
 const OpenAI = require("openai");
 require('dotenv').config();
 
+const puppeteer = require("puppeteer-core");
+const redis = require("redis");
+const { promisify } = require("util");
+const rateLimit = require("express-rate-limit");
+const helmet = require("helmet");
+
 const fetch = (...args) => import('node-fetch').then(({ default: fetch }) => fetch(...args));
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
+// Seguridad + configuración
+app.use(helmet({ contentSecurityPolicy: false }));
 app.use(cors());
 app.use(bodyParser.json());
 
-// 🔥 IA Chat (GPT-4o)
+// Redis
+let redisClient;
+if (process.env.REDIS_URL) {
+  redisClient = redis.createClient({ url: process.env.REDIS_URL });
+  redisClient.on('error', err => console.error('Redis error:', err));
+  redisClient.connect();
+}
+
+const getAsync = promisify(redisClient?.get).bind(redisClient);
+const setAsync = promisify(redisClient?.set).bind(redisClient);
+
+// Rate limiting
+const apiLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 100,
+  message: 'Demasiadas solicitudes desde esta IP',
+  standardHeaders: true
+});
+app.use('/api/scrape', apiLimiter);
+
+// 🧠 Chat GPT-4o
 app.post("/api/chat", async (req, res) => {
   const { message } = req.body;
-
   try {
     const completion = await openai.chat.completions.create({
       model: "gpt-4o",
       messages: [{ role: "user", content: message }]
     });
-
-    const aiResponse = completion.choices[0].message.content;
-    res.json({ response: aiResponse });
+    res.json({ response: completion.choices[0].message.content });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Error en /api/chat", details: err.message });
   }
 });
 
-// 🎙️ IA con Voz juvenil masculina ("onyx")
+// 🎙️ Voz juvenil masculina
 async function generarAudio(texto) {
   const response = await openai.audio.speech.create({
     model: 'tts-1-hd',
@@ -43,7 +67,6 @@ async function generarAudio(texto) {
   return audioBuffer;
 }
 
-// 🎙️ Ruta de prueba para IA Voz juvenil masculina
 app.get('/voz-prueba', async (req, res) => {
   try {
     const audioBuffer = await generarAudio("Hola Karmean, esta es tu IA juvenil masculina integrada correctamente.");
@@ -58,7 +81,7 @@ app.get('/voz-prueba', async (req, res) => {
   }
 });
 
-// 🔗 Bitly API para generar enlaces acortados
+// 🔗 Bitly
 async function generarLinkBitly(urlLarga) {
   const BITLY_API_KEY = process.env.BITLY_API_KEY;
   const response = await fetch('https://api-ssl.bitly.com/v4/shorten', {
@@ -69,17 +92,12 @@ async function generarLinkBitly(urlLarga) {
     },
     body: JSON.stringify({ long_url: urlLarga })
   });
-
   const data = await response.json();
-  if (response.ok) {
-    return data.link;
-  } else {
-    console.error('Error en Bitly:', data);
-    throw new Error('Error generando enlace Bitly.');
-  }
+  if (response.ok) return data.link;
+  console.error('Error en Bitly:', data);
+  throw new Error('Error generando enlace Bitly.');
 }
 
-// 🔗 Ruta de prueba para Bitly API
 app.get('/bitly-prueba', async (req, res) => {
   try {
     const enlaceOriginal = "https://instagram.com";
@@ -91,7 +109,73 @@ app.get('/bitly-prueba', async (req, res) => {
   }
 });
 
-// 🚀 Inicio del servidor
+// 🔥 Scraping real desde Instagram
+app.get('/api/scrape', async (req, res) => {
+  const { username } = req.query;
+  if (!username) return res.status(400).json({ error: "?username= requerido" });
+
+  try {
+    if (redisClient) {
+      const cachedData = await getAsync(`ig:${username}`);
+      if (cachedData) {
+        console.log(`[CACHE] ${username}`);
+        return res.json(JSON.parse(cachedData));
+      }
+    }
+
+    const data = await scrapeInstagram(username);
+    if (redisClient) await setAsync(`ig:${username}`, JSON.stringify(data), 'EX', 3600);
+    res.json(data);
+  } catch (error) {
+    console.error(`[ERROR] @${username}:`, error.message);
+    res.status(500).json({ error: "Scraping fallido", details: error.message });
+  }
+});
+
+async function scrapeInstagram(username) {
+  const browser = await puppeteer.launch({
+    executablePath: process.env.CHROMIUM_PATH || '/usr/bin/chromium-browser',
+    args: [
+      '--no-sandbox',
+      '--disable-setuid-sandbox',
+      '--disable-gpu',
+      '--single-process',
+      '--lang=es-ES,es',
+      `--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64)`
+    ],
+    headless: 'new',
+    timeout: 30000
+  });
+
+  try {
+    const page = await browser.newPage();
+    await page.goto(`https://www.instagram.com/${username}/`, { waitUntil: 'networkidle2', timeout: 45000 });
+
+    const data = await page.evaluate(() => {
+      const og = (p) => document.querySelector(`meta[property="${p}"]`)?.content;
+      const desc = og("og:description") || '';
+      const match = desc.match(/([\d,.]+) seguidores/);
+      return {
+        username: document.title.split("(")[0].trim().replace("• Instagram", ""),
+        profileImage: og("og:image"),
+        followers: match ? match[1] : null,
+        isVerified: !!document.querySelector('svg[aria-label="Cuenta verificada"]'),
+        bio: document.querySelector('header section div')?.innerText || null,
+        lastScraped: new Date().toISOString()
+      };
+    });
+
+    return data;
+  } finally {
+    await browser.close();
+  }
+}
+
+// 🔧 Utilidades
+app.get('/health', (req, res) => {
+  res.json({ status: 'OK', redis: redisClient ? 'enabled' : 'disabled' });
+});
+
 app.listen(PORT, () => {
   console.log(`Servidor activo en puerto ${PORT}`);
 });
