@@ -1,18 +1,59 @@
-// server.js
+// server.js (VERSIÓN COMPLETA)
 require('dotenv').config();
 const express = require('express');
 const app = express();
 const path = require('path');
 const puppeteer = require('puppeteer-core');
 
-// 1. Configuración de Chromium
+// Configuración de Chromium
 const chromiumPath = path.resolve(process.env.CHROMIUM_PATH || './chromium/chrome');
-let browserInstance;  // Instancia global de Chromium
+let browserInstance;
 
-// 2. Precalentar Chromium al iniciar
+// Función de login en Instagram
+async function instagramLogin(page) {
+  try {
+    console.log("🔐 Intentando login automático...");
+    await page.goto('https://instagram.com/accounts/login/', { 
+      waitUntil: 'networkidle2',
+      timeout: 15000
+    });
+
+    // Aceptar cookies si aparece
+    try {
+      await page.waitForSelector('button[class="_a9-- _ap36 _a9_1"]', { timeout: 5000 });
+      await page.click('button[class="_a9-- _ap36 _a9_1"]');
+      console.log("🍪 Cookies aceptadas");
+    } catch {}
+
+    // Rellenar credenciales
+    await page.waitForSelector('input[name="username"]');
+    await page.type('input[name="username"]', process.env.INSTAGRAM_USER);
+    await page.type('input[name="password"]', process.env.INSTAGRAM_PASS);
+    
+    // Iniciar sesión
+    await Promise.all([
+      page.click('button[type="submit"]'),
+      page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 10000 })
+    ]);
+
+    // Saltar notificaciones
+    try {
+      await page.waitForSelector('button[class="_a9-- _ap36 _a9_1"]', { timeout: 3000 });
+      await page.click('button[class="_a9-- _ap36 _a9_1"]');
+      console.log("🔕 Notificaciones omitidas");
+    } catch {}
+
+    return true;
+  } catch (error) {
+    console.error("❌ Error en login:", error.message);
+    return false;
+  }
+}
+
+// Precalentar Chromium
 async function initBrowser() {
   try {
-    console.log("🚀 Starting Chromium...");
+    console.log("🚀 Iniciando Chromium...");
     browserInstance = await puppeteer.launch({
       executablePath: chromiumPath,
       args: [
@@ -26,57 +67,55 @@ async function initBrowser() {
       headless: "new",
       timeout: 30000
     });
-    console.log("✅ Chromium ready!");
+
+    // Login solo si hay credenciales
+    if (process.env.INSTAGRAM_USER && process.env.INSTAGRAM_PASS) {
+      const page = await browserInstance.newPage();
+      const loggedIn = await instagramLogin(page);
+      await page.close();
+      if (!loggedIn) throw new Error("Falló autenticación");
+    }
+
+    console.log("✅ Chromium listo!");
+    return true;
   } catch (error) {
-    console.error("❌ Failed to launch Chromium:", error);
+    console.error("❌ Error iniciando Chromium:", error);
     process.exit(1);
   }
 }
 
-// 3. Health check endpoint
+// Health check
 app.get('/health', (req, res) => {
-  res.status(browserInstance && browserInstance.isConnected() ? 200 : 500)
+  res.status(browserInstance?.isConnected() ? 200 : 500)
      .send(browserInstance ? 'OK' : 'Browser not ready');
 });
 
-// 4. Endpoint de scraping
+// Endpoint de scraping
 app.get('/scrape/:username', async (req, res) => {
-  const { username } = req.params;
+  if (!browserInstance) return res.status(500).json({ error: "Browser no inicializado" });
   
   try {
-    console.log(`🔍 Scraping Instagram: ${username}`);
     const page = await browserInstance.newPage();
-    
-    // Configuración anti-detection
-    await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36');
-    await page.setExtraHTTPHeaders({
-      'Accept-Language': 'es-ES,es;q=0.9'
-    });
-    
-    // Navegación con timeout controlado
-    await page.goto(`https://instagram.com/${username}`, {
+    await page.goto(`https://instagram.com/${req.params.username}`, {
       waitUntil: 'domcontentloaded',
       timeout: 15000
     });
     
-    // Extracción de datos
-    const data = await page.evaluate(() => {
-      const metaDescription = document.querySelector('meta[property="og:description"]');
-      return {
-        followers: metaDescription ? metaDescription.content : 'N/A'
-      };
+    // Extraer seguidores
+    const followers = await page.evaluate(() => {
+      const meta = document.querySelector('meta[property="og:description"]');
+      return meta ? meta.content : 'N/A';
     });
     
     await page.close();
-    res.json(data);
+    res.json({ followers });
   } catch (error) {
-    console.error(`❌ Scraping failed: ${error}`);
-    res.status(500).json({ error: "Scraping failed" });
+    res.status(500).json({ error: `Scraping fallido: ${error.message}` });
   }
 });
 
-// 5. Iniciar servidor después de Chromium
+// Iniciar servidor
 const PORT = process.env.PORT || 3000;
 initBrowser().then(() => {
-  app.listen(PORT, () => console.log(`🌐 Server running on port ${PORT}`));
+  app.listen(PORT, () => console.log(`🌐 Servidor en puerto ${PORT}`));
 });
