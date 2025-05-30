@@ -1,39 +1,67 @@
-FROM node:18-bullseye-slim
+# Dockerfile para kraveai-backend
 
-WORKDIR /usr/src/app
+FROM node:18-bullseye
 
-# Instalar dependencias para Chromium
+# Instalar dependencias necesarias para Chromium
 RUN apt-get update && \
     apt-get install -y \
     chromium \
-    libgbm-dev \
-    libxshmfence-dev \
-    libglib2.0-0 \
-    libnss3 \
-    libatk1.0-0 \
-    libatk-bridge2.0-0 \
-    libcups2 \
-    libdrm2 \
-    libxkbcommon0 \
-    libxcomposite1 \
-    libxdamage1 \
-    libxrandr2 \
-    libgbm1 \
-    libgtk-3-0 \
+    fonts-liberation \
     libasound2 \
-    --no-install-recommends
+    libatk-bridge2.0-0 \
+    libatk1.0-0 \
+    libc6 \
+    libcairo2 \
+    libcups2 \
+    libdbus-1-3 \
+    libexpat1 \
+    libfontconfig1 \
+    libgbm1 \
+    libgcc1 \
+    libglib2.0-0 \
+    libgtk-3-0 \
+    libnspr4 \
+    libnss3 \
+    libpango-1.0-0 \
+    libpangocairo-1.0-0 \
+    libstdc++6 \
+    libx11-6 \
+    libx11-xcb1 \
+    libxcb1 \
+    libxcomposite1 \
+    libxcursor1 \
+    libxdamage1 \
+    libxext6 \
+    libxfixes3 \
+    libxi6 \
+    libxrandr2 \
+    libxrender1 \
+    libxss1 \
+    libxtst6 \
+    ca-certificates \
+    fonts-liberation \
+    libappindicator1 \
+    libnss3 \
+    lsb-release \
+    xdg-utils \
+    wget
 
-# Copiar e instalar dependencias Node
+# Configurar Chromium para Puppeteer
+ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
+ENV CHROMIUM_PATH=/usr/bin/chromium
+
+# Crear directorio de trabajo
+WORKDIR /app
+
+# Copiar archivos del proyecto
 COPY package*.json ./
-RUN npm install --production
-
-# Copiar código fuente
 COPY . .
 
-# Variables de entorno
-ENV CHROMIUM_PATH=/usr/bin/chromium
-ENV PORT=3000
-ENV NODE_ENV=production
+# Instalar dependencias de Node.js
+RUN npm install --production
 
-EXPOSE 3000
-CMD ["node", "server.js"]
+# Exponer el puerto 10000
+EXPOSE 10000
+
+# Comando para iniciar la aplicación
+CMD ["node", "index.js"]
