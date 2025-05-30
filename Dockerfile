@@ -2,7 +2,7 @@ FROM node:18-bullseye-slim
 
 WORKDIR /usr/src/app
 
-# 🛠 Instalar dependencias del sistema
+# 🛠 Instalar dependencias del sistema para Puppeteer
 RUN apt-get update && \
     apt-get install -y \
     chromium \
