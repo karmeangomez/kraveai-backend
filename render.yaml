@@ -1,14 +1,18 @@
+# render.yaml
 services:
   - type: web
-    name: krave-ai
+    name: kraveai-backend
     env: node
     buildCommand: |
-      # Descarga Chromium específico para Render
+      # Descarga Chromium optimizado para Render
       curl -LO https://github.com/Sparticuz/chromium/releases/download/v125.0.0/chromium-v125.0.0-pack.tar
       tar xf chromium-v125.0.0-pack.tar
-      chmod +x chromium/chrome  # ¡Permisos esenciales!
+      chmod +x chromium/chrome  # Permisos esenciales
       npm install
-    startCommand: node server.js
+    startCommand: node server-monitor.js  # Usa el monitor de reinicio
     envVars:
       - key: CHROMIUM_PATH
-        value: ./chromium/chrome  # Ruta exacta
+        value: ./chromium/chrome
+    healthCheckPath: /health
+    healthCheckTimeoutSeconds: 30
+    plan: starter  # Recomendado para evitar crashes
