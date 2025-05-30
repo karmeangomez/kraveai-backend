@@ -4,6 +4,7 @@ console.log({
   executablePath: puppeteerConfig.executablePath,
   args: puppeteerConfig.args
 });
+
 console.log('Configuración final de lanzamiento:');
 console.log(launchOptions);
 const express = require('express');
