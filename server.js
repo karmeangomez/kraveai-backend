@@ -5,8 +5,6 @@ const OpenAI = require("openai");
 require('dotenv').config();
 
 const puppeteer = require("puppeteer-core");
-const redis = require("redis");
-const { promisify } = require("util");
 const rateLimit = require("express-rate-limit");
 const helmet = require("helmet");
 
@@ -21,16 +19,9 @@ app.use(helmet({ contentSecurityPolicy: false }));
 app.use(cors());
 app.use(bodyParser.json());
 
-// Redis
-let redisClient;
-if (process.env.REDIS_URL) {
-  redisClient = redis.createClient({ url: process.env.REDIS_URL });
-  redisClient.on('error', err => console.error('Redis error:', err));
-  redisClient.connect();
-}
-
-const getAsync = promisify(redisClient?.get).bind(redisClient);
-const setAsync = promisify(redisClient?.set).bind(redisClient);
+// Redis desactivado temporalmente
+const getAsync = async () => null;
+const setAsync = async () => {};
 
 // Rate limiting
 const apiLimiter = rateLimit({
@@ -115,16 +106,14 @@ app.get('/api/scrape', async (req, res) => {
   if (!username) return res.status(400).json({ error: "?username= requerido" });
 
   try {
-    if (redisClient) {
-      const cachedData = await getAsync(`ig:${username}`);
-      if (cachedData) {
-        console.log(`[CACHE] ${username}`);
-        return res.json(JSON.parse(cachedData));
-      }
+    const cachedData = await getAsync(`ig:${username}`);
+    if (cachedData) {
+      console.log(`[CACHE] ${username}`);
+      return res.json(JSON.parse(cachedData));
     }
 
     const data = await scrapeInstagram(username);
-    if (redisClient) await setAsync(`ig:${username}`, JSON.stringify(data), 'EX', 3600);
+    await setAsync(`ig:${username}`, JSON.stringify(data), 'EX', 3600);
     res.json(data);
   } catch (error) {
     console.error(`[ERROR] @${username}:`, error.message);
@@ -134,7 +123,7 @@ app.get('/api/scrape', async (req, res) => {
 
 async function scrapeInstagram(username) {
   const browser = await puppeteer.launch({
-    executablePath: process.env.CHROMIUM_PATH || '/usr/bin/chromium-browser',
+    executablePath: process.env.CHROMIUM_PATH || '/usr/bin/chromium',
     args: [
       '--no-sandbox',
       '--disable-setuid-sandbox',
@@ -173,7 +162,7 @@ async function scrapeInstagram(username) {
 
 // 🔧 Utilidades
 app.get('/health', (req, res) => {
-  res.json({ status: 'OK', redis: redisClient ? 'enabled' : 'disabled' });
+  res.json({ status: 'OK', redis: 'disabled' });
 });
 
 app.listen(PORT, () => {
