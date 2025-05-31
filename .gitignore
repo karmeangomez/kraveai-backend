@@ -1,3 +1,6 @@
+# Archivos a ignorar
 .env
 node_modules/
 chromium/
+.DS_Store
+*.log
