@@ -8,26 +8,26 @@ require("dotenv").config();
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// 🚀 Seguridad y configuración
+// Seguridad y configuración
 app.use(helmet({ contentSecurityPolicy: false }));
 app.use(cors());
 app.use(bodyParser.json());
 
-// 🚀 Endpoint de verificación de salud para Render
+// Endpoint /health para evitar error 503 en Render
 app.get("/health", (req, res) => {
   res.status(200).json({ status: "OK" });
 });
 
-// 🚀 Scraping de Instagram
+// Endpoint del scraper de Instagram
 app.get("/api/scrape", async (req, res) => {
   const { username } = req.query;
-  if (!username) return res.status(400).json({ error: "?username= requerido" });
+  if (!username) return res.status(400).json({ error: "Se requiere ?username=" });
 
   try {
     const data = await scrapeInstagram(username);
     res.json(data);
   } catch (error) {
-    console.error(`[ERROR] @${username}:`, error.message);
+    console.error(`[ERROR] @${username}:`, error);
     res.status(500).json({ error: "Scraping fallido", details: error.message });
   }
 });
@@ -56,12 +56,17 @@ async function scrapeInstagram(username) {
     await page.goto(`https://www.instagram.com/${username}/`, { waitUntil: "networkidle2", timeout: 45000 });
 
     const data = await page.evaluate(() => {
-      const og = (p) => document.querySelector(`meta[property="${p}"]`)?.content;
+      // Función auxiliar para obtener metadatos
+      const getMeta = (property) => {
+        const meta = document.querySelector(`meta[property="${property}"]`);
+        return meta ? meta.content : null;
+      };
+
       return {
         username: document.title.split("(")[0].trim().replace("• Instagram", ""),
-        profileImage: og("og:image"),
+        profileImage: getMeta("og:image"),
         followers: document.querySelector("span[title]")?.innerText || null,
-        isVerified: !!document.querySelector('svg[aria-label="Cuenta verificada"]'),
+        isVerified: !!document.querySelector('svg[aria-label="Cuenta verificada"]')
       };
     });
 
@@ -71,7 +76,7 @@ async function scrapeInstagram(username) {
   }
 }
 
-// 🚀 Iniciar servidor en Render
+// Inicia el servidor
 app.listen(PORT, () => {
   console.log(`Servidor activo en puerto ${PORT}`);
 });
