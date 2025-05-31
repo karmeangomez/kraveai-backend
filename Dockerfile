@@ -1,56 +1,31 @@
-# Dockerfile – Configuración de la imagen para Puppeteer
-FROM node:18-bullseye
+# Use an official Node.js runtime as base (slim image for smaller size)
+FROM node:18-slim
 
-# Instalar Chromium y dependencias necesarias
+# Prevent prompts during package installation
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Install Chromium (for puppeteer-core) and any needed dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
     chromium \
-    fonts-liberation \
-    libasound2 \
-    libatk1.0-0 \
-    libatk-bridge2.0-0 \
-    libc6 \
-    libcairo2 \
-    libcups2 \
-    libdbus-1-3 \
-    libexpat1 \
-    libfontconfig1 \
-    libgbm1 \
-    libgtk-3-0 \
-    libnspr4 \
-    libnss3 \
-    libpango-1.0-0 \
-    libpangocairo-1.0-0 \
-    libx11-6 \
-    libx11-xcb1 \
-    libxcb1 \
-    libxcomposite1 \
-    libxcursor1 \
-    libxdamage1 \
-    libxext6 \
-    libxfixes3 \
-    libxi6 \
-    libxrandr2 \
-    libxrender1 \
-    libxss1 \
-    libxtst6 \
+    chromium-sandbox \
   && rm -rf /var/lib/apt/lists/*
 
-# Evitar que Puppeteer (no-core) intente descargar Chromium en la instalación
-ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
-
-# Configurar el directorio de la aplicación
+# Set working directory
 WORKDIR /app
 
-# Copiar archivos de dependencia e instalar (solo módulos de producción para reducir peso)
-COPY package.json package-lock.json* ./ 
-RUN npm install --production
+# Copy package files and install dependencies
+COPY package.json ./
+ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=1
+RUN npm install --omit=dev && npm cache clean --force
 
-# Copiar el resto del código de la aplicación
-COPY . .
+# Copy the application code
+COPY server.js ./
 
-# Puerto en el que la aplicación escuchará (usar $PORT en Render)
-ENV PORT 3000
+# Set environment variable for puppeteer to find Chromium
+ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
+
+# Expose the port (for local testing; Render automatically maps the port)
 EXPOSE 3000
 
-# Comando de arranque por defecto
-CMD ["node", "server.js"]
+# Start the application
+CMD ["npm", "start"]
