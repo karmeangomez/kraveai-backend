@@ -1,22 +1,19 @@
 {
   "name": "kraveai-backend",
   "version": "1.0.0",
-  "description": "Backend de KraveAI con login real a Instagram, IA GPT, voz, y Bitly",
+  "description": "Express backend for KraveAI with Instagram scraping, OpenAI, and Bitly integration",
   "main": "server.js",
+  "type": "module",
   "scripts": {
     "start": "node server.js"
   },
   "dependencies": {
-    "body-parser": "^1.20.2",
-    "cors": "^2.8.5",
-    "dotenv": "^16.4.5",
-    "express": "^4.18.2",
-    "helmet": "^7.0.0",
+    "dotenv": "^16.5.0",
+    "express": "^4.18.3",
     "node-fetch": "^3.3.2",
-    "openai": "^4.28.1",
-    "puppeteer-core": "^22.6.0"
+    "puppeteer-core": "^24.9.0"
   },
   "engines": {
-    "node": ">=18"
+    "node": "18.x"
   }
 }
