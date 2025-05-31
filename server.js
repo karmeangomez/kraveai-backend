@@ -13,7 +13,12 @@ app.use(helmet({ contentSecurityPolicy: false }));
 app.use(cors());
 app.use(bodyParser.json());
 
-// 🚀 Scraping de Instagram (sin Redis)
+// 🚀 Endpoint de verificación de salud para Render
+app.get("/health", (req, res) => {
+  res.status(200).json({ status: "OK" });
+});
+
+// 🚀 Scraping de Instagram
 app.get("/api/scrape", async (req, res) => {
   const { username } = req.query;
   if (!username) return res.status(400).json({ error: "?username= requerido" });
