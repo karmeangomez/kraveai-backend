@@ -1,7 +1,7 @@
 {
   "name": "kraveai-backend",
   "version": "1.0.0",
-  "description": "Backend for KraveAI Instagram Scraper",
+  "description": "Backend para KraveAI Instagram Scraper (corrección de errores de Chromium y /health)",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
