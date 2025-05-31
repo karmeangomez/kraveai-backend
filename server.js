@@ -1,7 +1,7 @@
 const express = require("express");
 const cors = require("cors");
 const bodyParser = require("body-parser");
-const puppeteer = require("puppeteer-core");
+const puppeteer = require("puppeteer");
 const helmet = require("helmet");
 const OpenAI = require("openai");
 require("dotenv").config();
@@ -96,13 +96,12 @@ app.get("/api/scrape", async (req, res) => {
 
 async function scrapeInstagram(targetUsername) {
   const browser = await puppeteer.launch({
-    executablePath: process.env.CHROMIUM_PATH || "/usr/bin/chromium",
     args: [
       "--no-sandbox",
       "--disable-setuid-sandbox",
       "--disable-gpu",
       "--single-process",
-      "--lang=es-ES,es",
+      "--lang=es-ES,es"
     ],
     headless: true,
     timeout: 60000,
