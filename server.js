@@ -1,46 +1,43 @@
-// server.js (VERSIÓN COMPLETA)
 require('dotenv').config();
 const express = require('express');
 const app = express();
 const path = require('path');
 const puppeteer = require('puppeteer-core');
 
-// Configuración de Chromium
 const chromiumPath = path.resolve(process.env.CHROMIUM_PATH || './chromium/chrome');
 let browserInstance;
 
-// Función de login en Instagram
 async function instagramLogin(page) {
   try {
-    console.log("🔐 Intentando login automático...");
+    console.log("🔐 Iniciando sesión automática en Instagram...");
     await page.goto('https://instagram.com/accounts/login/', { 
       waitUntil: 'networkidle2',
-      timeout: 15000
+      timeout: 20000
     });
 
-    // Aceptar cookies si aparece
+    // Aceptar cookies
     try {
-      await page.waitForSelector('button[class="_a9-- _ap36 _a9_1"]', { timeout: 5000 });
-      await page.click('button[class="_a9-- _ap36 _a9_1"]');
+      await page.waitForSelector('button._a9--._ap36._a9_1', { timeout: 5000 });
+      await page.click('button._a9--._ap36._a9_1');
       console.log("🍪 Cookies aceptadas");
     } catch {}
 
-    // Rellenar credenciales
-    await page.waitForSelector('input[name="username"]');
+    // Ingresar credenciales
+    await page.waitForSelector('input[name="username"]', { timeout: 10000 });
     await page.type('input[name="username"]', process.env.INSTAGRAM_USER);
     await page.type('input[name="password"]', process.env.INSTAGRAM_PASS);
     
-    // Iniciar sesión
+    // Enviar formulario
     await Promise.all([
       page.click('button[type="submit"]'),
-      page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 10000 })
+      page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 15000 })
     ]);
 
-    // Saltar notificaciones
+    // Saltar notificación
     try {
-      await page.waitForSelector('button[class="_a9-- _ap36 _a9_1"]', { timeout: 3000 });
-      await page.click('button[class="_a9-- _ap36 _a9_1"]');
-      console.log("🔕 Notificaciones omitidas");
+      await page.waitForSelector('button._a9--._ap36._a9_1', { timeout: 3000 });
+      await page.click('button._a9--._ap36._a9_1');
+      console.log("🔕 Notificación omitida");
     } catch {}
 
     return true;
@@ -50,7 +47,6 @@ async function instagramLogin(page) {
   }
 }
 
-// Precalentar Chromium
 async function initBrowser() {
   try {
     console.log("🚀 Iniciando Chromium...");
@@ -65,57 +61,56 @@ async function initBrowser() {
         '--disable-gpu'
       ],
       headless: "new",
-      timeout: 30000
+      timeout: 40000
     });
 
-    // Login solo si hay credenciales
+    // Login si hay credenciales
     if (process.env.INSTAGRAM_USER && process.env.INSTAGRAM_PASS) {
       const page = await browserInstance.newPage();
       const loggedIn = await instagramLogin(page);
       await page.close();
-      if (!loggedIn) throw new Error("Falló autenticación");
+      if (!loggedIn) throw new Error("Error de autenticación");
     }
 
     console.log("✅ Chromium listo!");
-    return true;
   } catch (error) {
     console.error("❌ Error iniciando Chromium:", error);
     process.exit(1);
   }
 }
 
-// Health check
 app.get('/health', (req, res) => {
   res.status(browserInstance?.isConnected() ? 200 : 500)
      .send(browserInstance ? 'OK' : 'Browser not ready');
 });
 
-// Endpoint de scraping
 app.get('/scrape/:username', async (req, res) => {
   if (!browserInstance) return res.status(500).json({ error: "Browser no inicializado" });
   
   try {
     const page = await browserInstance.newPage();
+    await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36');
+    
     await page.goto(`https://instagram.com/${req.params.username}`, {
       waitUntil: 'domcontentloaded',
-      timeout: 15000
+      timeout: 20000
     });
     
-    // Extraer seguidores
-    const followers = await page.evaluate(() => {
+    const data = await page.evaluate(() => {
       const meta = document.querySelector('meta[property="og:description"]');
-      return meta ? meta.content : 'N/A';
+      return {
+        followers: meta ? meta.content : 'N/A'
+      };
     });
     
     await page.close();
-    res.json({ followers });
+    res.json(data);
   } catch (error) {
-    res.status(500).json({ error: `Scraping fallido: ${error.message}` });
+    res.status(500).json({ error: `Error en scraping: ${error.message}` });
   }
 });
 
-// Iniciar servidor
 const PORT = process.env.PORT || 3000;
 initBrowser().then(() => {
-  app.listen(PORT, () => console.log(`🌐 Servidor en puerto ${PORT}`));
+  app.listen(PORT, () => console.log(`🌐 Servidor activo en puerto ${PORT}`));
 });
