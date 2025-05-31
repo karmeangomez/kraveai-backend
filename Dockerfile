@@ -1,64 +1,33 @@
-# Dockerfile para kraveai-backend
-FROM node:18-bullseye-slim
+FROM node:18-slim
 
-# 1. Actualizar lista de paquetes
-RUN apt-get update
+# Instalar Chromium
+RUN apt-get update && apt-get install -y \
+  chromium \
+  fonts-liberation \
+  libatk-bridge2.0-0 \
+  libnss3 \
+  libxss1 \
+  libasound2 \
+  libxshmfence1 \
+  --no-install-recommends && \
+  apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# 2. Instalar Chromium con dependencias mínimas
-RUN apt-get install -y --no-install-recommends \
-    chromium \
-    ca-certificates \
-    fonts-liberation \
-    libasound2 \
-    libatk-bridge2.0-0 \
-    libatk1.0-0 \
-    libc6 \
-    libcairo2 \
-    libcups2 \
-    libdbus-1-3 \
-    libdrm2 \
-    libexpat1 \
-    libgbm1 \
-    libglib2.0-0 \
-    libnspr4 \
-    libnss3 \
-    libpango-1.0-0 \
-    libx11-6 \
-    libxcb1 \
-    libxcomposite1 \
-    libxdamage1 \
-    libxext6 \
-    libxfixes3 \
-    libxrandr2 \
-    libxshmfence1 \
-    wget \
-    xdg-utils
-
-# 3. Limpiar caché para reducir tamaño
-RUN apt-get clean && \
-    rm -rf /var/lib/apt/lists/*
-
-# 4. Verificar instalación de Chromium
-RUN echo "Chromium instalado en:" && \
-    which chromium && \
-    ls -la /usr/bin/chromium*
-
-# 5. Configurar variables para Puppeteer
-ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
-ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
-
-# 6. Crear directorio de trabajo
+# Crear carpeta de trabajo
 WORKDIR /app
 
-# 7. Copiar archivos del proyecto
-COPY package*.json ./
+# Copiar archivos
 COPY . .
 
-# 8. Instalar dependencias de Node.js
-RUN npm install --production
+# Instalar dependencias
+RUN npm install
 
-# 9. Exponer el puerto
-EXPOSE 10000
+# Exponer variables necesarias
+ENV CHROMIUM_PATH=/usr/bin/chromium
+ENV NODE_ENV=production
+ENV PORT=3000
 
-# 10. Comando para iniciar la aplicación
-CMD ["node", "server.js"]
+# Exponer puerto
+EXPOSE 3000
+
+# Iniciar app
+CMD ["npm", "start"]
