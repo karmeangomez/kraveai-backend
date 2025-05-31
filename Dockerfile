@@ -1,12 +1,12 @@
-FROM node:18-slim
-
-# Instalar Chromium manualmente
-RUN apt-get update && apt-get install -y chromium
+FROM node:18-bullseye
 
 WORKDIR /app
 
+RUN apt-get update && apt-get install -y chromium
+
 COPY package*.json ./
 RUN npm install
+
 COPY . .
 
 ENV CHROMIUM_PATH=/usr/bin/chromium
