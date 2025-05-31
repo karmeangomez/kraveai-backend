@@ -1,7 +1,7 @@
 {
   "name": "kraveai-backend",
   "version": "1.0.0",
-  "description": "Backend de KraveAI con login real a Instagram",
+  "description": "Backend de KraveAI con login real a Instagram + IA + Bitly",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
@@ -12,7 +12,9 @@
     "dotenv": "^16.0.3",
     "puppeteer-core": "^22.6.0",
     "body-parser": "^1.20.2",
-    "helmet": "^7.0.0"
+    "helmet": "^7.0.0",
+    "openai": "^4.27.0",
+    "node-fetch": "^3.3.2"
   },
   "engines": {
     "node": ">=18"
