@@ -10,56 +10,24 @@ const fetch = (...args) => import("node-fetch").then(({ default: fetch }) => fet
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// Inicializar OpenAI
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
+// Seguridad y middlewares
 app.use(helmet({ contentSecurityPolicy: false }));
 app.use(cors());
 app.use(bodyParser.json());
 
-// ✅ HEALTH
+// 🟢 Endpoint de salud
 app.get("/health", (req, res) => {
   res.status(200).json({
     status: "OK",
-    port: PORT,
-    environment: process.env.NODE_ENV || "production",
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
+    renderEnv: process.env.NODE_ENV || "local"
   });
 });
 
-// ✅ IA CHAT
-app.post("/api/chat", async (req, res) => {
-  try {
-    const { message } = req.body;
-    const completion = await openai.chat.completions.create({
-      model: "gpt-4o",
-      messages: [{ role: "user", content: message }]
-    });
-    res.json({ response: completion.choices[0].message.content });
-  } catch (err) {
-    res.status(500).json({ error: "Error IA GPT", details: err.message });
-  }
-});
-
-// ✅ VOZ IA
-app.get("/voz-prueba", async (req, res) => {
-  try {
-    const speech = await openai.audio.speech.create({
-      model: "tts-1",
-      voice: "onyx",
-      input: "Hola Karmean, esta es tu voz masculina inteligente integrada correctamente."
-    });
-    const buffer = Buffer.from(await speech.arrayBuffer());
-    res.set({
-      "Content-Type": "audio/mpeg",
-      "Content-Disposition": "attachment; filename=voz.mp3"
-    });
-    res.send(buffer);
-  } catch (err) {
-    res.status(500).send("Error generando audio");
-  }
-});
-
-// ✅ BITLY
+// 🔗 Bitly: acortar enlaces
 app.get("/bitly-prueba", async (req, res) => {
   try {
     const enlaceOriginal = "https://instagram.com";
@@ -75,14 +43,47 @@ app.get("/bitly-prueba", async (req, res) => {
     const data = await response.json();
     res.json({ enlaceOriginal, enlaceAcortado: data.link || null });
   } catch (err) {
-    res.status(500).json({ error: "Error Bitly", details: err.message });
+    res.status(500).json({ error: "Error generando enlace Bitly", details: err.message });
   }
 });
 
-// ✅ SCRAPER LOGIN INSTAGRAM
+// 🤖 IA GPT-4o
+app.post("/api/chat", async (req, res) => {
+  try {
+    const { message } = req.body;
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4o",
+      messages: [{ role: "user", content: message }]
+    });
+    res.json({ response: completion.choices[0].message.content });
+  } catch (err) {
+    res.status(500).json({ error: "Error IA GPT", details: err.message });
+  }
+});
+
+// 🔊 Voz IA
+app.get("/voz-prueba", async (req, res) => {
+  try {
+    const speech = await openai.audio.speech.create({
+      model: "tts-1",
+      voice: "onyx",
+      input: "Hola Karmean, esta es tu voz masculina inteligente lista para ayudarte."
+    });
+    const buffer = Buffer.from(await speech.arrayBuffer());
+    res.set({
+      "Content-Type": "audio/mpeg",
+      "Content-Disposition": "attachment; filename=voz.mp3"
+    });
+    res.send(buffer);
+  } catch (err) {
+    res.status(500).send("Error generando audio");
+  }
+});
+
+// 🔥 Scraper de Instagram con login real
 app.get("/api/scrape", async (req, res) => {
   const { username } = req.query;
-  if (!username) return res.status(400).json({ error: "Se requiere ?username=" });
+  if (!username) return res.status(400).json({ error: "?username= requerido" });
 
   try {
     const data = await scrapeInstagram(username);
@@ -92,7 +93,7 @@ app.get("/api/scrape", async (req, res) => {
   }
 });
 
-async function scrapeInstagram(targetUsername) {
+async function scrapeInstagram(username) {
   const browser = await puppeteer.launch({
     executablePath: process.env.CHROMIUM_PATH || "/usr/bin/chromium",
     args: [
@@ -109,7 +110,7 @@ async function scrapeInstagram(targetUsername) {
   try {
     const page = await browser.newPage();
 
-    // Iniciar sesión
+    // 1. Ir a login de Instagram
     await page.goto("https://www.instagram.com/accounts/login/", { waitUntil: "networkidle2" });
     await page.waitForSelector('input[name="username"]', { timeout: 10000 });
     await page.type('input[name="username"]', process.env.IG_USER, { delay: 50 });
@@ -117,17 +118,14 @@ async function scrapeInstagram(targetUsername) {
     await page.click('button[type="submit"]');
     await page.waitForNavigation({ waitUntil: "networkidle2", timeout: 20000 });
 
-    // Ir al perfil objetivo
-    await page.goto(`https://www.instagram.com/${targetUsername}/`, {
-      waitUntil: "networkidle2",
-      timeout: 30000
-    });
+    // 2. Ir al perfil
+    await page.goto(`https://www.instagram.com/${username}/`, { waitUntil: "networkidle2", timeout: 30000 });
 
-    // Extraer info
     const data = await page.evaluate(() => {
       const getMeta = (p) => document.querySelector(`meta[property="${p}"]`)?.content;
       const desc = getMeta("og:description") || "";
       const match = desc.match(/([\d,.]+)\sseguidores/);
+
       return {
         username: document.title.split("(")[0].trim().replace("• Instagram", ""),
         profileImage: getMeta("og:image"),
@@ -143,5 +141,5 @@ async function scrapeInstagram(targetUsername) {
 }
 
 app.listen(PORT, () => {
-  console.log(`Servidor activo en puerto ${PORT}`);
+  console.log(`✅ Servidor backend activo en puerto ${PORT}`);
 });
