@@ -1,39 +1,33 @@
-FROM node:18-slim
+# Usa imagen base liviana con Node 18
+FROM node:18-bullseye-slim
 
-# Instala Chromium
-RUN apt-get update && apt-get install -y \
-  chromium \
-  fonts-liberation \
-  libappindicator3-1 \
-  libasound2 \
-  libatk-bridge2.0-0 \
-  libatk1.0-0 \
-  libcups2 \
-  libdbus-1-3 \
-  libgdk-pixbuf2.0-0 \
-  libnspr4 \
-  libnss3 \
-  libx11-xcb1 \
-  libxcomposite1 \
-  libxdamage1 \
-  libxrandr2 \
-  xdg-utils \
-  --no-install-recommends && \
-  apt-get clean && rm -rf /var/lib/apt/lists/*
-
-# Configura el directorio de trabajo
+# Establece el directorio de trabajo
 WORKDIR /app
 
-# Copia los archivos del proyecto
+# Instala dependencias necesarias del sistema (Chromium)
+RUN apt-get update && \
+    apt-get install -y chromium \
+    fonts-liberation libappindicator3-1 libasound2 \
+    libatk-bridge2.0-0 libatk1.0-0 libcups2 libdbus-1-3 \
+    libgdk-pixbuf2.0-0 libnspr4 libnss3 libx11-xcb1 \
+    libxcomposite1 libxdamage1 libxrandr2 xdg-utils wget \
+    --no-install-recommends && \
+    apt-get clean && rm -rf /var/lib/apt/lists/*
+
+# Copia solo package.json y package-lock.json primero para instalar dependencias
 COPY package*.json ./
-RUN npm install
+
+# Instala dependencias Node.js
+RUN npm install --production
+
+# Copia el resto del código
 COPY . .
 
-# Define el path del navegador
+# Define variable de entorno para Puppeteer
 ENV CHROMIUM_PATH=/usr/bin/chromium
 
-# Expone el puerto
+# Expone el puerto del servidor
 EXPOSE 3000
 
-# Comando para iniciar el servidor
-CMD ["node", "server.js"]
+# Comando por defecto para iniciar el backend
+CMD ["npm", "start"]
