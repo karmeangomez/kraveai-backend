@@ -1,5 +1,6 @@
 FROM node:20-slim
 
+# Instala librerías necesarias para Chromium
 RUN apt-get update && apt-get install -y \
   wget \
   ca-certificates \
@@ -23,7 +24,16 @@ RUN apt-get update && apt-get install -y \
   rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
+
+# Copiar archivos
 COPY . .
+
+# Instalar dependencias del proyecto
 RUN npm install
+
+# Asegura que Puppeteer descargue Chromium correcto en entorno Docker
+RUN npx puppeteer install
+
 EXPOSE 3000
+
 CMD ["node", "server.js"]
