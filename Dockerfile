@@ -1,6 +1,7 @@
-FROM node:20-slim
+# Etapa 1: build con puppeteer y chromium
+FROM node:20-slim AS builder
 
-# Instala dependencias necesarias para Chromium
+# Instalar dependencias necesarias para Puppeteer + Chromium
 RUN apt-get update && apt-get install -y \
     chromium \
     fonts-liberation \
@@ -15,18 +16,34 @@ RUN apt-get update && apt-get install -y \
     libxdamage1 \
     libxrandr2 \
     xdg-utils \
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/*
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# Crea carpeta y copia el proyecto
 WORKDIR /app
+COPY package*.json ./
+RUN npm install
 COPY . .
 
-# Instala dependencias Node
-RUN npm install
+# Etapa 2: imagen final mínima con todo listo
+FROM node:20-slim
 
-# Expone el puerto (usa tu puerto .env o por defecto 3000)
+# Copiar binarios necesarios del builder
+RUN apt-get update && apt-get install -y \
+    chromium \
+    libnss3 \
+    libxss1 \
+    libatk-bridge2.0-0 \
+    libgtk-3-0 \
+    libx11-xcb1 \
+    libxcomposite1 \
+    libxdamage1 \
+    libxrandr2 \
+    fonts-liberation \
+    xdg-utils \
+    libgbm1 \
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+COPY --from=builder /app .
+
 EXPOSE 3000
-
-# Inicia el servidor
 CMD ["node", "server.js"]
