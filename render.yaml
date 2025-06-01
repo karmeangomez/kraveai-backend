@@ -1,9 +1,8 @@
 services:
   - type: web
     name: kraveai-backend
-    env: node
-    buildCommand: npm install
-    startCommand: node server-monitor.js
-    healthCheckPath: /health
-    healthCheckTimeoutSeconds: 30
-    plan: starter  # ¡IMPORTANTE! Usar plan pago
+    env: docker
+    plan: starter
+    region: oregon
+    branch: main
+    rootDir: .
