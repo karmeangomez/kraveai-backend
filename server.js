@@ -83,49 +83,36 @@ app.get('/bitly-prueba', async (req, res) => {
   }
 });
 
-// ✅ Scraping de Instagram (Stealth + Sesión Persistente)
+// ✅ Scraping optimizado de Instagram (API interna rápida)
 app.get('/api/scrape', async (req, res) => {
-  const igUsername = req.query.username;
-  if (!igUsername) return res.status(400).json({ error: 'Falta ?username=' });
+  const username = req.query.username;
+  if (!username) {
+    return res.status(400).json({ error: "Falta ?username=" });
+  }
 
-  let browser;
   try {
-    browser = await puppeteer.launch({
-      headless: true,
-      userDataDir: './session_data',
-      args: [
-        '--no-sandbox',
-        '--disable-setuid-sandbox',
-        '--disable-dev-shm-usage'
-      ]
-    });
-
-    const page = await browser.newPage();
-    await page.setUserAgent('Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/113.0.5672.126 Safari/537.36');
-    await page.setViewport({ width: 1200, height: 800 });
-
-    const profileUrl = `https://www.instagram.com/${igUsername}/`;
-    await page.goto(profileUrl, { waitUntil: 'networkidle2', timeout: 60000 });
-
-    const data = await page.evaluate(() => {
-      const username = document.querySelector('header h2')?.innerText || null;
-      const fullName = document.querySelector('header h1')?.innerText || null;
-      const verified = !!document.querySelector('header svg[aria-label="Verified"]');
-      let followers = null;
-      const followersSpan = document.querySelector('a[href$="/followers/"] span');
-      if (followersSpan) {
-        followers = followersSpan.getAttribute('title') || followersSpan.innerText;
+    const response = await axios.get(`https://www.instagram.com/api/v1/users/web_profile_info/?username=${username}`, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0',
+        'X-IG-App-ID': '936619743392459'
       }
-      const profilePic = document.querySelector('header img')?.src || null;
-      return { username, fullName, verified, followers, profilePic };
     });
 
-    res.json({ profile: data });
-  } catch (err) {
-    console.error("❌ Error en scraping:", err.message);
-    res.status(500).json({ error: err.message });
-  } finally {
-    if (browser) await browser.close();
+    const user = response.data.data.user;
+
+    res.json({
+      profile: {
+        username: user.username,
+        fullName: user.full_name,
+        followers: user.edge_followed_by.count,
+        profileImage: user.profile_pic_url_hd,
+        isVerified: user.is_verified
+      }
+    });
+
+  } catch (error) {
+    console.error("[Scrape] Error:", error.message);
+    res.status(500).json({ error: "No se pudo obtener el perfil. Puede estar privado, bloqueado o Instagram limitó el acceso temporalmente." });
   }
 });
 
