@@ -1,7 +1,6 @@
 {
   "name": "kraveai-backend",
   "version": "1.0.0",
-  "description": "Backend oficial de KraveAI",
   "main": "server.js",
   "type": "commonjs",
   "scripts": {
