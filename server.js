@@ -1,108 +1,44 @@
+/**
+ * IMPORTANTE:
+ * 1. Asegúrate de tener instaladas las dependencias: express, cors, axios, openai, puppeteer (o puppeteer-extra y puppeteer-extra-plugin-stealth).
+ * 2. En Docker/Render, instala la librería del sistema libgbm1 (y otras dependencias de Chromium si es necesario) para evitar errores al lanzar Puppeteer.
+ * 3. Configura las variables de entorno necesarias:
+ *    - OPENAI_API_KEY: clave de OpenAI para usar en las rutas /api/chat y /voz-prueba.
+ *    - BITLY_TOKEN: token de acceso de Bitly para la ruta /bitly-prueba.
+ */
 require('dotenv').config();
 const express = require('express');
-const axios = require('axios');
-const puppeteer = require('puppeteer');
 const cors = require('cors');
-const helmet = require('helmet');
+const axios = require('axios');
+
+// Usar puppeteer con plugin stealth para evitar detección antibot
+const puppeteer = require('puppeteer-extra');
+try {
+  const StealthPlugin = require('puppeteer-extra-plugin-stealth');
+  puppeteer.use(StealthPlugin());
+} catch (err) {
+  console.warn('puppeteer-extra-plugin-stealth no encontrado. Ejecutando sin stealth.');
+}
+// Si prefieres no usar puppeteer-extra, puedes usar directamente:
+// const puppeteer = require('puppeteer');
+
+const { Configuration, OpenAIApi } = require('openai');
+const configuration = new Configuration({
+  apiKey: process.env.OPENAI_API_KEY
+});
+const openai = new OpenAIApi(configuration);
 
 const app = express();
-app.use(express.json());
 app.use(cors());
-app.use(helmet());
+app.use(express.json());
 
-// Aumentar el tiempo de espera para cada solicitud
-app.use((req, res, next) => {
-  res.setTimeout(90000); // 90 segundos
-  next();
-});
-
-if (!process.env.IG_USER || !process.env.IG_PASS) {
-  console.error("⚠️ IG_USER/IG_PASS no están configurados.");
-}
-if (!process.env.OPENAI_API_KEY) {
-  console.error("⚠️ OPENAI_API_KEY no está configurada.");
-}
-if (!process.env.BITLY_TOKEN) {
-  console.error("⚠️ BITLY_TOKEN no está configurado.");
-}
-
-app.post('/api/chat', async (req, res) => {
-  try {
-    const { message } = req.body;
-    console.log("[Chat] Mensaje recibido:", message);
-    const response = await axios.post(
-      'https://api.openai.com/v1/chat/completions',
-      {
-        model: 'gpt-4o',
-        messages: [{ role: 'user', content: message }]
-      },
-      {
-        headers: {
-          Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
-          'Content-Type': 'application/json'
-        }
-      }
-    );
-    res.json({ message: response.data.choices[0].message.content });
-  } catch (err) {
-    console.error("[Chat] Error:", err.message);
-    res.status(500).json({ error: "Error al procesar la solicitud de IA." });
-  }
-});
-
-app.get('/voz-prueba', async (req, res) => {
-  try {
-    const text = req.query.text || "Hola Karmean, tu voz está activa.";
-    console.log("[Voz] Generando voz para:", text);
-    const response = await axios.post(
-      'https://api.openai.com/v1/audio/speech',
-      {
-        model: 'tts-1',
-        voice: 'onyx',
-        input: text
-      },
-      {
-        headers: {
-          Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
-          'Content-Type': 'application/json'
-        },
-        responseType: 'arraybuffer'
-      }
-    );
-    res.set('Content-Type', 'audio/mpeg');
-    res.send(response.data);
-  } catch (err) {
-    console.error("[Voz] Error:", err.message);
-    res.status(500).send("Error generando voz.");
-  }
-});
-
-app.get('/bitly-prueba', async (req, res) => {
-  try {
-    const longUrl = req.query.url || "https://instagram.com";
-    console.log("[Bitly] Acortando:", longUrl);
-    const response = await axios.post(
-      'https://api-ssl.bitly.com/v4/shorten',
-      { long_url: longUrl },
-      {
-        headers: {
-          Authorization: `Bearer ${process.env.BITLY_TOKEN}`,
-          'Content-Type': 'application/json'
-        }
-      }
-    );
-    res.json({ shortUrl: response.data.link });
-  } catch (err) {
-    console.error("[Bitly] Error:", err.message);
-    res.status(500).json({ error: "Error al acortar URL." });
-  }
-});
-
+// Ruta de scraping de perfil de Instagram
 app.get('/api/scrape', async (req, res) => {
-  const igUsername = req.query.username;
-  if (!igUsername) return res.status(400).json({ error: 'Falta ?username=' });
-
-  console.log(`🔍 Iniciando scraping para ${igUsername}`);
+  const username = req.query.username;
+  if (!username) {
+    return res.status(400).json({ error: "Debe proporcionar el nombre de usuario en 'username'." });
+  }
+  const profileUrl = `https://www.instagram.com/${username}/`;
   let browser;
   try {
     browser = await puppeteer.launch({
@@ -110,53 +46,179 @@ app.get('/api/scrape', async (req, res) => {
       args: [
         '--no-sandbox',
         '--disable-setuid-sandbox',
-        '--disable-dev-shm-usage'
+        '--disable-dev-shm-usage',
+        '--disable-gpu'
       ]
     });
-
     const page = await browser.newPage();
-    console.log("🌐 Cargando página de login de Instagram...");
-    await page.goto("https://www.instagram.com/accounts/login/", { waitUntil: "networkidle2" });
+    // Opcional: establecer viewport y user-agent para parecer un navegador normal
+    await page.setViewport({ width: 1366, height: 768 });
+    await page.setUserAgent('Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/110.0.4472.114 Safari/537.36');
 
-    console.log("✏️ Escribiendo usuario...");
-    await page.type('input[name="username"]', process.env.IG_USER, { delay: 100 });
-    console.log("✏️ Escribiendo contraseña...");
-    await page.type('input[name="password"]', process.env.IG_PASS, { delay: 100 });
-    await page.click('button[type="submit"]');
-    console.log("⏳ Esperando post-login...");
-    await page.waitForNavigation({ waitUntil: "networkidle2", timeout: 15000 }).catch(() => {
-      console.log("⏭️ Login rápido, sin redirección");
-    });
+    // Navegar al perfil
+    const response = await page.goto(profileUrl, { waitUntil: 'domcontentloaded', timeout: 30000 });
+    // Si Instagram devuelve 404 directamente
+    if (response && response.status() === 404) {
+      return res.status(404).json({ error: "Perfil no encontrado o no existe." });
+    }
+    // Comprobar si nos redirigieron a login o a challenge (bloqueo)
+    const currentUrl = page.url();
+    if (currentUrl.includes('/accounts/login') || currentUrl.includes('/challenge/')) {
+      return res.status(403).json({ error: "Instagram solicitó inicio de sesión o verificación (challenge). Scraping bloqueado." });
+    }
+    // Obtener contenido HTML para buscar indicadores de bloqueo
+    const html = await page.content();
+    if (html.includes("Please wait a few minutes") || html.includes("few minutes before trying again")) {
+      return res.status(429).json({ error: "Instagram está limitando las solicitudes (rate limit). Intenta de nuevo más tarde." });
+    }
+    if (html.includes("Sorry, this page isn't available.") || html.includes("esta página no está disponible")) {
+      return res.status(404).json({ error: "Perfil no disponible o no existe." });
+    }
 
-    console.log(`📄 Cargando perfil de ${igUsername}...`);
-    await page.goto(`https://www.instagram.com/${igUsername}/`, { waitUntil: "networkidle2", timeout: 20000 });
-
-    console.log("🔍 Esperando selector <header> del perfil...");
-    await page.waitForSelector('header', { timeout: 60000 });
-
+    // Extraer datos del perfil mediante DOM
     const data = await page.evaluate(() => {
-      const getMeta = (p) => document.querySelector(`meta[property="${p}"]`)?.content;
-      const desc = getMeta("og:description") || "";
-      const match = desc.match(/([\d,.]+)\sseguidores/);
-      return {
-        username: document.title.split("(")[0].trim().replace("• Instagram", ""),
-        profileImage: getMeta("og:image"),
-        followers: match ? match[1] : null,
-        isVerified: !!document.querySelector('svg[aria-label="Cuenta verificada"]')
-      };
+      const result = {};
+      // Nombre de usuario (handle)
+      result.username = document.querySelector('header section h1')?.textContent || "";
+      // Cuenta verificada (icono insignia verificada presente)
+      result.is_verified = !!document.querySelector('header section svg[aria-label="Verified"]') 
+                         || !!document.getElementsByClassName('coreSpriteVerifiedBadge')[0];
+      // Foto de perfil URL
+      result.profile_pic_url = document.querySelector('header img')?.src || "";
+      // Número de publicaciones, seguidores, seguidos
+      const stats = document.querySelectorAll('header section ul li');
+      if (stats.length >= 3) {
+        // Publicaciones
+        let postsText = stats[0].querySelector('span')?.textContent || "";
+        result.posts_count = postsText.replace(/,/g, '') || "";
+        // Seguidores
+        let followersSpan = stats[1].querySelector('span');
+        // Instagram a veces pone el número exacto de seguidores en el atributo title
+        let followers = followersSpan?.getAttribute('title') || followersSpan?.textContent || "";
+        result.followers_count = followers.replace(/,/g, '') || "";
+        // Seguidos
+        let followingText = stats[2].querySelector('span')?.textContent || "";
+        result.following_count = followingText.replace(/,/g, '') || "";
+      } else {
+        result.posts_count = result.followers_count = result.following_count = "";
+      }
+      // Nombre completo (puede estar en el segundo <h1> o en <h2>, según el diseño actual)
+      let nameElem = document.querySelector('header section h1 + h2') || document.querySelectorAll('header section h1')[1];
+      result.full_name = nameElem?.textContent || "";
+      // Bio (descripción del perfil)
+      let bioElem = document.querySelector('header section h1 + h2') 
+                    ? document.querySelector('header section h1 + h2')?.nextElementSibling 
+                    : document.querySelectorAll('header section div span')[0];
+      result.bio = bioElem?.textContent || "";
+      // Enlace en la bio
+      let linkElem = document.querySelector('header section div a[href^="http"]');
+      result.external_url = linkElem?.href || "";
+      result.external_url_display = linkElem?.textContent || "";
+      // Cuenta privada (mensaje de "Account is Private")
+      result.is_private = false;
+      const h2Elem = document.getElementsByTagName('h2')[0];
+      if (h2Elem) {
+        const h2Text = h2Elem.textContent;
+        if (h2Text.includes("Account is Private") || h2Text.includes("Cuenta privada") || h2Text.includes("cuenta es privada")) {
+          result.is_private = true;
+        }
+      }
+      // Posts recientes (URLs y miniaturas de las primeras publicaciones visibles)
+      result.recent_posts = [];
+      document.querySelectorAll('article a[href^="/p/"]').forEach(postLink => {
+        const url = postLink.href;
+        const thumb = postLink.querySelector('img')?.src || "";
+        result.recent_posts.push({ url, thumbnail: thumb });
+      });
+      return result;
     });
-
-    console.log("✅ Perfil obtenido:", data.username);
-    res.json({ profile: data });
-  } catch (err) {
-    console.error("❌ Error en scraping:", err.message);
-    res.status(500).json({ error: err.message });
+    return res.json(data);
+  } catch (error) {
+    console.error("Error en scraping:", error);
+    return res.status(500).json({ error: "Error al obtener datos de Instagram." });
   } finally {
-    if (browser) await browser.close();
+    if (browser) {
+      try { await browser.close(); } catch {}
+    }
   }
 });
 
+// Ruta de chat GPT-4 (IA de OpenAI)
+app.post('/api/chat', async (req, res) => {
+  const { message } = req.body;
+  if (!message) {
+    return res.status(400).json({ error: "Debe proporcionar el mensaje en el cuerpo de la solicitud (JSON: { \"message\": \"...\" })." });
+  }
+  try {
+    const completion = await openai.createChatCompletion({
+      model: 'gpt-4',
+      messages: [{ role: 'user', content: message }]
+    });
+    // Enviar solo la respuesta de la IA
+    const reply = completion.data.choices[0]?.message?.content || "";
+    return res.json({ success: true, response: reply });
+  } catch (error) {
+    console.error("Error en /api/chat:", error.response?.data || error.message);
+    return res.status(500).json({ error: "Error al obtener respuesta de la IA." });
+  }
+});
+
+// Ruta de Text-to-Speech (voz) con OpenAI
+app.get('/voz-prueba', async (req, res) => {
+  const text = req.query.text;
+  if (!text) {
+    return res.status(400).json({ error: "Debe proporcionar el texto a convertir a voz en 'text'." });
+  }
+  try {
+    if (!process.env.OPENAI_API_KEY) {
+      throw new Error("No hay API Key de OpenAI configurada.");
+    }
+    const voice = req.query.voice || 'es-ES-Standard';  // Voz por defecto (español estándar)
+    const ttsResponse = await axios.post(
+      'https://api.openai.com/v1/tts',
+      { text, voice },
+      {
+        headers: {
+          'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
+          'Content-Type': 'application/json'
+        },
+        responseType: 'arraybuffer'  // obtener respuesta binaria (audio)
+      }
+    );
+    const contentType = ttsResponse.headers['content-type'] || 'audio/mpeg';
+    res.set('Content-Type', contentType);
+    return res.send(ttsResponse.data);
+  } catch (error) {
+    console.error("Error en TTS:", error.response?.data || error.message);
+    return res.status(500).json({ error: "Error al generar voz." });
+  }
+});
+
+// Ruta de acortador de enlaces con Bitly
+app.get('/bitly-prueba', async (req, res) => {
+  const longUrl = req.query.url;
+  if (!longUrl) {
+    return res.status(400).json({ error: "Debe proporcionar la URL larga en 'url'." });
+  }
+  if (!process.env.BITLY_TOKEN) {
+    return res.status(500).json({ error: "Falta configurar BITLY_TOKEN en las variables de entorno." });
+  }
+  try {
+    const response = await axios.post(
+      'https://api-ssl.bitly.com/v4/shorten',
+      { long_url: longUrl },
+      { headers: { Authorization: `Bearer ${process.env.BITLY_TOKEN}`, 'Content-Type': 'application/json' } }
+    );
+    const shortLink = response.data.link;
+    return res.json({ shortUrl: shortLink });
+  } catch (error) {
+    console.error("Error en Bitly:", error.response?.data || error.message);
+    return res.status(500).json({ error: "No se pudo acortar la URL." });
+  }
+});
+
+// Iniciar servidor (puedes ajustar el puerto según necesidad, Render suele usar process.env.PORT)
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-  console.log(`🚀 Servidor activo en puerto ${PORT}`);
+  console.log(`Servidor escuchando en puerto ${PORT}`);
 });
