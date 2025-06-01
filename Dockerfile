@@ -1,6 +1,6 @@
 FROM node:20-slim
 
-# Instala librerías necesarias para Chromium
+# Instalar librerías necesarias para Chromium
 RUN apt-get update && apt-get install -y \
   wget \
   ca-certificates \
@@ -23,15 +23,18 @@ RUN apt-get update && apt-get install -y \
   --no-install-recommends && \
   rm -rf /var/lib/apt/lists/*
 
+# 🔧 Evita doble descarga de Chromium durante npm install
+ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
+
 WORKDIR /app
 
-# Copiar archivos
+# Copiar archivos del proyecto
 COPY . .
 
-# Instalar dependencias del proyecto
-RUN npm install
+# Instalar dependencias sin romperse por peer dependencies
+RUN npm install --legacy-peer-deps
 
-# Asegura que Puppeteer descargue Chromium correcto en entorno Docker
+# Instalar Chromium después
 RUN npx puppeteer install
 
 EXPOSE 3000
