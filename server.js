@@ -10,6 +10,12 @@ app.use(express.json());
 app.use(cors());
 app.use(helmet());
 
+// Aumentar el tiempo de espera para cada solicitud
+app.use((req, res, next) => {
+  res.setTimeout(90000); // 90 segundos
+  next();
+});
+
 if (!process.env.IG_USER || !process.env.IG_PASS) {
   console.error("⚠️ IG_USER/IG_PASS no están configurados.");
 }
