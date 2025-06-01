@@ -1,31 +1,32 @@
-# Use an official Node.js runtime as base (slim image for smaller size)
-FROM node:18-slim
+FROM node:20-slim
 
-# Prevent prompts during package installation
-ENV DEBIAN_FRONTEND=noninteractive
-
-# Install Chromium (for puppeteer-core) and any needed dependencies
-RUN apt-get update && apt-get install -y --no-install-recommends \
+# Instala dependencias necesarias para Chromium
+RUN apt-get update && apt-get install -y \
     chromium \
-    chromium-sandbox \
-  && rm -rf /var/lib/apt/lists/*
+    fonts-liberation \
+    libatk-bridge2.0-0 \
+    libatk1.0-0 \
+    libgbm1 \
+    libgtk-3-0 \
+    libnss3 \
+    libxss1 \
+    libx11-xcb1 \
+    libxcomposite1 \
+    libxdamage1 \
+    libxrandr2 \
+    xdg-utils \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
 
-# Set working directory
+# Crea carpeta y copia el proyecto
 WORKDIR /app
+COPY . .
 
-# Copy package files and install dependencies
-COPY package.json ./
-ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=1
-RUN npm install --omit=dev && npm cache clean --force
+# Instala dependencias Node
+RUN npm install
 
-# Copy the application code
-COPY server.js ./
-
-# Set environment variable for puppeteer to find Chromium
-ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
-
-# Expose the port (for local testing; Render automatically maps the port)
+# Expone el puerto (usa tu puerto .env o por defecto 3000)
 EXPOSE 3000
 
-# Start the application
-CMD ["npm", "start"]
+# Inicia el servidor
+CMD ["node", "server.js"]
