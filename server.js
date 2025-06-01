@@ -3,15 +3,22 @@ const express = require('express');
 const cors = require('cors');
 const axios = require('axios');
 
+// Puppeteer y plugins
 const puppeteer = require('puppeteer-extra');
 const StealthPlugin = require('puppeteer-extra-plugin-stealth');
 puppeteer.use(StealthPlugin());
+
+// Módulos inteligentes
+const uaDB = require('./lib/ua-database');
+const geoHeaders = require('./lib/geo-headers');
+const human = require('./lib/human-behavior');
+const fingerprint = require('./lib/fingerprint-generator');
 
 const app = express();
 app.use(express.json());
 app.use(cors());
 
-// ✅ Chat con OpenAI
+// ✅ IA - Chat GPT-4o
 app.post('/api/chat', async (req, res) => {
   try {
     const { message } = req.body;
@@ -35,7 +42,7 @@ app.post('/api/chat', async (req, res) => {
   }
 });
 
-// ✅ Voz con OpenAI
+// ✅ Voz IA
 app.get('/voz-prueba', async (req, res) => {
   try {
     const text = req.query.text || "Hola Karmean, tu voz está activa.";
@@ -83,36 +90,59 @@ app.get('/bitly-prueba', async (req, res) => {
   }
 });
 
-// ✅ Scraping optimizado de Instagram (API interna rápida)
+// ✅ Scraping de Instagram con evasión avanzada
 app.get('/api/scrape', async (req, res) => {
-  const username = req.query.username;
-  if (!username) {
-    return res.status(400).json({ error: "Falta ?username=" });
-  }
+  const igUsername = req.query.username;
+  if (!igUsername) return res.status(400).json({ error: 'Falta ?username=' });
 
+  let browser;
   try {
-    const response = await axios.get(`https://www.instagram.com/api/v1/users/web_profile_info/?username=${username}`, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0',
-        'X-IG-App-ID': '936619743392459'
-      }
+    browser = await puppeteer.launch({
+      headless: true,
+      userDataDir: './session_data',
+      args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage']
     });
 
-    const user = response.data.data.user;
+    const page = await browser.newPage();
 
-    res.json({
-      profile: {
-        username: user.username,
-        fullName: user.full_name,
-        followers: user.edge_followed_by.count,
-        profileImage: user.profile_pic_url_hd,
-        isVerified: user.is_verified
+    // 🧠 Aplicar rotación inteligente
+    const userAgent = uaDB.getRandomUA();
+    await page.setUserAgent(userAgent);
+
+    const geo = geoHeaders.generateGeoHeaders();
+    await page.setExtraHTTPHeaders(geo);
+
+    await fingerprint.applyFingerprint(page);
+    await human.randomDelay(500, 1500);
+
+    // 🌐 Ir al perfil
+    const url = `https://www.instagram.com/${igUsername}/`;
+    await page.goto(url, { waitUntil: "domcontentloaded", timeout: 40000 });
+
+    // 🧍 Scroll humano
+    await human.humanScroll(page);
+    await human.randomDelay(800, 2000);
+
+    // 🔎 Extraer datos
+    const data = await page.evaluate(() => {
+      const username = document.querySelector('header h2')?.innerText || null;
+      const fullName = document.querySelector('header h1')?.innerText || null;
+      const verified = !!document.querySelector('header svg[aria-label="Verified"]');
+      let followers = null;
+      const span = document.querySelector('a[href$="/followers/"] span');
+      if (span) {
+        followers = span.getAttribute('title') || span.innerText;
       }
+      const profilePic = document.querySelector('header img')?.src || null;
+      return { username, fullName, verified, followers, profilePic };
     });
 
-  } catch (error) {
-    console.error("[Scrape] Error:", error.message);
+    res.json({ profile: data });
+  } catch (err) {
+    console.error("❌ Scraping fallido:", err.message);
     res.status(500).json({ error: "No se pudo obtener el perfil. Puede estar privado, bloqueado o Instagram limitó el acceso temporalmente." });
+  } finally {
+    if (browser) await browser.close();
   }
 });
 
