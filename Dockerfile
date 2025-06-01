@@ -1,6 +1,7 @@
+# Usa imagen base ligera compatible con Puppeteer
 FROM node:20-slim
 
-# Instalar librerías necesarias para Chromium
+# Instala dependencias del sistema necesarias para Chromium
 RUN apt-get update && apt-get install -y \
   wget \
   ca-certificates \
@@ -23,20 +24,20 @@ RUN apt-get update && apt-get install -y \
   --no-install-recommends && \
   rm -rf /var/lib/apt/lists/*
 
-# 🔧 Evita doble descarga de Chromium durante npm install
-ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
-
+# Directorio de trabajo
 WORKDIR /app
 
-# Copiar archivos del proyecto
+# Copia los archivos del proyecto
 COPY . .
 
-# Instalar dependencias sin romperse por peer dependencies
-RUN npm install --legacy-peer-deps
+# Instala dependencias de Node.js
+RUN npm install
 
-# Instalar Chromium después
+# Asegura que Puppeteer descargue Chromium en entorno Docker
 RUN npx puppeteer install
 
+# Expone el puerto
 EXPOSE 3000
 
+# Comando para iniciar el servidor
 CMD ["node", "server.js"]
