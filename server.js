@@ -21,20 +21,26 @@ let isLoggedIn = false;
 async function instagramLogin(page) {
   try {
     console.log("🔐 Iniciando sesión...");
+
     await page.setUserAgent(getRandomUA('mobile'));
     await page.setExtraHTTPHeaders(obtenerHeadersGeo());
     await aplicarFingerprint(page);
-    await page.goto('https://instagram.com/accounts/login/', { waitUntil: 'networkidle2', timeout: 30000 });
 
-    const usernameSelector = 'input[name="username"]';
-    await page.waitForSelector(usernameSelector, { timeout: 15000 });
+    await page.goto('https://www.instagram.com/accounts/login/', {
+      waitUntil: 'domcontentloaded',
+      timeout: 30000
+    });
+
+    await page.waitForFunction(() => {
+      return !!document.querySelector('input[name="username"]');
+    }, { timeout: 20000 });
 
     await randomDelay();
-    await page.type(usernameSelector, process.env.INSTAGRAM_USER, { delay: 80 });
+    await page.type('input[name="username"]', process.env.INSTAGRAM_USER, { delay: 80 });
     await randomDelay();
     await page.type('input[name="password"]', process.env.INSTAGRAM_PASS, { delay: 70 });
-
     await randomDelay();
+
     await Promise.all([
       page.click('button[type="submit"]'),
       page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 20000 })
@@ -109,62 +115,6 @@ async function initBrowser() {
     process.exit(1);
   }
 }
-
-app.post('/api/chat', async (req, res) => {
-  try {
-    const { message } = req.body;
-    const resp = await axios.post('https://api.openai.com/v1/chat/completions', {
-      model: 'gpt-4o',
-      messages: [{ role: 'user', content: message }]
-    }, {
-      headers: {
-        Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
-        'Content-Type': 'application/json'
-      }
-    });
-    res.json({ message: resp.data.choices[0].message.content });
-  } catch (err) {
-    res.status(500).json({ error: "Error IA", details: err.message });
-  }
-});
-
-app.get('/bitly-prueba', async (req, res) => {
-  try {
-    const longUrl = req.query.url || "https://instagram.com";
-    const response = await axios.post("https://api-ssl.bitly.com/v4/shorten", {
-      long_url: longUrl
-    }, {
-      headers: {
-        Authorization: `Bearer ${process.env.BITLY_TOKEN}`,
-        'Content-Type': 'application/json'
-      }
-    });
-    res.json({ shortUrl: response.data.link });
-  } catch (err) {
-    res.status(500).json({ error: "Error Bitly", details: err.message });
-  }
-});
-
-app.get('/voz-prueba', async (req, res) => {
-  try {
-    const text = req.query.text || "Hola, este es un ejemplo de voz generada.";
-    const response = await axios.post("https://api.openai.com/v1/audio/speech", {
-      model: 'tts-1',
-      voice: 'onyx',
-      input: text
-    }, {
-      headers: {
-        Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
-        'Content-Type': 'application/json'
-      },
-      responseType: 'arraybuffer'
-    });
-    res.set('Content-Type', 'audio/mpeg');
-    res.send(response.data);
-  } catch (err) {
-    res.status(500).send("Error generando voz");
-  }
-});
 
 app.get('/api/scrape', async (req, res) => {
   const igUsername = req.query.username;
