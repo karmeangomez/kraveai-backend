@@ -1,13 +1,13 @@
 {
   "name": "kraveai-backend",
-  "version": "2.1.0",
-  "description": "Backend híbrido KraveAI - IA, Voz, Scraping, Bitly",
+  "version": "2.1.1",
+  "description": "KraveAI Backend híbrido - Scraping, IA, Voz, Bitly, Firestore",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
   },
   "dependencies": {
-    "@sparticuz/chromium-min": "^125.0.0",
+    "@sparticuz/chromium-min": "^121.0.0",
     "axios": "^1.7.2",
     "cors": "^2.8.5",
     "dotenv": "^16.4.0",
