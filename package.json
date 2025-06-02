@@ -5,7 +5,7 @@
     "start": "node server.js"
   },
   "dependencies": {
-    "@sparticuz/chromium-min": "^125.0.3",
+    "@sparticuz/chromium-min": "^119.0.1",
     "axios": "^1.7.2",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
