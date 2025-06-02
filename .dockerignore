@@ -1,6 +1,15 @@
+# Ignorar dependencias instaladas localmente
 node_modules
 npm-debug.log
-.env
+yarn-error.log
+package-lock.json
+
+# Archivos de sistema
 .DS_Store
-*.local
-*.log
+.env
+.env.local
+.vscode
+
+# Opcional: carpetas de sesión o caché
+session_data/
+.cache/
