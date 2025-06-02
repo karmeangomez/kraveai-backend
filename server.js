@@ -1,149 +1,185 @@
+require('dotenv').config();
 const express = require('express');
-const puppeteer = require('puppeteer-core');
-const chromium = require('@sparticuz/chromium');
-const { Configuration, OpenAIApi } = require('openai');
+const cors = require('cors');
 const axios = require('axios');
-const multer = require('multer');
-const fs = require('fs');
+const puppeteer = require('puppeteer-extra');
+const StealthPlugin = require('puppeteer-extra-plugin-stealth');
+const chromium = require('@sparticuz/chromium');
 
+puppeteer.use(StealthPlugin());
 const app = express();
 app.use(express.json());
+app.use(cors());
 
-// Configurar OpenAI
-const openaiConfig = new Configuration({ apiKey: process.env.OPENAI_API_KEY });
-const openai = new OpenAIApi(openaiConfig);
+let browserInstance;
+let isLoggedIn = false;
 
-// Configurar Multer para manejar archivos en /voz-prueba
-const upload = multer();
+const humanBehavior = {
+  randomDelay: (min = 800, max = 2500) => new Promise(resolve => setTimeout(resolve, min + Math.random() * (max - min))),
+  humanScroll: async (page) => {
+    await page.evaluate(async () => {
+      await new Promise(resolve => {
+        let totalHeight = 0;
+        const distance = 200;
+        const timer = setInterval(() => {
+          const scrollHeight = document.body.scrollHeight;
+          window.scrollBy(0, distance);
+          totalHeight += distance;
+          if (totalHeight >= scrollHeight || totalHeight > 3000) {
+            clearInterval(timer);
+            resolve();
+          }
+        }, 200);
+      });
+    });
+  }
+};
 
-/**
- * GET /api/scrape
- * Realiza login en Instagram y obtiene datos (ej. URLs de imágenes) del perfil objetivo.
- */
+async function instagramLogin(page) {
+  try {
+    await page.goto('https://instagram.com/accounts/login/', { waitUntil: 'networkidle2', timeout: 30000 });
+    const usernameSelector = 'input[name="username"]';
+    await page.waitForSelector(usernameSelector, { timeout: 15000 });
+    await humanBehavior.randomDelay();
+    await page.type(usernameSelector, process.env.INSTAGRAM_USER, { delay: 80 });
+    await humanBehavior.randomDelay();
+    await page.type('input[name="password"]', process.env.INSTAGRAM_PASS, { delay: 80 });
+    await humanBehavior.randomDelay();
+    await Promise.all([
+      page.click('button[type="submit"]'),
+      page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 20000 })
+    ]);
+    return true;
+  } catch (error) {
+    console.error("Login fallido:", error.message);
+    return false;
+  }
+}
+
+async function safeNavigate(page, url) {
+  try {
+    await page.setUserAgent("Mozilla/5.0 (iPhone; CPU iPhone OS 16_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.4 Mobile/15E148 Safari/604.1");
+    await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 25000 });
+    await page.waitForSelector('img[src*="instagram.com"]', { timeout: 25000 });
+    await humanBehavior.humanScroll(page);
+    return true;
+  } catch (error) {
+    throw new Error("Instagram bloqueado o perfil inaccesible");
+  }
+}
+
+async function extractProfileData(page) {
+  return page.evaluate(() => {
+    try {
+      const avatar = document.querySelector('img[src*="instagram"]');
+      const usernameElem = document.querySelector('header h2');
+      const verifiedElem = document.querySelector('svg[aria-label="Verified"]');
+      const metaDesc = document.querySelector('meta[property="og:description"]')?.content;
+      const followers = metaDesc?.match(/([\d,.KM]+)\s(seguidores|followers)/i)?.[1] || 'N/A';
+
+      return {
+        username: usernameElem?.textContent || 'N/A',
+        fullName: document.querySelector('header h1')?.textContent || 'N/A',
+        verified: !!verifiedElem,
+        followers,
+        profilePic: avatar?.src || 'N/A'
+      };
+    } catch (error) {
+      return { error: "Error en extracción: " + error.message };
+    }
+  });
+}
+
+async function initBrowser() {
+  browserInstance = await puppeteer.launch({
+    executablePath: await chromium.executablePath(),
+    args: chromium.args,
+    defaultViewport: chromium.defaultViewport,
+    headless: chromium.headless,
+    ignoreHTTPSErrors: true,
+  });
+  const page = await browserInstance.newPage();
+  isLoggedIn = await instagramLogin(page);
+  await page.close();
+}
+
 app.get('/api/scrape', async (req, res) => {
+  const username = req.query.username;
+  if (!username) return res.status(400).json({ error: 'Falta el nombre de usuario' });
   try {
-    // Lanzar navegador Chromium headless usando puppeteer-core + Sparticuz
-    const browser = await puppeteer.launch({
-      args: puppeteer.defaultArgs({ args: chromium.args, headless: "shell" }).concat([
-        "--no-sandbox",
-        "--disable-setuid-sandbox"
-      ]),
-      defaultViewport: { width: 1280, height: 800 },
-      executablePath: await chromium.executablePath(),
-      headless: "shell"
-    });
-    const page = await browser.newPage();
-
-    // Navegar a Instagram e iniciar sesión
-    await page.goto('https://www.instagram.com/', { waitUntil: 'networkidle2' });
-    await page.type('input[name="username"]', process.env.INSTAGRAM_USER, { delay: 100 });
-    await page.type('input[name="password"]', process.env.INSTAGRAM_PASS, { delay: 100 });
-    await page.click('button[type="submit"]');
-    await page.waitForNavigation({ waitUntil: 'networkidle2' });
-
-    // Omitir diálogos "Save Your Login Info?" y "Turn on Notifications" (clic en "Not Now")
-    for (let i = 0; i < 2; i++) {
-      const [notNowBtn] = await page.$x("//button[contains(., 'Not Now') or contains(., 'Ahora no')]");
-      if (notNowBtn) {
-        await notNowBtn.click();
-        await page.waitForTimeout(500);
-      }
-    }
-
-    // Ir al perfil objetivo (por defecto, el propio usuario de INSTAGRAM_USER)
-    const targetUser = req.query.user || process.env.INSTAGRAM_USER;
-    await page.goto(`https://www.instagram.com/${targetUser}/`, { waitUntil: 'networkidle2' });
-    await page.waitForSelector('article', { timeout: 10000 });
-
-    // Extraer URLs de imágenes de las publicaciones (ignorando foto de perfil u otras)
-    const data = await page.evaluate(() => {
-      const imgElements = Array.from(document.querySelectorAll('img'));
-      const postImages = imgElements
-        .filter(img => img.src && img.src.includes('cdninstagram') && !img.alt.toLowerCase().includes('profile picture'))
-        .map(img => img.src);
-      return { images: postImages };
-    });
-
-    await browser.close();
-    res.json({ success: true, scraped: data });
-  } catch (error) {
-    console.error('Error en /api/scrape:', error);
-    res.status(500).json({ success: false, error: error.message });
+    const page = await browserInstance.newPage();
+    await safeNavigate(page, `https://www.instagram.com/${username}/`);
+    const data = await extractProfileData(page);
+    await page.close();
+    if (data.error) throw new Error(data.error);
+    res.json({ profile: data });
+  } catch (err) {
+    res.status(500).json({ error: 'Scraping fallido', details: err.message });
   }
 });
 
-/**
- * POST /api/chat
- * Envía un mensaje a la API de OpenAI y devuelve la respuesta del chatbot.
- * Se espera un JSON en el cuerpo con { "message": "texto del usuario" }.
- */
 app.post('/api/chat', async (req, res) => {
+  const { message } = req.body;
   try {
-    const userMessage = req.body.message || req.query.message;
-    if (!userMessage) {
-      return res.status(400).json({ error: 'No message provided' });
-    }
-    // Llamar a ChatGPT (GPT-3.5 Turbo) con el mensaje del usuario
-    const completion = await openai.createChatCompletion({
-      model: 'gpt-3.5-turbo',
-      messages: [{ role: 'user', content: userMessage }]
+    const response = await axios.post('https://api.openai.com/v1/chat/completions', {
+      model: 'gpt-4o',
+      messages: [{ role: 'user', content: message }]
+    }, {
+      headers: {
+        Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
+        'Content-Type': 'application/json'
+      }
     });
-    const reply = completion.data.choices[0].message.content;
-    res.json({ success: true, reply });
-  } catch (error) {
-    console.error('Error en /api/chat:', error);
-    res.status(500).json({ success: false, error: error.message });
+    res.json({ message: response.data.choices[0].message.content });
+  } catch (err) {
+    res.status(500).json({ error: 'Error IA', details: err.message });
   }
 });
 
-/**
- * GET /bitly-prueba
- * Acorta una URL utilizando la API de Bitly. Requiere BITLY_TOKEN en env.
- * Parámetro opcional: ?url=https://...
- */
+app.get('/voz-prueba', async (req, res) => {
+  try {
+    const text = req.query.text || "Hola, tu voz está activa.";
+    const response = await axios.post('https://api.openai.com/v1/audio/speech', {
+      model: 'tts-1',
+      voice: 'onyx',
+      input: text
+    }, {
+      headers: {
+        Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
+        'Content-Type': 'application/json'
+      },
+      responseType: 'arraybuffer'
+    });
+    res.set('Content-Type', 'audio/mpeg');
+    res.send(response.data);
+  } catch (err) {
+    res.status(500).send('Error voz');
+  }
+});
+
 app.get('/bitly-prueba', async (req, res) => {
   try {
-    const longUrl = req.query.url || 'https://www.google.com';
-    const response = await axios.post(
-      'https://api-ssl.bitly.com/v4/shorten',
-      { long_url: longUrl },
-      { headers: { Authorization: `Bearer ${process.env.BITLY_TOKEN}` } }
-    );
-    const shortUrl = response.data.link;
-    res.json({ success: true, longUrl, shortUrl });
-  } catch (error) {
-    console.error('Error en /bitly-prueba:', error.response?.data || error);
-    res.status(500).json({ success: false, error: error.message });
-  }
-});
-
-/**
- * POST /voz-prueba
- * Procesa un archivo de audio enviado y devuelve la transcripción usando OpenAI Whisper.
- * Enviar el audio como form-data bajo el campo "audio".
- */
-app.post('/voz-prueba', upload.single('audio'), async (req, res) => {
-  try {
-    if (!req.file) {
-      return res.status(400).json({ error: 'No audio file uploaded' });
+    const longUrl = req.query.url;
+    if (!longUrl || !longUrl.startsWith('http')) {
+      return res.status(400).json({ error: "URL inválida" });
     }
-    // Guardar el buffer de audio en un archivo temporal
-    const audioPath = '/tmp/input_audio';
-    fs.writeFileSync(audioPath, req.file.buffer);
-    // Llamar a la API de transcripción (Whisper)
-    const transcription = await openai.createTranscription(
-      fs.createReadStream(audioPath),
-      'whisper-1'
-    );
-    res.json({ success: true, transcription: transcription.data.text });
-  } catch (error) {
-    console.error('Error en /voz-prueba:', error);
-    res.status(500).json({ success: false, error: error.message });
+    const response = await axios.post("https://api-ssl.bitly.com/v4/shorten", {
+      long_url: longUrl
+    }, {
+      headers: {
+        Authorization: `Bearer ${process.env.BITLY_TOKEN}`,
+        'Content-Type': 'application/json'
+      }
+    });
+    res.json({ shortUrl: response.data.link });
+  } catch (err) {
+    res.status(500).json({ error: 'Bitly falló', details: err.message });
   }
 });
 
-// Iniciar el servidor
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log(`Server listening on port ${PORT}`);
+initBrowser().then(() => {
+  app.listen(PORT, () => {
+    console.log(`Servidor activo en puerto ${PORT}`);
+  });
 });
