@@ -7,8 +7,7 @@ const LOGIN_TIMEOUT = 60000;
 const NAVIGATION_TIMEOUT = 45000;
 
 const humanBehavior = {
-  randomDelay: (min = 800, max = 2500) => new Promise(resolve =>
-    setTimeout(resolve, min + Math.random() * (max - min))),
+  randomDelay: (min = 800, max = 2500) => new Promise(resolve => setTimeout(resolve, min + Math.random() * (max - min))),
   randomType: async (page, selector, text) => {
     for (let char of text) {
       await page.type(selector, char, { delay: 50 + Math.random() * 80 });
@@ -22,7 +21,6 @@ async function instagramLogin(page, username, password, cookiesFile = 'default')
 
   try {
     console.log(`🔍 Revisando sesión para: ${username}`);
-
     await fs.mkdir(cookiesDir, { recursive: true });
 
     if (await fs.access(cookiesPath).then(() => true).catch(() => false)) {
@@ -32,7 +30,6 @@ async function instagramLogin(page, username, password, cookiesFile = 'default')
     }
 
     await page.goto('https://www.instagram.com/', { waitUntil: 'networkidle2', timeout: NAVIGATION_TIMEOUT });
-
     const loginInput = await page.$('input[name="username"]');
     if (!loginInput) {
       console.log("✅ Sesión activa detectada.");
@@ -40,12 +37,12 @@ async function instagramLogin(page, username, password, cookiesFile = 'default')
     }
 
     console.log("🔐 Iniciando login...");
-    await page.goto('https://www.instagram.com/accounts/login/', {
-      waitUntil: 'domcontentloaded',
-      timeout: NAVIGATION_TIMEOUT
-    });
+    await page.goto('https://www.instagram.com/accounts/login/', { waitUntil: 'domcontentloaded', timeout: NAVIGATION_TIMEOUT });
 
-    await page.waitForSelector('input[name="username"]', { visible: true, timeout: 15000 });
+    await Promise.race([
+      page.waitForSelector('input[name="username"]', { visible: true }),
+      page.waitForFunction(() => window.location.href.includes('challenge'), { timeout: 20000 })
+    ]);
 
     const ua = new UserAgent({ deviceCategory: 'mobile' }).toString();
     await page.setUserAgent(ua);
