@@ -1,3 +1,17 @@
-buildCommand: |
-  npm install -g npm@latest
-  npm install
+services:
+  - type: web
+    name: kraveai-backend
+    env: docker
+    plan: starter
+    autoDeploy: true
+    region: oregon
+    dockerfilePath: Dockerfile
+    envVars:
+      - key: IG_USER
+        value: tu_usuario_instagram
+      - key: IG_PASS
+        value: tu_contraseña_instagram
+      - key: OPENAI_API_KEY
+        value: sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+      - key: BITLY_TOKEN
+        value: tu_token_bitly
