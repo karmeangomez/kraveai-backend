@@ -1,7 +1,7 @@
 # 🔧 Imagen base optimizada
 FROM node:20-slim
 
-# 🧩 Instalar librerías requeridas para Chromium
+# 📦 Instalar librerías requeridas para Chromium
 RUN apt-get update && apt-get install -y \
   wget \
   ca-certificates \
@@ -24,18 +24,18 @@ RUN apt-get update && apt-get install -y \
   --no-install-recommends && \
   rm -rf /var/lib/apt/lists/*
 
-# 📂 Crear directorio de trabajo
+# 📂 Crear carpeta de trabajo
 WORKDIR /app
 
-# 📦 Copiar archivos e instalar dependencias
+# 📦 Copiar archivos y usar modo tolerante para dependencias
 COPY package*.json ./
-RUN npm install
+RUN npm install --legacy-peer-deps
 
-# 🚀 Copiar todo el resto del proyecto
+# 🚀 Copiar todo lo demás
 COPY . .
 
-# 🌐 Exponer el puerto usado por Express
+# 🌐 Exponer el puerto
 EXPOSE 3000
 
-# ▶️ Comando para ejecutar el servidor
+# ▶️ Ejecutar backend
 CMD ["node", "server.js"]
