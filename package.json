@@ -15,6 +15,7 @@
     "firebase-admin": "^11.10.1",
     "puppeteer-core": "^22.8.1",
     "puppeteer-extra": "^3.3.5",
-    "puppeteer-extra-plugin-stealth": "^2.11.2"
+    "puppeteer-extra-plugin-stealth": "^2.11.2",
+    "user-agents": "^1.0.126"
   }
 }
