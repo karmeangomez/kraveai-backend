@@ -2,21 +2,23 @@ services:
   - type: web
     name: kraveai-backend
     env: docker
-    plan: starter  # o free si estás en pruebas, pero el Starter es más estable
+    plan: starter
     region: oregon
     dockerfilePath: ./Dockerfile
+    autoDeploy: true  # ⬅️ Recomendado si quieres que se actualice con cada push
+
     envVars:
       - key: NODE_ENV
         value: production
       - key: PORT
         value: 3000
       - key: OPENAI_API_KEY
-        value: tu_openai_api_key_aqui
+        sync: false  # ⬅️ Protege tu clave en GitHub, Render la pedirá desde el dashboard
       - key: BITLY_TOKEN
-        value: tu_token_de_bitly_aqui
+        sync: false
       - key: IG_USER
-        value: tu_usuario_instagram
+        sync: false
       - key: IG_PASS
-        value: tu_contraseña_instagram
+        sync: false
       - key: PUPPETEER_SKIP_CHROMIUM_DOWNLOAD
         value: true
