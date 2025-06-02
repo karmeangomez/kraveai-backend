@@ -1,11 +1,6 @@
 {
-  "name": "kraveai-backend",
-  "version": "3.0",
-  "scripts": {
-    "start": "node server.js"
-  },
   "dependencies": {
-    "@sparticuz/chromium-min": "^125.0.0",
+    "@sparticuz/chromium-min": "^125.0.1",  // ¡Versión actualizada!
     "axios": "^1.7.2",
     "cors": "^2.8.5",
     "dotenv": "^16.4.0",
