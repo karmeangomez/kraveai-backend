@@ -22,7 +22,6 @@ async function instagramLogin(page, username, password, cookiesFile = 'default')
 
   try {
     console.log(`🔍 Revisando sesión para: ${username}`);
-
     await fs.mkdir(cookiesDir, { recursive: true });
 
     if (await fs.access(cookiesPath).then(() => true).catch(() => false)) {
@@ -76,9 +75,9 @@ async function instagramLogin(page, username, password, cookiesFile = 'default')
       return false;
     }
 
-    // ✅ Manejo seguro del pop-up "Ahora no"
+    // ✅ Este bloque evita el error de "$x is not a function"
     try {
-      if (page && page.$x) {
+      if (page && typeof page.$x === 'function') {
         const dialogs = await page.$x('//button[contains(., "Ahora no") or contains(., "Not Now")]');
         if (dialogs.length > 0) {
           await dialogs[0].click();
@@ -86,7 +85,7 @@ async function instagramLogin(page, username, password, cookiesFile = 'default')
           await humanBehavior.randomDelay(500, 1000);
         }
       } else {
-        console.log("⛔ No se puede ejecutar $x: página cerrada o no disponible");
+        console.log("⛔ page.$x no está disponible");
       }
     } catch (e) {
       console.log("ℹ️ No se encontró modal de 'Ahora no'");
