@@ -6,10 +6,8 @@ const app = express();
 app.use(express.json());
 app.use(cors());
 
-// ========== LIBRERÍAS AVANZADAS ==========
 const puppeteer = require('puppeteer-extra');
 const StealthPlugin = require('puppeteer-extra-plugin-stealth');
-const chromium = require('@sparticuz/chromium-min');
 puppeteer.use(StealthPlugin());
 
 const { aplicarFingerprint } = require('./lib/fingerprint-generator');
@@ -20,15 +18,12 @@ const { getRandomUA } = require('./lib/ua-loader');
 let browserInstance;
 let isLoggedIn = false;
 
-// ========== LOGIN REAL ==========
 async function instagramLogin(page) {
   try {
     console.log("🔐 Iniciando sesión...");
-
     await page.setUserAgent(getRandomUA('mobile'));
     await page.setExtraHTTPHeaders(obtenerHeadersGeo());
     await aplicarFingerprint(page);
-
     await page.goto('https://instagram.com/accounts/login/', { waitUntil: 'networkidle2', timeout: 30000 });
 
     const usernameSelector = 'input[name="username"]';
@@ -36,7 +31,6 @@ async function instagramLogin(page) {
 
     await randomDelay();
     await page.type(usernameSelector, process.env.INSTAGRAM_USER, { delay: 80 });
-
     await randomDelay();
     await page.type('input[name="password"]', process.env.INSTAGRAM_PASS, { delay: 70 });
 
@@ -46,7 +40,7 @@ async function instagramLogin(page) {
       page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 20000 })
     ]);
 
-    console.log("✅ Sesión iniciada");
+    console.log("✅ Sesión iniciada correctamente");
     return true;
   } catch (err) {
     console.error("❌ Error en login:", err.message);
@@ -54,17 +48,13 @@ async function instagramLogin(page) {
   }
 }
 
-// ========== NAVEGACIÓN SEGURA ==========
 async function safeNavigate(page, url) {
   try {
     await page.setUserAgent(getRandomUA('mobile'));
     await page.setExtraHTTPHeaders(obtenerHeadersGeo());
     await aplicarFingerprint(page);
-
     await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 25000 });
-
     await page.waitForSelector('img[data-testid="user-avatar"], header img', { timeout: 15000 });
-
     await humanScroll(page);
     await randomDelay();
     return true;
@@ -73,7 +63,6 @@ async function safeNavigate(page, url) {
   }
 }
 
-// ========== EXTRACCIÓN DE DATOS ==========
 async function extractProfileData(page) {
   return page.evaluate(() => {
     try {
@@ -99,15 +88,14 @@ async function extractProfileData(page) {
   });
 }
 
-// ========== INICIAR BROWSER CON LOGIN ==========
 async function initBrowser() {
   try {
     console.log("🚀 Iniciando Chromium...");
     browserInstance = await puppeteer.launch({
-      executablePath: await chromium.executablePath(),
-      args: [...chromium.args, '--disable-dev-shm-usage'],
-      headless: chromium.headless,
-      ignoreHTTPSErrors: true,
+      executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || '/usr/bin/google-chrome',
+      args: ['--no-sandbox', '--disable-setuid-sandbox'],
+      headless: true,
+      ignoreHTTPSErrors: true
     });
 
     const page = await browserInstance.newPage();
@@ -122,7 +110,6 @@ async function initBrowser() {
   }
 }
 
-// ========== MÓDULOS API ==========
 app.post('/api/chat', async (req, res) => {
   try {
     const { message } = req.body;
@@ -179,24 +166,52 @@ app.get('/voz-prueba', async (req, res) => {
   }
 });
 
-// ========== API SCRAPER ==========
 app.get('/api/scrape', async (req, res) => {
   const igUsername = req.query.username;
+  const targeting = (req.query.targeting || 'GLOBAL').toUpperCase();
+
   if (!igUsername) return res.status(400).json({ error: "Falta ?username=" });
-  if (!browserInstance || !isLoggedIn) return res.status(500).json({ error: "Sistema no preparado" });
+  if (!browserInstance || !isLoggedIn) {
+    console.error("⛔ Sistema no preparado (sin Chromium o login)");
+    return res.status(500).json({ error: "Sistema no preparado" });
+  }
+
+  console.log(`🔍 Scraping iniciado para: @${igUsername} | Targeting: ${targeting}`);
 
   try {
     const page = await browserInstance.newPage();
+    console.log("🧠 Nueva pestaña abierta...");
+
     await safeNavigate(page, `https://instagram.com/${igUsername}`);
+    console.log("✅ Navegación completada. Extrayendo datos...");
+
     const data = await extractProfileData(page);
+    console.log("📦 Datos extraídos:", data);
+
     await page.close();
-    res.json({ profile: data });
+    console.log("🚪 Página cerrada correctamente");
+
+    const flags = targeting === 'LATAM'
+      ? ['🇲🇽', '🇦🇷', '🇨🇴', '🇨🇱', '🇵🇪', '🇻🇪']
+      : ['🌍'];
+
+    const profileData = {
+      ...data,
+      username: igUsername,
+      targeting,
+      countryFlags: flags,
+      url: `https://instagram.com/${igUsername}`,
+      createdAt: new Date().toISOString()
+    };
+
+    console.log("📤 Respuesta enviada al cliente.");
+    res.json({ profile: profileData });
   } catch (e) {
+    console.error("❌ Scraping fallido:", e.message);
     res.status(500).json({ error: "Scraping fallido", reason: e.message });
   }
 });
 
-// ========== INICIAR SERVIDOR ==========
 const PORT = process.env.PORT || 3000;
 initBrowser().then(() => {
   app.listen(PORT, () => {
