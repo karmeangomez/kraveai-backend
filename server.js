@@ -1,3 +1,4 @@
+
 require('dotenv').config();
 const fs = require('fs');
 const path = require('path');
@@ -22,6 +23,7 @@ let isLoggedIn = false;
 
 const cookiesPath = path.join(__dirname, 'cookies.json');
 
+
 async function instagramLogin(page) {
   try {
     console.log("🔐 Verificando si ya hay sesión...");
@@ -31,6 +33,45 @@ async function instagramLogin(page) {
       console.log("✅ Ya estás logueado, no se necesita login.");
       return true;
     }
+
+    console.log("🔐 Iniciando sesión...");
+    await page.goto('https://www.instagram.com/accounts/login/', { waitUntil: 'domcontentloaded', timeout: 30000 });
+    await page.waitForSelector('input[name="username"]', { timeout: 20000 });
+
+    await randomDelay();
+    await page.type('input[name="username"]', process.env.INSTAGRAM_USER, { delay: 80 });
+    await randomDelay();
+    await page.type('input[name="password"]', process.env.INSTAGRAM_PASS, { delay: 70 });
+    await randomDelay();
+
+    await page.click('button[type="submit"]');
+
+    await Promise.race([
+      page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 60000 }),
+      randomDelay(6000, 8000)
+    ]);
+
+    const error = await page.$('#slfErrorAlert');
+    if (error) {
+      const message = await page.$eval('#slfErrorAlert', el => el.textContent);
+      console.error("❌ Instagram rechazó el login:", message);
+      return false;
+    }
+
+    console.log("✅ Login exitoso. Guardando cookies...");
+    const cookies = await page.cookies();
+    const fs = require('fs');
+    const path = require('path');
+    const cookiesPath = path.join(__dirname, 'cookies.json');
+    fs.writeFileSync(cookiesPath, JSON.stringify(cookies, null, 2));
+
+    return true;
+  } catch (err) {
+    console.error("❌ Error en login:", err.message);
+    return false;
+  }
+}
+
 
     console.log("🔐 Iniciando sesión...");
 
