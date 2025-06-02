@@ -2,20 +2,21 @@ services:
   - type: web
     name: kraveai-backend
     env: docker
-    plan: starter  # Cambia a 'pro' si estás usando Pro Ultra
-    autoDeploy: true
+    plan: starter  # o free si estás en pruebas, pero el Starter es más estable
     region: oregon
-    dockerfilePath: Dockerfile
+    dockerfilePath: ./Dockerfile
     envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 3000
+      - key: OPENAI_API_KEY
+        value: tu_openai_api_key_aqui
+      - key: BITLY_TOKEN
+        value: tu_token_de_bitly_aqui
       - key: IG_USER
         value: tu_usuario_instagram
       - key: IG_PASS
         value: tu_contraseña_instagram
-      - key: OPENAI_API_KEY
-        value: sk-xxxxx
-      - key: BITLY_TOKEN
-        value: tu_token_bitly
       - key: PUPPETEER_SKIP_CHROMIUM_DOWNLOAD
         value: true
-      - key: PORT
-        value: 3000
