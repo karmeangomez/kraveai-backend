@@ -1,7 +1,7 @@
 {
   "name": "kraveai-backend",
   "version": "2.1.1",
-  "description": "KraveAI Backend híbrido - Scraping, IA, Voz, Bitly, Firestore",
+  "description": "KraveAI Backend híbrido - IA, Voz, Bitly, Scraping, Firestore",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
@@ -14,7 +14,7 @@
     "express": "^4.18.2",
     "firebase-admin": "^11.10.1",
     "puppeteer-core": "^22.8.1",
-    "puppeteer-extra": "^3.3.8",
+    "puppeteer-extra": "^3.3.5",
     "puppeteer-extra-plugin-stealth": "^2.11.2"
   }
 }
