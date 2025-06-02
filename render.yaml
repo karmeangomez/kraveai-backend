@@ -2,7 +2,7 @@ services:
   - type: web
     name: kraveai-backend
     env: docker
-    plan: starter
+    plan: starter  # Cambia a 'pro' si estás usando Pro Ultra
     autoDeploy: true
     region: oregon
     dockerfilePath: Dockerfile
@@ -12,6 +12,10 @@ services:
       - key: IG_PASS
         value: tu_contraseña_instagram
       - key: OPENAI_API_KEY
-        value: sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+        value: sk-xxxxx
       - key: BITLY_TOKEN
         value: tu_token_bitly
+      - key: PUPPETEER_SKIP_CHROMIUM_DOWNLOAD
+        value: true
+      - key: PORT
+        value: 3000
