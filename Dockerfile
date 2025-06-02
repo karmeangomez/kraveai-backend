@@ -1,7 +1,7 @@
-# Imagen base oficial
-FROM node:18
+# Usa una imagen ligera de Node
+FROM node:18-slim
 
-# Instala dependencias del sistema para Puppeteer + Chromium
+# Instala librerías necesarias para Chromium en entorno Render
 RUN apt-get update && apt-get install -y \
     wget \
     ca-certificates \
@@ -19,27 +19,25 @@ RUN apt-get update && apt-get install -y \
     libxcomposite1 \
     libxdamage1 \
     libxrandr2 \
-    libgbm1 \
-    libgtk-3-0 \
+    libgbm-dev \
     xdg-utils \
     --no-install-recommends && \
     rm -rf /var/lib/apt/lists/*
 
-# Define directorio de trabajo
+# Establece el directorio de trabajo
 WORKDIR /app
 
-# Copia archivos de dependencias primero
+# Copia los archivos de dependencias
 COPY package*.json ./
 
-# Instala dependencias sin intentar descargar Chromium
-ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
+# Instala las dependencias (usa legacy-peer-deps por compatibilidad)
 RUN npm install --legacy-peer-deps
 
-# Copia el resto del código
+# Copia el resto de los archivos de la app
 COPY . .
 
-# Expone el puerto del servidor
+# Expone el puerto que usará el servidor
 EXPOSE 3000
 
-# Comando de arranque
+# Comando de inicio
 CMD ["npm", "start"]
