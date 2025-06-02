@@ -12,10 +12,10 @@ const StealthPlugin = require('puppeteer-extra-plugin-stealth');
 const chromium = require('@sparticuz/chromium-min');
 puppeteer.use(StealthPlugin());
 
-const { generarFingerprint } = require('./lib/fingerprint-generator');
+const { aplicarFingerprint } = require('./lib/fingerprint-generator');
 const { obtenerHeadersGeo } = require('./lib/geo-headers');
 const { randomDelay, humanScroll } = require('./lib/human-behavior');
-const userAgents = require('./lib/user-agents-min.json');
+const { getRandomUA } = require('./lib/ua-loader');
 
 let browserInstance;
 let isLoggedIn = false;
@@ -24,6 +24,11 @@ let isLoggedIn = false;
 async function instagramLogin(page) {
   try {
     console.log("🔐 Iniciando sesión...");
+
+    await page.setUserAgent(getRandomUA('mobile'));
+    await page.setExtraHTTPHeaders(obtenerHeadersGeo());
+    await aplicarFingerprint(page);
+
     await page.goto('https://instagram.com/accounts/login/', { waitUntil: 'networkidle2', timeout: 30000 });
 
     const usernameSelector = 'input[name="username"]';
@@ -52,10 +57,9 @@ async function instagramLogin(page) {
 // ========== NAVEGACIÓN SEGURA ==========
 async function safeNavigate(page, url) {
   try {
-    const userAgent = userAgents[Math.floor(Math.random() * userAgents.length)];
-    await page.setUserAgent(userAgent);
+    await page.setUserAgent(getRandomUA('mobile'));
     await page.setExtraHTTPHeaders(obtenerHeadersGeo());
-    await page.evaluateOnNewDocument(generarFingerprint);
+    await aplicarFingerprint(page);
 
     await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 25000 });
 
