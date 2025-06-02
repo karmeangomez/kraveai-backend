@@ -1,17 +1,3 @@
-services:
-  - type: web
-    name: kraveai-backend
-    env: docker
-    plan: free
-    region: oregon
-    dockerfilePath: Dockerfile
-    autoDeploy: true
-    envVars:
-      - key: OPENAI_API_KEY
-        value: tu_clave_openai_aqui
-      - key: BITLY_TOKEN
-        value: tu_token_bitly_aqui
-      - key: IG_USER
-        value: tu_usuario_instagram
-      - key: IG_PASS
-        value: tu_contraseña_instagram
+buildCommand: |
+  npm install -g npm@latest
+  npm install
