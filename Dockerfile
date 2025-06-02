@@ -1,6 +1,7 @@
-FROM node:20-slim
+# Usar una imagen ligera y compatible
+FROM node:18-slim
 
-# Instala librerías necesarias para Puppeteer
+# Instalar dependencias del sistema necesarias para Chromium
 RUN apt-get update && apt-get install -y \
   wget \
   ca-certificates \
@@ -19,12 +20,21 @@ RUN apt-get update && apt-get install -y \
   libxdamage1 \
   libxrandr2 \
   libgbm1 \
-  libgtk-3-0 \
   xdg-utils \
   --no-install-recommends && \
   rm -rf /var/lib/apt/lists/*
 
+# Establecer carpeta de trabajo
 WORKDIR /app
-COPY . .
+
+# Copiar dependencias y proyecto
+COPY package*.json ./
 RUN npm install
-CMD ["node", "server.js"]
+
+COPY . .
+
+# Exponer puerto
+EXPOSE 3000
+
+# Comando para iniciar el backend
+CMD ["npm", "start"]
