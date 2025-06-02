@@ -1,33 +1,24 @@
 services:
   - type: web
-    name: kraveai-backend
+    name: instagram-backend    # Nombre del servicio en Render
     env: docker
-    region: oregon
-    plan: starter  # Usa "free" si estás en pruebas, pero starter es más estable
+    plan: free                 # Plan de Render (free tier)
+    region: oregon             # Región de despliegue (puede ajustarse según preferencia)
     dockerfilePath: ./Dockerfile
-
+    # Ruta del contexto de Docker (opcional, por defecto es el directorio actual)
+    dockerContext: .
     envVars:
+      - key: INSTAGRAM_USER
+        fromSecret: instagram_user    # Referencia a un secreto definido con el usuario de IG
+      - key: INSTAGRAM_PASS
+        fromSecret: instagram_pass    # Referencia a un secreto definido con la contraseña de IG
+      - key: OPENAI_API_KEY
+        fromSecret: openai_api_key    # API Key de OpenAI
+      - key: BITLY_TOKEN
+        fromSecret: bitly_token       # Token API de Bitly
       - key: NODE_ENV
         value: production
-
-      - key: PORT
-        value: 3000
-
-      # Instagram Login
-      - key: INSTAGRAM_USER
-        value: tu_usuario_instagram
-
-      - key: INSTAGRAM_PASS
-        value: tu_contraseña_instagram
-
-      # OpenAI (IA Chat + Voz)
-      - key: OPENAI_API_KEY
-        value: tu_api_key_openai
-
-      # Bitly (acortador)
-      - key: BITLY_TOKEN
-        value: tu_token_bitly
-
-      # Evitar descarga innecesaria de Chromium por Puppeteer
       - key: PUPPETEER_SKIP_CHROMIUM_DOWNLOAD
-        value: true
+        value: "true"
+      - key: PORT
+        value: "3000"
