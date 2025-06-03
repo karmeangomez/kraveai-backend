@@ -17,7 +17,6 @@ const { obtenerHeadersGeo } = require('./lib/geo-headers');
 const { randomDelay, humanScroll } = require('./lib/human-behavior');
 const { getRandomUA } = require('./lib/ua-loader');
 const { instagramLogin } = require('./instagramLogin');
-const db = require('./lib/firebase');
 
 let browserInstance;
 let isLoggedIn = false;
@@ -122,60 +121,9 @@ app.get('/api/scrape', async (req, res) => {
       createdAt: new Date().toISOString()
     };
 
-    await db.collection('clientes').doc(igUsername).set(profileData, { merge: true });
-    console.log(`☁️ Guardado en Firestore: ${igUsername}`);
     res.json({ profile: profileData });
   } catch (e) {
     res.status(500).json({ error: "Scraping fallido", reason: e.message });
-  }
-});
-
-// 🔐 GUARDAR CLIENTE MANUAL DESDE HTML
-app.post('/guardar-cliente', async (req, res) => {
-  const data = req.body;
-  if (!data || !data.username) return res.status(400).json({ error: "Datos incompletos" });
-  try {
-    await db.collection('clientes').doc(data.username).set(data, { merge: true });
-    res.json({ ok: true });
-  } catch (e) {
-    res.status(500).json({ error: "No se pudo guardar el cliente" });
-  }
-});
-
-// 📄 LISTAR CLIENTES GUARDADOS
-app.get('/firestore/clientes', async (req, res) => {
-  try {
-    const snapshot = await db.collection('clientes').get();
-    const clientes = snapshot.docs.map(doc => doc.data());
-    res.json(clientes);
-  } catch (e) {
-    res.status(500).json({ error: "No se pudo cargar Firestore" });
-  }
-});
-
-// 🗑️ ELIMINAR CLIENTE
-app.delete('/eliminar-cliente/:username', async (req, res) => {
-  const { username } = req.params;
-  try {
-    await db.collection('clientes').doc(username).delete();
-    res.json({ ok: true });
-  } catch (e) {
-    res.status(500).json({ error: "No se pudo eliminar el cliente" });
-  }
-});
-
-// ✅ CHEQUEO DE CONEXIÓN FIRESTORE
-app.get('/firebase-check', async (req, res) => {
-  try {
-    const test = await db.collection('clientes').limit(1).get();
-    if (!test.empty) {
-      res.json({ status: 'ok', message: 'Firestore conectado ✅' });
-    } else {
-      res.json({ status: 'ok', message: 'Firestore vacío pero funcional ✅' });
-    }
-  } catch (e) {
-    console.error("❌ Firestore error:", e.message);
-    res.status(500).json({ status: 'error', error: e.message });
   }
 });
 
