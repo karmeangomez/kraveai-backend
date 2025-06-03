@@ -1,8 +1,8 @@
 const express = require('express');
 const puppeteer = require('puppeteer-extra');
 const StealthPlugin = require('puppeteer-extra-plugin-stealth');
-const { scrapeInstagram, encryptPassword } = require('./instagramLogin');
 const axios = require('axios');
+const { scrapeInstagram, encryptPassword } = require('./instagramLogin');
 
 puppeteer.use(StealthPlugin());
 
@@ -71,7 +71,6 @@ function getNextUserAgent() {
 async function initBrowser() {
   try {
     console.log('🚀 Iniciando Puppeteer con Stealth...');
-
     const proxy = await getNextProxy();
     if (!proxy) throw new Error('No hay proxies válidos');
 
@@ -85,10 +84,11 @@ async function initBrowser() {
         '--disable-gpu',
         '--disable-blink-features=AutomationControlled',
         '--enable-javascript',
-        '--window-size=1920,1080',
+        '--window-size=1366,768', // Reducir resolución para menos recursos
         `--proxy-server=http://${host}:${port}`,
       ],
       ignoreHTTPSErrors: true,
+      timeout: 30000, // Tiempo límite para lanzamiento
     });
 
     const page = await browser.newPage();
@@ -98,13 +98,121 @@ async function initBrowser() {
       'Accept-Language': 'en-US,en;q=0.9',
       'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
     });
-    await page.setViewport({ width: 1920, height: 1080 });
+    await page.setViewport({ width: 1366, height: 768 });
 
     // Evitar detección de bot
     await page.evaluateOnNewDocument(() => {
       Object.defineProperty(navigator, 'webdriver', { get: () => false });
       window.navigator.chrome = { runtime: {} };
       Object.defineProperty(navigator, 'languages', { get: () => ['en-US', 'en'] });
-      Object.defineProperty(navigator, 'plugins', { get: () => [1, 2, 3,
+      Object.defineProperty(navigator, 'plugins', { get: () => [1, 2, 3, 4, 5] });
+      Object.defineProperty(navigator, 'platform', { get: () => 'Win32' });
+    });
 
-System: * Today's date and time is 05:45 PM CST on Tuesday, June 03, 2025.
+    // Autenticar proxy
+    if (username && password) {
+      await page.authenticate({ username, password });
+    }
+
+    browserInstance = browser;
+    pagePool.add(page);
+
+    // Verificar login inicial
+    const encryptedPassword = encryptPassword(process.env.INSTAGRAM_PASS);
+    const loginSuccess = await scrapeInstagram(page, process.env.INSTAGRAM_USER, encryptedPassword);
+    if (!loginSuccess) {
+      console.warn('⚠️ Login inicial fallido. Reintentando en 30 segundos...');
+      await browser.close();
+      pagePool.clear();
+      setTimeout(initBrowser, 30000);
+      return null;
+    }
+
+    console.log(`✅ Navegador inicializado con proxy: ${host}:${port}, UA: ${ua}`);
+    return browser;
+  } catch (err) {
+    console.error('❌ Error crítico al iniciar navegador:', err.message);
+    if (browserInstance) await browserInstance.close();
+    pagePool.clear();
+    setTimeout(initBrowser, 30000);
+    return null;
+  }
+}
+
+// 🔄 Monitor de sesiones
+async function monitorSessions(browser) {
+  while (true) {
+    try {
+      const page = Array.from(pagePool)[0];
+      if (!page) throw new Error('No hay páginas disponibles');
+      await page.goto('https://www.instagram.com/', { waitUntil: 'domcontentloaded', timeout: 15000 });
+      const isLoggedIn = await page.evaluate(() => !!document.querySelector('a[href*="/direct/inbox/"]'));
+      if (!isLoggedIn) {
+        console.warn('⚠️ Sesión expirada. Reiniciando navegador...');
+        await browser.close();
+        pagePool.clear();
+        await initBrowser();
+      }
+      await new Promise(resolve => setTimeout(resolve, 5 * 60 * 1000)); // Verificar cada 5 minutos
+    } catch (err) {
+      console.error('❌ Error en monitor de sesiones:', err.message);
+      await browser.close();
+      pagePool.clear();
+      await initBrowser();
+      break;
+    }
+  }
+}
+
+// 🌐 Endpoint para scraping de perfil
+app.get('/scrape/:username', async (req, res) => {
+  const { username } = req.params;
+  try {
+    if (!browserInstance || browserInstance.isConnected() === false) {
+      console.warn('⚠️ Navegador no inicializado. Iniciando...');
+      await initBrowser();
+    }
+
+    const page = Array.from(pagePool)[0] || (await browserInstance.newPage());
+    const encryptedPassword = encryptPassword(process.env.INSTAGRAM_PASS);
+    const data = await scrapeInstagram(page, username, encryptedPassword);
+
+    if (!data) {
+      return res.status(500).json({ error: 'Fallo al obtener datos del perfil' });
+    }
+
+    res.json({ success: true, data });
+  } catch (err) {
+    console.error('❌ Error en /scrape:', err.message);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+});
+
+// 🚀 Iniciar servidor
+async function startServer() {
+  try {
+    await initBrowser();
+    app.listen(PORT, () => {
+      console.log(`🌐 Servidor corriendo en puerto ${PORT}`);
+      if (browserInstance) monitorSessions(browserInstance).catch(console.error);
+    });
+  } catch (err) {
+    console.error('❌ Error al iniciar servidor:', err.message);
+    setTimeout(startServer, 30000); // Reintentar en 30 segundos
+  }
+}
+
+startServer();
+
+// 🛑 Manejo de cierre
+process.on('SIGTERM', async () => {
+  console.log('🛑 Cerrando servidor...');
+  if (browserInstance) await browserInstance.close();
+  process.exit(0);
+});
+
+process.on('SIGINT', async () => {
+  console.log('🛑 Cerrando servidor por SIGINT...');
+  if (browserInstance) await browserInstance.close();
+  process.exit(0);
+});
