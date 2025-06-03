@@ -164,6 +164,21 @@ app.delete('/eliminar-cliente/:username', async (req, res) => {
   }
 });
 
+// ✅ CHEQUEO DE CONEXIÓN FIRESTORE
+app.get('/firebase-check', async (req, res) => {
+  try {
+    const test = await db.collection('clientes').limit(1).get();
+    if (!test.empty) {
+      res.json({ status: 'ok', message: 'Firestore conectado ✅' });
+    } else {
+      res.json({ status: 'ok', message: 'Firestore vacío pero funcional ✅' });
+    }
+  } catch (e) {
+    console.error("❌ Firestore error:", e.message);
+    res.status(500).json({ status: 'error', error: e.message });
+  }
+});
+
 // 🤖 CHAT IA
 app.post('/api/chat', async (req, res) => {
   try {
