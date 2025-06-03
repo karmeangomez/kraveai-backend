@@ -4,50 +4,97 @@ const express = require('express');
 const cors = require('cors');
 const axios = require('axios');
 const path = require('path');
-const app = express();
-app.use(express.json());
-app.use(cors());
-
 const puppeteer = require('puppeteer-extra');
 const StealthPlugin = require('puppeteer-extra-plugin-stealth');
-puppeteer.use(StealthPlugin());
-
 const { aplicarFingerprint } = require('./lib/fingerprint-generator');
 const { obtenerHeadersGeo } = require('./lib/geo-headers');
 const { randomDelay, humanScroll } = require('./lib/human-behavior');
 const { getRandomUA } = require('./lib/ua-loader');
 const { instagramLogin } = require('./instagramLogin');
 
+puppeteer.use(StealthPlugin());
+
+const app = express();
+app.use(express.json());
+app.use(cors());
+
 let browserInstance;
 let isLoggedIn = false;
 
-// 🔁 INICIAR CHROMIUM + LOGIN
+// 🔁 PROXY ROTATION
+const proxyList = [];
+let proxyIndex = 0;
+
+async function updateProxies() {
+  try {
+    const res = await axios.get('https://api.proxyscrape.com/v2/?request=getproxies&protocol=http&timeout=10000&country=all');
+    proxyList.push(...res.data.split('\n').filter(p => p));
+    console.log(`📡 Cargados ${proxyList.length} proxies`);
+  } catch (err) {
+    console.warn("⚠️ No se pudo actualizar proxies:", err.message);
+  }
+}
+
+function getNextProxy() {
+  if (proxyIndex % 10 === 0) updateProxies().catch(() => {});
+  const proxy = proxyList[proxyIndex] || '';
+  proxyIndex = (proxyIndex + 1) % proxyList.length || 0;
+  return proxy;
+}
+
+// 🔁 INICIAR CHROMIUM + LOGIN CON EVASIÓN Y PROXY
 async function initBrowser() {
   try {
     console.log("🚀 Iniciando Chromium...");
+    const proxy = getNextProxy();
     browserInstance = await puppeteer.launch({
       executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || '/usr/bin/google-chrome',
-      args: ['--no-sandbox', '--disable-setuid-sandbox'],
+      args: [
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-dev-shm-usage',
+        '--disable-gpu',
+        '--enable-javascript',
+        '--disable-blink-features=AutomationControlled',
+        proxy ? `--proxy-server=http://${proxy}` : ''
+      ],
       headless: true,
       ignoreHTTPSErrors: true
     });
 
-    const page = await browserInstance.newPage();
-    const username = process.env.INSTAGRAM_USER;
-    const password = process.env.INSTAGRAM_PASS;
+    const testPage = await browserInstance.newPage();
+    await testPage.goto('https://www.google.com', { timeout: 10000 }).catch(err => {
+      console.error("❌ Error de red o sin conexión:", err.message);
+      throw err;
+    });
+    await testPage.close();
 
-    isLoggedIn = await instagramLogin(page, username, password, 'default');
-    await page.close();
+    const loginPage = await browserInstance.newPage();
+    const ua = getRandomUA('mobile');
+    await loginPage.setUserAgent(ua);
+    await loginPage.evaluateOnNewDocument(() => {
+      Object.defineProperty(navigator, 'webdriver', { get: () => false });
+      window.navigator.chrome = { runtime: {} };
+      Object.defineProperty(navigator, 'languages', { get: () => ['es-ES', 'es'] });
+      Object.defineProperty(navigator, 'plugins', { get: () => [1, 2, 3, 4] });
+    });
 
-    if (!isLoggedIn) throw new Error("Login fallido");
-    console.log("✅ Chromium listo y sesión activa");
+    isLoggedIn = await instagramLogin(loginPage, process.env.INSTAGRAM_USER, process.env.INSTAGRAM_PASS, 'default');
+    await loginPage.close();
+
+    if (!isLoggedIn) {
+      console.warn("⚠️ Login fallido. Reintentando en 60 segundos...");
+      setTimeout(initBrowser, 60000);
+    } else {
+      console.log("✅ Chromium listo y sesión activa");
+    }
   } catch (err) {
-    console.error("❌ Error crítico:", err.message);
-    process.exit(1);
+    console.error("❌ Error iniciando Chromium:", err.message);
+    setTimeout(initBrowser, 60000);
   }
 }
 
-// 🔍 NAVEGAR A PERFIL CON O SIN TURBO
+// 🔍 NAVEGAR A PERFIL
 async function safeNavigate(page, url, isTurbo = false) {
   try {
     const turboGoto = isTurbo ? 10000 : 30000;
@@ -102,7 +149,7 @@ async function extractProfileData(page) {
   });
 }
 
-// ✅ SCRAPING INSTAGRAM
+// ✅ ENDPOINT DE SCRAPING
 app.get('/api/scrape', async (req, res) => {
   const igUsername = req.query.username;
   const targeting = (req.query.targeting || 'GLOBAL').toUpperCase();
@@ -137,12 +184,12 @@ app.get('/api/scrape', async (req, res) => {
   }
 });
 
-// ✅ CHEQUEO DE SALUD GENERAL
+// ✅ SALUD
 app.get('/health', (req, res) => {
   res.send('🟢 Server running and healthy!');
 });
 
-// 🤖 CHAT IA
+// 🧠 IA GPT
 app.post('/api/chat', async (req, res) => {
   try {
     const { message } = req.body;
@@ -201,7 +248,7 @@ app.get('/bitly-prueba', async (req, res) => {
   }
 });
 
-// 🚀 INICIAR SERVIDOR
+// 🔥 INICIAR SERVER
 const PORT = process.env.PORT || 3000;
 initBrowser().then(() => {
   app.listen(PORT, () => {
