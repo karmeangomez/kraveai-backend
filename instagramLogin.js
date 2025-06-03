@@ -24,27 +24,30 @@ async function instagramLogin(page, username, password, cookiesFile = 'default')
     console.log(`🔍 Revisando sesión para: ${username}`);
     await fs.mkdir(cookiesDir, { recursive: true });
 
+    // 🚫 Ya no eliminamos cookies si existen
     if (await fs.access(cookiesPath).then(() => true).catch(() => false)) {
       const cookies = JSON.parse(await fs.readFile(cookiesPath, 'utf8'));
       await page.setCookie(...cookies);
       console.log("🍪 Cookies cargadas");
 
-      // 🔁 Forzar limpieza para evitar errores por cookies inválidas
-      await page.deleteCookie(...cookies);
-      console.log("🔁 Cookies eliminadas antes de login (login forzado)");
+      await page.goto('https://www.instagram.com/', {
+        waitUntil: 'networkidle2',
+        timeout: NAVIGATION_TIMEOUT
+      });
+
+      const sessionActive = await page.evaluate(() => {
+        return document.cookie.includes('sessionid');
+      });
+
+      if (sessionActive) {
+        console.log("✅ Sesión activa detectada desde cookies");
+        return true;
+      } else {
+        console.warn("⚠️ Cookies inválidas o sesión expirada, procediendo a login");
+      }
     }
 
-    await page.goto('https://www.instagram.com/', {
-      waitUntil: 'networkidle2',
-      timeout: NAVIGATION_TIMEOUT
-    });
-
-    const loginInput = await page.$('input[name="username"]');
-    if (!loginInput) {
-      console.log("✅ Sesión activa detectada.");
-      return true;
-    }
-
+    // Login desde cero
     console.log("🔐 Iniciando login...");
     await page.goto('https://www.instagram.com/accounts/login/', {
       waitUntil: 'domcontentloaded',
@@ -79,7 +82,6 @@ async function instagramLogin(page, username, password, cookiesFile = 'default')
       return false;
     }
 
-    // ✅ Este bloque evita el error de "$x is not a function"
     try {
       if (page && typeof page.$x === 'function') {
         const dialogs = await page.$x('//button[contains(., "Ahora no") or contains(., "Not Now")]');
