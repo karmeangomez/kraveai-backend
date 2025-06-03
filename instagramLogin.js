@@ -24,38 +24,53 @@ async function instagramLogin(page, username, password, cookiesFile = 'default')
     console.log(`🔍 Revisando sesión para: ${username}`);
     await fs.mkdir(cookiesDir, { recursive: true });
 
-    // 🚫 Ya no eliminamos cookies si existen
+    // Cargar cookies existentes
+    let cookies = [];
     if (await fs.access(cookiesPath).then(() => true).catch(() => false)) {
-      const cookies = JSON.parse(await fs.readFile(cookiesPath, 'utf8'));
+      cookies = JSON.parse(await fs.readFile(cookiesPath, 'utf8'));
       await page.setCookie(...cookies);
       console.log("🍪 Cookies cargadas");
-
-      await page.goto('https://www.instagram.com/', {
-        waitUntil: 'networkidle2',
-        timeout: NAVIGATION_TIMEOUT
-      });
-
-      const sessionActive = await page.evaluate(() => {
-        return document.cookie.includes('sessionid');
-      });
-
-      if (sessionActive) {
-        console.log("✅ Sesión activa detectada desde cookies");
-        return true;
-      } else {
-        console.warn("⚠️ Cookies inválidas o sesión expirada, procediendo a login");
-      }
     }
 
-    // Login desde cero
-    console.log("🔐 Iniciando login...");
+    // Verificar sesión con una solicitud ligera
+    await page.goto('https://www.instagram.com/', {
+      waitUntil: 'networkidle0',
+      timeout: NAVIGATION_TIMEOUT
+    });
+
+    const sessionActive = await page.evaluate(() => {
+      return document.querySelector('svg[aria-label="Inicio"]') !== null;
+    });
+
+    if (sessionActive) {
+      console.log("✅ Sesión activa detectada desde cookies");
+      return true;
+    }
+
+    console.warn("⚠️ Cookies inválidas o sesión expirada, intentando refrescar o login");
+
+    // Intentar refrescar sesión
+    await page.goto('https://www.instagram.com/', { waitUntil: 'networkidle0', timeout: NAVIGATION_TIMEOUT });
+    const refreshedSession = await page.evaluate(() => {
+      return document.querySelector('svg[aria-label="Inicio"]') !== null;
+    });
+
+    if (refreshedSession) {
+      const newCookies = await page.cookies();
+      await fs.writeFile(cookiesPath, JSON.stringify(newCookies, null, 2));
+      console.log("🔄 Sesión refresca con éxito y cookies actualizadas");
+      return true;
+    }
+
+    // Login completo si el refresco falla
+    console.log("🔐 Iniciando login completo...");
     await page.goto('https://www.instagram.com/accounts/login/', {
       waitUntil: 'domcontentloaded',
       timeout: NAVIGATION_TIMEOUT
     });
 
     await Promise.race([
-      page.waitForSelector('input[name="username"]', { visible: true }),
+      page.waitForSelector('input[name="username"]', { visible: true, timeout: 20000 }),
       page.waitForFunction(() => window.location.href.includes('challenge'), { timeout: 20000 })
     ]);
 
@@ -90,15 +105,14 @@ async function instagramLogin(page, username, password, cookiesFile = 'default')
           console.log("🧼 Cerrado modal de 'Ahora no'");
           await humanBehavior.randomDelay(500, 1000);
         }
-      } else {
-        console.log("⛔ page.$x no está disponible");
       }
     } catch (e) {
       console.log("ℹ️ No se encontró modal de 'Ahora no'");
     }
 
-    const cookies = await page.cookies();
-    await fs.writeFile(cookiesPath, JSON.stringify(cookies, null, 2));
+    // Guardar cookies actualizadas
+    const newCookies = await page.cookies();
+    await fs.writeFile(cookiesPath, JSON.stringify(newCookies, null, 2));
     console.log("✅ Login exitoso y cookies guardadas");
 
     return true;
