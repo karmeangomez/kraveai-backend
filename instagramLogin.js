@@ -9,6 +9,7 @@ const NAVIGATION_TIMEOUT = 60000; // 1 minuto
 const SESSION_CHECK_THRESHOLD = 86400000; // 24 horas antes de verificar
 const BACKUP_INTERVAL = 7200000; // 2 horas para respaldos
 
+// Utilidades para simular comportamiento humano
 const humanBehavior = {
   randomDelay: (min = 1000, max = 5000) => new Promise(resolve =>
     setTimeout(resolve, min + Math.random() * (max - min))),
@@ -24,20 +25,29 @@ const humanBehavior = {
       await page.evaluate((h) => window.scrollBy(0, h * Math.random()), scrollHeight);
       await humanBehavior.randomDelay(1000, 3000);
     }
+  },
+  clickIfExists: async (page, selector) => {
+    const element = await page.$(selector);
+    if (element) {
+      await element.click();
+      await humanBehavior.randomDelay(500, 1500);
+      return true;
+    }
+    return false;
   }
 };
 
-// Almacenar sesiones en memoria y respaldos
-let cachedSession = null;
-let lastActivity = Date.now();
+// Almacenamiento de sesiones en memoria
+const sessionsCache = new Map();
 let backupInterval = null;
 
 async function instagramLogin(page, username, password, cookiesFile = 'default') {
-  const cookiesPath = path.join(cookiesDir, `${cookiesFile}.json`);
-  const backupPath = path.join(cookiesDir, `${cookiesFile}_backup_${Date.now()}.json`);
+  const sessionKey = `${username}_${cookiesFile}`;
+  const cookiesPath = path.join(cookiesDir, `${sessionKey}.json`);
+  const backupPath = path.join(cookiesDir, `${sessionKey}_backup_${Date.now()}.json`);
 
   try {
-    console.log(`🔍 Revisando sesión para: ${username}`);
+    console.log(`🔍 Revisando sesión para: ${username} (${sessionKey})`);
     await fs.mkdir(cookiesDir, { recursive: true });
 
     // Iniciar respaldo automático si no está activo
@@ -46,13 +56,14 @@ async function instagramLogin(page, username, password, cookiesFile = 'default')
     }
 
     // Usar sesión en caché si está reciente y válida
-    if (cachedSession && Date.now() - cachedSession.lastChecked < SESSION_CHECK_THRESHOLD) {
+    if (sessionsCache.has(sessionKey) && Date.now() - sessionsCache.get(sessionKey).lastChecked < SESSION_CHECK_THRESHOLD) {
+      const cachedSession = sessionsCache.get(sessionKey);
       await page.setCookie(...cachedSession.cookies);
-      console.log("🍪 Usando sesión en caché");
+      console.log(`🍪 Usando sesión en caché para ${sessionKey}`);
       const sessionActive = await verifyCriticalSession(page);
       if (sessionActive) {
-        lastActivity = Date.now();
-        console.log("✅ Sesión activa desde caché");
+        cachedSession.lastActivity = Date.now();
+        console.log(`✅ Sesión activa desde caché para ${sessionKey}`);
         return true;
       }
     }
@@ -61,48 +72,46 @@ async function instagramLogin(page, username, password, cookiesFile = 'default')
     let cookies = await loadValidCookies(cookiesPath, backupPath);
     if (cookies.length > 0) {
       await page.setCookie(...cookies);
-      console.log("🍪 Cookies cargadas desde disco o respaldo");
+      console.log(`🍪 Cookies cargadas desde disco o respaldo para ${sessionKey}`);
     }
 
     // Verificar sesión crítica
     const sessionActive = await verifyCriticalSession(page);
     if (sessionActive) {
-      cachedSession = { cookies, lastChecked: Date.now() };
-      lastActivity = Date.now();
-      console.log("✅ Sesión activa detectada y/o restaurada");
+      sessionsCache.set(sessionKey, { cookies, lastChecked: Date.now(), lastActivity: Date.now() });
+      console.log(`✅ Sesión activa detectada y/o restaurada para ${sessionKey}`);
       return true;
     }
 
-    console.warn("⚠️ Sesión crítica inválida, intentando restaurar o login");
+    console.warn(`⚠️ Sesión crítica inválida para ${sessionKey}, intentando restaurar o login`);
 
-    // Intentar restaurar desde respaldo si el refresco falla
+    // Intentar restaurar desde respaldo
     if (!sessionActive && await fs.access(backupPath).then(() => true).catch(() => false)) {
       cookies = JSON.parse(await fs.readFile(backupPath, 'utf8'));
       await page.setCookie(...cookies);
-      console.log("🔄 Restaurando desde respaldo");
+      console.log(`🔄 Restaurando desde respaldo para ${sessionKey}`);
       const restoredSession = await verifyCriticalSession(page);
       if (restoredSession) {
-        cachedSession = { cookies, lastChecked: Date.now() };
-        lastActivity = Date.now();
+        sessionsCache.set(sessionKey, { cookies, lastChecked: Date.now(), lastActivity: Date.now() });
         await fs.writeFile(cookiesPath, JSON.stringify(cookies, null, 2));
-        console.log("✅ Sesión restaurada con éxito");
+        console.log(`✅ Sesión restaurada con éxito para ${sessionKey}`);
         return true;
       }
     }
 
-    // Login completo como última medida (con reintentos y manejo de desafíos)
+    // Login completo como última medida (con manejo de desafíos)
     for (let attempt = 1; attempt <= 3; attempt++) {
-      console.log(`🔐 Iniciando login completo (intento ${attempt}/3)...`);
+      console.log(`🔐 Iniciando login completo (intento ${attempt}/3) para ${sessionKey}...`);
       await page.goto('https://www.instagram.com/accounts/login/', {
         waitUntil: 'domcontentloaded',
         timeout: NAVIGATION_TIMEOUT
       });
 
-      const isChallenge = await page.waitForFunction(() => window.location.href.includes('challenge'), { timeout: 20000 })
-        .then(() => true).catch(() => false);
-      if (isChallenge) {
+      // Manejar desafíos
+      const isChallenge = await handleChallenge(page);
+      if (isChallenge && attempt < 3) {
         console.warn("🚧 Detectado desafío, reintentando...");
-        await humanBehavior.randomDelay(30000, 60000); // Esperar antes de reintentar
+        await humanBehavior.randomDelay(30000, 60000);
         continue;
       }
 
@@ -130,38 +139,28 @@ async function instagramLogin(page, username, password, cookiesFile = 'default')
           const msg = await page.$eval('#slfErrorAlert', el => el.textContent);
           console.error("❌ Error en login:", msg);
           if (attempt === 3) return false;
-          await humanBehavior.randomDelay(30000, 60000); // Esperar más antes del próximo intento
+          await humanBehavior.randomDelay(30000, 60000);
           continue;
         }
 
-        try {
-          const dialogs = await page.$x('//button[contains(., "Ahora no") or contains(., "Not Now")]');
-          if (dialogs.length > 0) {
-            await dialogs[0].click();
-            console.log("🧼 Cerrado modal de 'Ahora no'");
-            await humanBehavior.randomDelay(1000, 2000);
-          }
-        } catch (e) {
-          console.log("ℹ️ No se encontró modal de 'Ahora no'");
-        }
+        await handlePostLoginModals(page);
 
         const newCookies = await page.cookies();
         await fs.writeFile(cookiesPath, JSON.stringify(newCookies, null, 2));
-        cachedSession = { cookies: newCookies, lastChecked: Date.now() };
-        lastActivity = Date.now();
-        console.log("✅ Login exitoso y cookies guardadas");
+        sessionsCache.set(sessionKey, { cookies: newCookies, lastChecked: Date.now(), lastActivity: Date.now() });
+        console.log(`✅ Login exitoso y cookies guardadas para ${sessionKey}`);
         return true;
       }
     }
 
     return false;
   } catch (error) {
-    console.error("❌ Fallo durante login:", error.message);
+    console.error(`❌ Fallo durante login para ${sessionKey}:`, error.message);
     return false;
   }
 }
 
-// Función para verificar sesión crítica
+// Verificar sesión crítica
 async function verifyCriticalSession(page) {
   try {
     const response = await page.goto('https://www.instagram.com/', { waitUntil: 'networkidle0', timeout: NAVIGATION_TIMEOUT });
@@ -172,31 +171,50 @@ async function verifyCriticalSession(page) {
     const isActive = await page.evaluate(() => {
       return document.querySelector('svg[aria-label="Inicio"]') !== null;
     });
+    if (isActive) await humanBehavior.randomScroll(page); // Simular actividad mínima
     return isActive;
   } catch (e) {
     return false;
   }
 }
 
-// Función para cargar cookies válidas (disco o respaldo)
+// Manejar desafíos de Instagram
+async function handleChallenge(page) {
+  const isChallenge = await page.waitForFunction(() => window.location.href.includes('challenge'), { timeout: 20000 })
+    .then(() => true).catch(() => false);
+  if (isChallenge) {
+    const challengeType = await page.evaluate(() => document.body.innerText.toLowerCase());
+    if (challengeType.includes('verifica') || challengeType.includes('sospechosa')) {
+      console.log("🚧 Desafío detectado: actividad sospechosa o verificación requerida");
+      return true;
+    }
+  }
+  return false;
+}
+
+// Manejar modales post-login
+async function handlePostLoginModals(page) {
+  try {
+    const modals = [
+      '//button[contains(., "Ahora no") or contains(., "Not Now")]',
+      '//button[contains(., "Denegar") or contains(., "Decline")]'
+    ];
+    for (const xpath of modals) {
+      const elements = await page.$x(xpath);
+      if (elements.length > 0) {
+        await elements[0].click();
+        console.log("🧼 Cerrado modal post-login");
+        await humanBehavior.randomDelay(1000, 2000);
+      }
+    }
+  } catch (e) {
+    console.log("ℹ️ No se encontraron modales post-login");
+  }
+}
+
+// Cargar cookies válidas
 async function loadValidCookies(cookiesPath, backupPath) {
   let cookies = [];
   if (await fs.access(cookiesPath).then(() => true).catch(() => false)) {
     cookies = JSON.parse(await fs.readFile(cookiesPath, 'utf8'));
-  } else if (await fs.access(backupPath).then(() => true).catch(() => false)) {
-    cookies = JSON.parse(await fs.readFile(backupPath, 'utf8'));
-    await fs.writeFile(cookiesPath, JSON.stringify(cookies, null, 2)); // Restaurar desde respaldo
-  }
-  return cookies;
-}
-
-// Función para respaldar cookies
-async function backupCookies(cookiesPath, backupPath) {
-  if (await fs.access(cookiesPath).then(() => true).catch(() => false)) {
-    const cookies = JSON.parse(await fs.readFile(cookiesPath, 'utf8'));
-    await fs.writeFile(backupPath, JSON.stringify(cookies, null, 2));
-    console.log("💾 Cookies respaldadas");
-  }
-}
-
-module.exports = { instagramLogin };
+  } else
