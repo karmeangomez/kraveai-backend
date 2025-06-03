@@ -100,7 +100,7 @@ async function extractProfileData(page) {
   });
 }
 
-// ✅ SCRAPING INSTAGRAM
+// ✅ SCRAPING INSTAGRAM (con diagnóstico HTML completo)
 app.get('/api/scrape', async (req, res) => {
   const igUsername = req.query.username;
   const targeting = (req.query.targeting || 'GLOBAL').toUpperCase();
@@ -115,11 +115,12 @@ app.get('/api/scrape', async (req, res) => {
     await safeNavigate(page, `https://instagram.com/${igUsername}`);
     const data = await extractProfileData(page);
 
-    // 🧪 DIAGNÓSTICO EXTRA
+    // 📄 Diagnóstico completo: imprime todo el HTML visible
     const html = await page.content();
-    console.log("📄 HTML del perfil (primeros 1000 chars):", html.substring(0, 1000));
-    await page.screenshot({ path: `screenshot-${igUsername}.png`, fullPage: true });
+    console.log("📄 CONTENIDO COMPLETO DEL PERFIL:");
+    console.log(html);
 
+    await page.screenshot({ path: `screenshot-${igUsername}.png`, fullPage: true });
     await page.close();
 
     const flags = targeting === 'LATAM'
