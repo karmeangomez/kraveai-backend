@@ -28,6 +28,10 @@ async function instagramLogin(page, username, password, cookiesFile = 'default')
       const cookies = JSON.parse(await fs.readFile(cookiesPath, 'utf8'));
       await page.setCookie(...cookies);
       console.log("🍪 Cookies cargadas");
+
+      // 🔁 Forzar limpieza para evitar errores por cookies inválidas
+      await page.deleteCookie(...cookies);
+      console.log("🔁 Cookies eliminadas antes de login (login forzado)");
     }
 
     await page.goto('https://www.instagram.com/', {
