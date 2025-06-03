@@ -17,11 +17,41 @@ let userAgentIndex = 0;
 
 function getNextUserAgent() {
   const ua = userAgentList[userAgentIndex];
-  userAgentIndex = (userAgentIndex + 1) % userAgentList.length; // Rotar cíclicamente
+  userAgentIndex = (userAgentIndex + 1) % userAgentList.length;
   return ua;
 }
 
-// [Resto del código de humanBehavior, encrypt, decrypt, etc. permanece igual]
+const humanBehavior = {
+  randomDelay: (min = 500, max = 2000) => new Promise(resolve => setTimeout(resolve, min + Math.random() * (max - min))),
+  randomType: async (page, selector, text) => {
+    for (let char of text) {
+      await page.type(selector, char, { delay: 50 + Math.random() * 50 });
+      await humanBehavior.randomDelay(50, 150);
+    }
+  },
+  randomScroll: async (page) => {
+    const scrollHeight = await page.evaluate(() => document.body.scrollHeight);
+    for (let i = 0; i < 2; i++) {
+      await page.evaluate(h => window.scrollBy(0, h * Math.random()), scrollHeight * 0.5);
+      await humanBehavior.randomDelay(500, 1500);
+    }
+  }
+};
+
+function encrypt(data) {
+  const iv = crypto.randomBytes(16);
+  const cipher = crypto.createCipheriv('aes-256-cbc', Buffer.from(ENCRYPTION_KEY), iv);
+  let encrypted = cipher.update(JSON.stringify(data), 'utf8', 'hex');
+  encrypted += cipher.final('hex');
+  return { iv: iv.toString('hex'), encryptedData: encrypted };
+}
+
+function decrypt(encryptedObj) {
+  const decipher = crypto.createDecipheriv('aes-256-cbc', Buffer.from(ENCRYPTION_KEY), Buffer.from(encryptedObj.iv, 'hex'));
+  let decrypted = decipher.update(encryptedObj.encryptedData, 'hex', 'utf8');
+  decrypted += decipher.final('utf8');
+  return JSON.parse(decrypted);
+}
 
 let cachedSessions = new Map();
 
@@ -119,7 +149,7 @@ async function instagramLogin(page, username, password, cookiesFile = 'default')
         return false;
       }
 
-      const ua = getNextUserAgent(); // Usar User-Agent rotativo
+      const ua = getNextUserAgent();
       await page.setUserAgent(ua);
       console.log(`📱 User-Agent: ${ua}`);
 
@@ -179,7 +209,11 @@ async function verifySession(page) {
     const response = await page.goto('https://www.instagram.com/', { waitUntil: 'networkidle0', timeout: NAVIGATION_TIMEOUT });
     if (response.status() >= 400) return false;
     const isActive = await page.evaluate(() => !!document.querySelector('svg[aria-label="Inicio"]'));
-    return isActive;
+    if (isActive) {
+      await humanBehavior.randomScroll(page);
+      return true;
+    }
+    return false;
   } catch {
     return false;
   }
@@ -192,7 +226,7 @@ async function handleChallenge(page) {
     const challengeText = await page.evaluate(() => document.body.innerText.toLowerCase());
     if (challengeText.includes('verifica') || challengeText.includes('sospechosa') || challengeText.includes('captcha')) {
       console.log("🚧 Desafío detectado, pausa para intervención manual...");
-      await new Promise(resolve => setTimeout(resolve, 300000)); // 5 minutos
+      await new Promise(resolve => setTimeout(resolve, 300000));
       return true;
     }
   }
@@ -205,4 +239,44 @@ async function handlePostLoginModals(page) {
       '//button[contains(., "Ahora no") or contains(., "Not Now")]',
       '//button[contains(., "Denegar") or contains(., "Decline")]'
     ];
-    for (const xpath of modals
+    for (const xpath of modals) {
+      const elements = await page.$x(xpath, { timeout: 5000 });
+      if (elements.length > 0) {
+        await elements[0].click();
+        await humanBehavior.randomDelay(500, 1000);
+      }
+    }
+  } catch {}
+}
+
+async function saveSession(sessionPath, cookies) {
+  const encrypted = encrypt(cookies);
+  const backupPath = `${sessionPath}_backup_${Date.now()}.json`;
+  await fs.writeFile(sessionPath, JSON.stringify(encrypted, null, 2));
+  if (!(await fs.readdir(sessionsDir)).some(f => f.startsWith(path.basename(backupPath)) && Date.now() - parseInt(f.split('_backup_')[1].split('.')[0]) < 43200000)) {
+    await fs.copyFile(sessionPath, backupPath).catch(() => {});
+  }
+}
+
+async function loadValidCookies(sessionPath, backupPrefix) {
+  const files = (await fs.readdir(sessionsDir)).filter(f => f.startsWith(path.basename(sessionPath)) || f.startsWith(path.basename(backupPrefix)));
+  files.sort((a, b) => b.localeCompare(a));
+  for (const file of files) {
+    try {
+      const filePath = path.join(sessionsDir, file);
+      const encrypted = JSON.parse(await fs.readFile(filePath, 'utf8'));
+      const cookies = decrypt(encrypted);
+      if (await validateCookies(cookies)) return cookies;
+    } catch {}
+  }
+  return [];
+}
+
+async function validateCookies(cookies) {
+  if (!Array.isArray(cookies) || cookies.length === 0) return false;
+  const sessionCookie = cookies.find(c => c.name === 'sessionid');
+  if (!sessionCookie) return false;
+  return !sessionCookie.expires || sessionCookie.expires * 1000 > Date.now() - SESSION_CHECK_THRESHOLD;
+}
+
+module.exports = { instagramLogin, getNextUserAgent };
