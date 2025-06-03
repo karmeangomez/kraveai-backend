@@ -1,342 +1,95 @@
-const fs = require('fs').promises;
-const path = require('path');
-const UserAgent = require('user-agents');
-const crypto = require('crypto');
-const redis = require('redis');
+const puppeteer = require('puppeteer-extra');
+const StealthPlugin = require('puppeteer-extra-plugin-stealth');
 const axios = require('axios');
+puppeteer.use(StealthPlugin());
 
-const accountsDir = path.join(__dirname, 'accounts');
-const sessionsDir = path.join(accountsDir, 'sessions');
-const accountsFile = path.join(accountsDir, 'accounts.json');
-const LOGIN_TIMEOUT = 30000; // Reducido de 60000
-const NAVIGATION_TIMEOUT = 15000; // Reducido de 30000
-const SESSION_CHECK_THRESHOLD = 43200000;
-const INACTIVITY_THRESHOLD = 86400000;
-const ENCRYPTION_KEY = process.env.ENCRYPTION_KEY || crypto.randomBytes(32).toString('hex');
+const proxyList = [];
+let proxyIndex = 0;
 
-const userAgentList = Array.from({ length: 150 }, () => {
-  const device = ['mobile', 'tablet', 'desktop'][Math.floor(Math.random() * 3)];
-  return new UserAgent({ deviceCategory: device, platform: ['Windows', 'Macintosh', 'iOS', 'Android'][Math.floor(Math.random() * 4)] }).toString();
-});
-let userAgentIndex = 0;
-
-function getNextUserAgent() {
-  if (userAgentIndex % 75 === 0) {
-    userAgentList.push(...Array.from({ length: 25 }, () => new UserAgent().toString()));
-    userAgentList.splice(0, userAgentList.length - 150);
+async function updateProxies() {
+  try {
+    const response = await axios.get('https://api.proxyscrape.com/v2/?request=getproxies&protocol=http&timeout=10000&country=all');
+    proxyList.length = 0; // Limpia la lista antes de agregar nuevos proxies
+    proxyList.push(...response.data.split('\n').filter(p => p));
+    console.log(`📡 Cargados ${proxyList.length} proxies`);
+  } catch (error) {
+    console.error("⚠️ Error cargando proxies:", error.message);
   }
-  const ua = userAgentList[userAgentIndex];
-  userAgentIndex = (userAgentIndex + 1) % userAgentList.length;
-  return ua;
 }
 
-const humanBehavior = {
-  randomDelay: (min = 500, max = 2000) => new Promise(resolve => setTimeout(resolve, min + Math.random() * (max - min))),
-  randomType: async (page, selector, text) => {
-    for (let char of text) {
-      await page.type(selector, char, { delay: 50 + Math.random() * 50 });
-      await humanBehavior.randomDelay(50, 150);
-    }
-  },
-  randomScroll: async (page) => {
-    const scrollHeight = await page.evaluate(() => document.body.scrollHeight);
-    for (let i = 0; i < 2; i++) {
-      await page.evaluate(h => window.scrollBy(0, h * Math.random()), scrollHeight * 0.5);
-      await humanBehavior.randomDelay(500, 1500);
-    }
-  },
-  randomMouseMovement: async (page) => {
-    const viewport = await page.evaluate(() => ({ width: window.innerWidth, height: window.innerHeight }));
-    for (let i = 0; i < 3; i++) {
-      const x = Math.random() * viewport.width;
-      const y = Math.random() * viewport.height;
-      await page.mouse.move(x, y, { steps: 10 });
-      await humanBehavior.randomDelay(200, 500);
-    }
-  },
-  randomClick: async (page) => {
-    const nonInteractive = await page.evaluate(() => {
-      const elements = Array.from(document.querySelectorAll('p, span, img'));
-      return elements[Math.floor(Math.random() * elements.length)]?.getBoundingClientRect();
+function getNextProxy() {
+  if (proxyIndex % 5 === 0) updateProxies().catch(() => {});
+  const proxy = proxyList[proxyIndex] || '';
+  proxyIndex = (proxyIndex + 1) % proxyList.length || 0;
+  return proxy;
+}
+
+async function initBrowser() {
+  try {
+    console.log("🚀 Iniciando Puppeteer con Stealth...");
+    const proxy = getNextProxy();
+    const browserInstance = await puppeteer.launch({
+      headless: "new",
+      args: [
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-dev-shm-usage',
+        '--disable-gpu',
+        '--enable-javascript',
+        '--disable-blink-features=AutomationControlled',
+        proxy ? `--proxy-server=http://${proxy}` : ''
+      ],
+      ignoreHTTPSErrors: true
     });
-    if (nonInteractive) {
-      await page.mouse.click(nonInteractive.x + 5, nonInteractive.y + 5);
-      await humanBehavior.randomDelay(500, 1000);
-    }
-  }
-};
 
-function encrypt(data) {
-  const iv = crypto.randomBytes(16);
-  const cipher = crypto.createCipheriv('aes-256-cbc', Buffer.from(ENCRYPTION_KEY), iv);
-  let encrypted = cipher.update(JSON.stringify(data), 'utf8', 'hex');
-  encrypted += cipher.final('hex');
-  return { iv: iv.toString('hex'), encryptedData: encrypted };
-}
+    const page = await browserInstance.newPage();
+    await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/110.0.4472.114 Safari/537.36');
 
-function decrypt(encryptedObj) {
-  const decipher = crypto.createDecipheriv('aes-256-cbc', Buffer.from(ENCRYPTION_KEY), Buffer.from(encryptedObj.iv, 'hex'));
-  let decrypted = decipher.update(encryptedObj.encryptedData, 'hex', 'utf8');
-  decrypted += decipher.final('utf8');
-  return JSON.parse(decrypted);
-}
+    await page.evaluateOnNewDocument(() => {
+      Object.defineProperty(navigator, 'webdriver', { get: () => false });
+      window.navigator.chrome = { runtime: {} };
+      Object.defineProperty(navigator, 'languages', { get: () => ['en-US', 'en'] });
+      Object.defineProperty(navigator, 'plugins', { get: () => [1, 2, 3, 4, 5] });
+    });
 
-const client = redis.createClient({ url: process.env.REDIS_URL || 'redis://localhost:6379' });
-client.connect().catch(console.error);
+    console.log(`📱 User-Agent: ${await page.evaluate(() => navigator.userAgent)}`);
 
-let cachedSessions = new Map();
-
-async function loadAccounts() {
-  try {
-    await fs.mkdir(accountsDir, { recursive: true });
-    await fs.mkdir(sessionsDir, { recursive: true });
-    if (await fs.access(accountsFile).then(() => true).catch(() => false)) {
-      return JSON.parse(await fs.readFile(accountsFile, 'utf8'));
-    }
-    return { accounts: [] };
-  } catch (error) {
-    console.error('Error loading accounts:', error);
-    return { accounts: [] };
+    return { browserInstance, page };
+  } catch (err) {
+    console.error("❌ Error al iniciar Puppeteer:", err.message);
+    return null;
   }
 }
 
-async function saveAccounts(accounts) {
-  await fs.writeFile(accountsFile, JSON.stringify(accounts, null, 2));
-}
-
-async function instagramLogin(page, username, password, cookiesFile = 'default') {
-  const sessionKey = `${username}_${cookiesFile}`;
-  const sessionPath = path.join(sessionsDir, `${sessionKey}.json`);
-  const backupPrefix = path.join(sessionsDir, `${sessionKey}_backup_`);
+async function scrapeInstagram(username) {
+  const { browserInstance, page } = await initBrowser();
+  if (!browserInstance) return null;
 
   try {
-    console.log(`🔍 Revisando sesión para: ${username} (${sessionKey}) [${new Date().toISOString()}]`);
-    const accounts = await loadAccounts();
-    let account = accounts.accounts.find(a => a.username === username);
+    console.log(`🔍 Accediendo al perfil de Instagram: ${username}`);
+    await page.goto(`https://www.instagram.com/${username}/`, { timeout: 60000, waitUntil: 'domcontentloaded' });
 
-    if (!account) {
-      const encrypted = encrypt(password);
-      account = {
-        username,
-        password: encrypted.encryptedData,
-        iv: encrypted.iv,
-        sessionFile: sessionPath,
-        lastLogin: new Date().toISOString(),
-        status: 'active',
-        failCount: 0
+    await page.waitForFunction(() => document.querySelector('img[alt*="profile picture"]'), { timeout: 30000 });
+
+    await page.evaluate(() => window.scrollBy(0, 300));
+
+    const data = await page.evaluate(() => {
+      return {
+        username: document.querySelector('h1')?.textContent || "",
+        profile_pic_url: document.querySelector('img[alt*="profile picture"]')?.src || "",
+        followers_count: document.querySelector('header section ul li:nth-child(2) span')?.textContent || "",
+        is_verified: !!document.querySelector('header section svg[aria-label="Verified"]')
       };
-      accounts.accounts.push(account);
-      await saveAccounts(accounts);
-    }
+    });
 
-    let cachedSession = cachedSessions.get(sessionKey);
-    if (cachedSession && Date.now() - cachedSession.lastChecked < SESSION_CHECK_THRESHOLD) {
-      console.log("🟢 Usando sesión en caché (memoria)");
-      await page.setCookie(...cachedSession.cookies);
-      const sessionActive = await verifySession(page);
-      if (sessionActive) {
-        cachedSession.lastActivity = Date.now();
-        cachedSessions.set(sessionKey, cachedSession);
-        return true;
-      }
-    }
-
-    let cookies = await loadValidCookies(sessionPath, backupPrefix);
-    if (cookies.length > 0) {
-      console.log("📂 Usando sesión desde Redis o archivo local");
-      await page.setCookie(...cookies);
-    }
-
-    const sessionActive = await verifySession(page);
-    if (sessionActive) {
-      cachedSession = { username, cookies, lastChecked: Date.now(), lastActivity: Date.now() };
-      cachedSessions.set(sessionKey, cachedSession);
-      await saveSession(sessionPath, cookies);
-      account.lastLogin = new Date().toISOString();
-      await saveAccounts(accounts);
-      return true;
-    }
-
-    console.warn(`⚠️ Sesión inválida para ${sessionKey}, intentando login`);
-
-    for (let attempt = 1; attempt <= 3; attempt++) {
-      console.log(`🔐 Iniciando login completo (intento ${attempt}/3)`);
-      const referers = ['https://www.google.com/search', 'https://twitter.com/explore', 'https://facebook.com'];
-      await page.goto(referers[Math.floor(Math.random() * referers.length)], { waitUntil: 'domcontentloaded', timeout: 5000 });
-      await humanBehavior.randomScroll(page);
-      await page.goto('https://www.instagram.com/accounts/login/', { waitUntil: 'domcontentloaded', timeout: NAVIGATION_TIMEOUT });
-
-      const currentUrl = page.url();
-      if (!currentUrl.includes('accounts/login')) {
-        console.warn(`⚠️ Redirigido fuera de login: ${currentUrl}`);
-        return false;
-      }
-
-      const isChallenge = await handleChallenge(page);
-      if (isChallenge && attempt < 3) {
-        continue;
-      }
-
-      const inputReady = await page.$('input[name="username"]', { timeout: 5000 });
-      if (!inputReady) {
-        console.error("❌ El campo de usuario no apareció. La página no cargó bien.");
-        return false;
-      }
-
-      const ua = getNextUserAgent();
-      await page.setUserAgent(ua);
-      console.log(`📱 User-Agent: ${ua}`);
-
-      await humanBehavior.randomType(page, 'input[name="username"]', username);
-      await humanBehavior.randomDelay(500, 1000);
-      const decryptedPassword = decrypt({ encryptedData: account.password, iv: account.iv });
-      await humanBehavior.randomType(page, 'input[name="password"]', decryptedPassword);
-      await humanBehavior.randomDelay(500, 1000);
-
-      await humanBehavior.randomMouseMovement(page);
-      await humanBehavior.randomClick(page);
-
-      await page.click('button[type="submit"]').catch(() => console.warn("⚠️ Botón de submit no encontrado"));
-
-      const loginSuccess = await Promise.race([
-        page.waitForNavigation({ waitUntil: 'networkidle2', timeout: LOGIN_TIMEOUT }),
-        humanBehavior.randomDelay(5000, 10000)
-      ]).then(() => true).catch(() => false);
-
-      if (loginSuccess) {
-        const error = await page.$('#slfErrorAlert');
-        if (error) {
-          const msg = await page.$eval('#slfErrorAlert', el => el.textContent);
-          console.error("❌ Error en login:", msg);
-          account.failCount++;
-          if (attempt === 3) {
-            account.status = 'inactive';
-            await saveAccounts(accounts);
-            return false;
-          }
-          await humanBehavior.randomDelay(15000, 30000);
-          continue;
-        }
-
-        await handlePostLoginModals(page);
-        const newCookies = await page.cookies();
-        cachedSession = { username, cookies: newCookies, lastChecked: Date.now(), lastActivity: Date.now() };
-        cachedSessions.set(sessionKey, cachedSession);
-        await saveSession(sessionPath, newCookies);
-        account.lastLogin = new Date().toISOString();
-        account.failCount = 0;
-        account.status = 'active';
-        await saveAccounts(accounts);
-        console.log("🔁 Login completo y cookies guardadas");
-        return true;
-      }
-    }
-
-    account.status = 'inactive';
-    await saveAccounts(accounts);
-    return false;
+    console.log("✅ Datos obtenidos:", data);
+    await browserInstance.close();
+    return data;
   } catch (error) {
-    console.error(`❌ Fallo durante login para ${sessionKey}:`, error.message);
-    return false;
+    console.error("❌ Error al extraer datos:", error.message);
+    await browserInstance.close();
+    return null;
   }
 }
 
-async function verifySession(page) {
-  try {
-    const response = await page.goto('https://www.instagram.com/', { waitUntil: 'networkidle0', timeout: NAVIGATION_TIMEOUT });
-    if (response.status() >= 400) return false;
-    const isActive = await page.evaluate(() => !!document.querySelector('svg[aria-label="Inicio"]'));
-    if (isActive) {
-      await humanBehavior.randomScroll(page);
-      return true;
-    }
-    return false;
-  } catch {
-    return false;
-  }
-}
-
-async function handleChallenge(page) {
-  const isChallenge = await page.waitForFunction(() => window.location.href.includes('challenge'), { timeout: 10000 })
-    .then(() => true).catch(() => false);
-  if (isChallenge) {
-    const challengeText = await page.evaluate(() => document.body.innerText.toLowerCase());
-    if (challengeText.includes('verifica') || challengeText.includes('sospechosa') || challengeText.includes('captcha')) {
-      console.log("🚧 Desafío detectado, pausa para intervención manual...");
-      await new Promise(resolve => setTimeout(resolve, 300000));
-      return true;
-    }
-  }
-  return false;
-}
-
-async function handlePostLoginModals(page) {
-  try {
-    const modals = [
-      '//button[contains(., "Ahora no") or contains(., "Not Now")]',
-      '//button[contains(., "Denegar") or contains(., "Decline")]'
-    ];
-    for (const xpath of modals) {
-      const elements = await page.$x(xpath, { timeout: 5000 });
-      if (elements.length > 0) {
-        await elements[0].click();
-        await humanBehavior.randomDelay(500, 1000);
-      }
-    }
-  } catch {}
-}
-
-async function saveSession(sessionPath, cookies) {
-  const encrypted = encrypt(cookies);
-  const sessionKey = path.basename(sessionPath);
-  await client.set(`session:${sessionKey}`, JSON.stringify(encrypted), { EX: 86400 });
-  await fs.writeFile(sessionPath, JSON.stringify(encrypted, null, 2));
-  const backupPath = `${sessionPath}_backup_${Date.now()}.json`;
-  if (!(await fs.readdir(sessionsDir)).some(f => f.startsWith(path.basename(backupPath)) && Date.now() - parseInt(f.split('_backup_')[1].split('.')[0]) < 43200000)) {
-    await fs.copyFile(sessionPath, backupPath).catch(() => {});
-  }
-}
-
-async function loadValidCookies(sessionPath, backupPrefix) {
-  const sessionKey = path.basename(sessionPath);
-  const cached = await client.get(`session:${sessionKey}`);
-  if (cached) {
-    const encrypted = JSON.parse(cached);
-    const cookies = decrypt(encrypted);
-    if (await validateCookies(cookies)) return cookies;
-  }
-  const files = (await fs.readdir(sessionsDir)).filter(f => f.startsWith(sessionKey) || f.startsWith(path.basename(backupPrefix)));
-  files.sort((a, b) => b.localeCompare(a));
-  for (const file of files) {
-    try {
-      const filePath = path.join(sessionsDir, file);
-      const encrypted = JSON.parse(await fs.readFile(filePath, 'utf8'));
-      const cookies = decrypt(encrypted);
-      if (await validateCookies(cookies)) {
-        await client.set(`session:${sessionKey}`, JSON.stringify(encrypted), { EX: 86400 });
-        return cookies;
-      }
-    } catch {}
-  }
-  return [];
-}
-
-async function validateCookies(cookies) {
-  if (!Array.isArray(cookies) || cookies.length === 0) return false;
-  const sessionCookie = cookies.find(c => c.name === 'sessionid');
-  if (!sessionCookie) return false;
-  return !sessionCookie.expires || sessionCookie.expires * 1000 > Date.now() - SESSION_CHECK_THRESHOLD;
-}
-
-async function monitorSessions(browserInstance) {
-  setInterval(async () => {
-    for (const [key, session] of cachedSessions) {
-      if (Date.now() - session.lastActivity > INACTIVITY_THRESHOLD) {
-        cachedSessions.delete(key);
-        console.log(`🕒 Sesión eliminada por inactividad: ${key}`);
-      }
-    }
-  }, 3600000); // Cada hora
-}
-
-module.exports = { instagramLogin, getNextUserAgent };
+module.exports = { scrapeInstagram };
