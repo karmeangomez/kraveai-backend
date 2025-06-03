@@ -40,10 +40,12 @@ async function validateProxy(proxy) {
     const [host, port, username, password] = proxy.split(':');
     const response = await axios.get('https://www.google.com', {
       proxy: { host, port: parseInt(port), auth: { username, password } },
-      timeout: 5000,
+      timeout: 10000, // Aumentar timeout para conexiones lentas
+      headers: { 'User-Agent': getNextUserAgent() },
     });
     return response.status === 200;
-  } catch {
+  } catch (err) {
+    console.warn(`⚠️ Error al validar proxy ${proxy}: ${err.message}`);
     return false;
   }
 }
@@ -58,8 +60,8 @@ async function getNextProxy() {
     }
     console.warn(`⚠️ Proxy inválido: ${proxy}`);
   }
-  console.warn('⚠️ No hay proxies válidos disponibles');
-  return '';
+  console.warn('⚠️ No hay proxies válidos, usando conexión directa');
+  return ''; // Modo sin proxy como respaldo
 }
 
 // 🎲 Obtener User-Agent aleatorio
@@ -72,23 +74,25 @@ async function initBrowser() {
   try {
     console.log('🚀 Iniciando Puppeteer con Stealth...');
     const proxy = await getNextProxy();
-    if (!proxy) throw new Error('No hay proxies válidos');
+    const browserArgs = [
+      '--no-sandbox',
+      '--disable-setuid-sandbox',
+      '--disable-dev-shm-usage',
+      '--disable-gpu',
+      '--disable-blink-features=AutomationControlled',
+      '--enable-javascript',
+      '--window-size=1366,768',
+    ];
+    if (proxy) {
+      const [host, port] = proxy.split(':');
+      browserArgs.push(`--proxy-server=http://${host}:${port}`);
+    }
 
-    const [host, port, username, password] = proxy.split(':');
     const browser = await puppeteer.launch({
       headless: true,
-      args: [
-        '--no-sandbox',
-        '--disable-setuid-sandbox',
-        '--disable-dev-shm-usage',
-        '--disable-gpu',
-        '--disable-blink-features=AutomationControlled',
-        '--enable-javascript',
-        '--window-size=1366,768', // Reducir resolución para menos recursos
-        `--proxy-server=http://${host}:${port}`,
-      ],
+      args: browserArgs,
       ignoreHTTPSErrors: true,
-      timeout: 30000, // Tiempo límite para lanzamiento
+      timeout: 30000,
     });
 
     const page = await browser.newPage();
@@ -109,9 +113,12 @@ async function initBrowser() {
       Object.defineProperty(navigator, 'platform', { get: () => 'Win32' });
     });
 
-    // Autenticar proxy
-    if (username && password) {
-      await page.authenticate({ username, password });
+    // Autenticar proxy si existe
+    if (proxy) {
+      const [, , username, password] = proxy.split(':');
+      if (username && password) {
+        await page.authenticate({ username, password });
+      }
     }
 
     browserInstance = browser;
@@ -128,7 +135,7 @@ async function initBrowser() {
       return null;
     }
 
-    console.log(`✅ Navegador inicializado con proxy: ${host}:${port}, UA: ${ua}`);
+    console.log(`✅ Navegador inicializado con ${proxy ? `proxy: ${proxy}` : 'conexión directa'}, UA: ${ua}`);
     return browser;
   } catch (err) {
     console.error('❌ Error crítico al iniciar navegador:', err.message);
