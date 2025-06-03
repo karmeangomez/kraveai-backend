@@ -1,257 +1,117 @@
-require('dotenv').config();
-const fs = require('fs');
 const express = require('express');
-const cors = require('cors');
-const axios = require('axios');
-const path = require('path');
 const puppeteer = require('puppeteer-extra');
 const StealthPlugin = require('puppeteer-extra-plugin-stealth');
-const { aplicarFingerprint } = require('./lib/fingerprint-generator');
-const { obtenerHeadersGeo } = require('./lib/geo-headers');
-const { randomDelay, humanScroll } = require('./lib/human-behavior');
-const { getRandomUA } = require('./lib/ua-loader');
-const { instagramLogin } = require('./instagramLogin');
+const { scrapeInstagram, encryptPassword } = require('./instagramLogin');
 
 puppeteer.use(StealthPlugin());
 
 const app = express();
+const PORT = process.env.PORT || 3000;
+
+let browserInstance = null;
+const pagePool = new Set();
+
 app.use(express.json());
-app.use(cors());
 
-let browserInstance;
-let isLoggedIn = false;
-
-// 🔁 PROXY ROTATION
-const proxyList = [];
-let proxyIndex = 0;
-
-async function updateProxies() {
-  try {
-    const res = await axios.get('https://api.proxyscrape.com/v2/?request=getproxies&protocol=http&timeout=10000&country=all');
-    proxyList.push(...res.data.split('\n').filter(p => p));
-    console.log(`📡 Cargados ${proxyList.length} proxies`);
-  } catch (err) {
-    console.warn("⚠️ No se pudo actualizar proxies:", err.message);
-  }
-}
-
-function getNextProxy() {
-  if (proxyIndex % 10 === 0) updateProxies().catch(() => {});
-  const proxy = proxyList[proxyIndex] || '';
-  proxyIndex = (proxyIndex + 1) % proxyList.length || 0;
-  return proxy;
-}
-
-// 🔁 INICIAR CHROMIUM + LOGIN CON EVASIÓN Y PROXY
+// 🛠️ Inicializar navegador
 async function initBrowser() {
   try {
-    console.log("🚀 Iniciando Chromium...");
-    const proxy = getNextProxy();
-    browserInstance = await puppeteer.launch({
-      executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || '/usr/bin/google-chrome',
-      args: [
-        '--no-sandbox',
-        '--disable-setuid-sandbox',
-        '--disable-dev-shm-usage',
-        '--disable-gpu',
-        '--enable-javascript',
-        '--disable-blink-features=AutomationControlled',
-        proxy ? `--proxy-server=http://${proxy}` : ''
-      ],
-      headless: true,
-      ignoreHTTPSErrors: true
-    });
+    console.log('🚀 Iniciando Puppeteer con Stealth...');
+    const { browser, page } = await initBrowserInstance();
+    if (!browser) throw new Error('Fallo al iniciar navegador');
 
-    const testPage = await browserInstance.newPage();
-    await testPage.goto('https://www.google.com', { timeout: 10000 }).catch(err => {
-      console.error("❌ Error de red o sin conexión:", err.message);
-      throw err;
-    });
-    await testPage.close();
+    browserInstance = browser;
+    pagePool.add(page);
 
-    const loginPage = await browserInstance.newPage();
-    const ua = getRandomUA('mobile');
-    await loginPage.setUserAgent(ua);
-    await loginPage.evaluateOnNewDocument(() => {
-      Object.defineProperty(navigator, 'webdriver', { get: () => false });
-      window.navigator.chrome = { runtime: {} };
-      Object.defineProperty(navigator, 'languages', { get: () => ['es-ES', 'es'] });
-      Object.defineProperty(navigator, 'plugins', { get: () => [1, 2, 3, 4] });
-    });
-
-    isLoggedIn = await instagramLogin(loginPage, process.env.INSTAGRAM_USER, process.env.INSTAGRAM_PASS, 'default');
-    await loginPage.close();
-
-    if (!isLoggedIn) {
-      console.warn("⚠️ Login fallido. Reintentando en 60 segundos...");
+    // Verificar login inicial
+    const encryptedPassword = encryptPassword(process.env.INSTAGRAM_PASS);
+    const loginSuccess = await scrapeInstagram(page, process.env.INSTAGRAM_USER, encryptedPassword);
+    if (!loginSuccess) {
+      console.warn('⚠️ Login inicial fallido. Reintentando en 60 segundos...');
+      await browser.close();
+      pagePool.clear();
       setTimeout(initBrowser, 60000);
-    } else {
-      console.log("✅ Chromium listo y sesión activa");
+      return null;
     }
+
+    console.log('✅ Navegador inicializado y sesión activa');
+    return browser;
   } catch (err) {
-    console.error("❌ Error iniciando Chromium:", err.message);
+    console.error('❌ Error crítico al iniciar navegador:', err.message);
+    if (browserInstance) await browserInstance.close();
+    pagePool.clear();
     setTimeout(initBrowser, 60000);
+    return null;
   }
 }
 
-// 🔍 NAVEGAR A PERFIL
-async function safeNavigate(page, url, isTurbo = false) {
-  try {
-    const turboGoto = isTurbo ? 10000 : 30000;
-    const turboWait = isTurbo ? 12000 : 40000;
-
-    if (isTurbo) console.log("⚡ Modo Turbo ACTIVADO para esta búsqueda");
-
-    await page.setUserAgent(getRandomUA('mobile'));
-    await page.setExtraHTTPHeaders(obtenerHeadersGeo());
-    await aplicarFingerprint(page);
-    await page.goto(url, { waitUntil: 'domcontentloaded', timeout: turboGoto });
-
-    await page.waitForFunction(() => {
-      return (
-        document.querySelector('header h1') &&
-        document.querySelector('header img') &&
-        document.querySelector('meta[property="og:description"]')
-      );
-    }, { timeout: turboWait });
-
-    await humanScroll(page);
-    await randomDelay(1500, 3000);
-    return true;
-  } catch (e) {
-    throw new Error("Instagram bloqueó el acceso o el perfil no cargó completamente.");
-  }
-}
-
-// 📦 EXTRAER DATOS
-async function extractProfileData(page) {
-  return page.evaluate(() => {
+// 🔄 Monitor de sesiones
+async function monitorSessions(browser) {
+  while (true) {
     try {
-      const avatar = document.querySelector('img[data-testid="user-avatar"], header img');
-      const usernameElem = document.querySelector('header section h2') || document.querySelector('span[title]');
-      const verifiedElem = document.querySelector('svg[aria-label="Verified"]');
-      let followers = 'N/A';
-      const meta = document.querySelector('meta[property="og:description"]')?.content;
-      if (meta?.includes('seguidores')) {
-        const match = meta.match(/([\d,.KM]+)\sseguidores/);
-        if (match) followers = match[1];
+      const page = Array.from(pagePool)[0];
+      if (!page) throw new Error('No hay páginas disponibles');
+      const isLoggedIn = await page.evaluate(() => !!document.querySelector('a[href*="/direct/inbox/"]'));
+      if (!isLoggedIn) {
+        console.warn('⚠️ Sesión expirada. Reiniciando navegador...');
+        await browser.close();
+        pagePool.clear();
+        await initBrowser();
       }
-      return {
-        username: usernameElem?.textContent || 'N/A',
-        fullName: document.querySelector('header h1')?.textContent || 'N/A',
-        verified: !!verifiedElem,
-        followers,
-        profilePic: avatar?.src || 'N/A'
-      };
-    } catch (e) {
-      return { error: "Error extrayendo datos: " + e.message };
+      await new Promise(resolve => setTimeout(resolve, 5 * 60 * 1000)); // Verificar cada 5 minutos
+    } catch (err) {
+      console.error('❌ Error en monitor de sesiones:', err.message);
+      await browser.close();
+      pagePool.clear();
+      await initBrowser();
+      break;
     }
-  });
+  }
 }
 
-// ✅ ENDPOINT DE SCRAPING
-app.get('/api/scrape', async (req, res) => {
-  const igUsername = req.query.username;
-  const targeting = (req.query.targeting || 'GLOBAL').toUpperCase();
-  const isTurbo = req.query.turbo === 'true';
-
-  if (!igUsername) return res.status(400).json({ error: "Falta ?username=" });
-  if (!browserInstance || !isLoggedIn) return res.status(500).json({ error: "Sistema no preparado" });
-
+// 🌐 Endpoint para scraping de perfil
+app.get('/scrape/:username', async (req, res) => {
+  const { username } = req.params;
   try {
-    const page = await browserInstance.newPage();
-    console.log(`🔍 Scraping: @${igUsername} | ${targeting}`);
-    await safeNavigate(page, `https://instagram.com/${igUsername}`, isTurbo);
-    const data = await extractProfileData(page);
-    await page.close();
+    if (!browserInstance || browserInstance.isConnected() === false) {
+      console.warn('⚠️ Navegador no inicializado. Iniciando...');
+      await initBrowser();
+    }
 
-    const flags = targeting === 'LATAM'
-      ? ['🇲🇽', '🇦🇷', '🇨🇴', '🇨🇱', '🇵🇪', '🇻🇪']
-      : ['🌍'];
+    const page = Array.from(pagePool)[0] || (await browserInstance.newPage());
+    const encryptedPassword = encryptPassword(process.env.INSTAGRAM_PASS);
+    const data = await scrapeInstagram(page, username, encryptedPassword);
 
-    const profileData = {
-      ...data,
-      username: igUsername,
-      targeting,
-      countryFlags: flags,
-      url: `https://instagram.com/${igUsername}`,
-      createdAt: new Date().toISOString()
-    };
+    if (!data) {
+      return res.status(500).json({ error: 'Fallo al obtener datos del perfil' });
+    }
 
-    res.json({ profile: profileData });
-  } catch (e) {
-    res.status(500).json({ error: "Scraping fallido", reason: e.message });
-  }
-});
-
-// ✅ SALUD
-app.get('/health', (req, res) => {
-  res.send('🟢 Server running and healthy!');
-});
-
-// 🧠 IA GPT
-app.post('/api/chat', async (req, res) => {
-  try {
-    const { message } = req.body;
-    const resp = await axios.post('https://api.openai.com/v1/chat/completions', {
-      model: 'gpt-4o',
-      messages: [{ role: 'user', content: message }]
-    }, {
-      headers: {
-        Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
-        'Content-Type': 'application/json'
-      }
-    });
-    res.json({ message: resp.data.choices[0].message.content });
+    res.json({ success: true, data });
   } catch (err) {
-    res.status(500).json({ error: "Error IA", details: err.message });
+    console.error('❌ Error en /scrape:', err.message);
+    res.status(500).json({ error: 'Error interno del servidor' });
   }
 });
 
-// 🔊 VOZ
-app.get('/voz-prueba', async (req, res) => {
+// 🚀 Iniciar servidor
+async function startServer() {
   try {
-    const text = req.query.text || "Hola, este es un ejemplo de voz generada.";
-    const response = await axios.post("https://api.openai.com/v1/audio/speech", {
-      model: 'tts-1',
-      voice: 'onyx',
-      input: text
-    }, {
-      headers: {
-        Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
-        'Content-Type': 'application/json'
-      },
-      responseType: 'arraybuffer'
+    await initBrowser();
+    app.listen(PORT, () => {
+      console.log(`🌐 Servidor corriendo en puerto ${PORT}`);
+      if (browserInstance) monitorSessions(browserInstance).catch(console.error);
     });
-    res.set('Content-Type', 'audio/mpeg');
-    res.send(response.data);
   } catch (err) {
-    res.status(500).send("Error generando voz");
+    console.error('❌ Error al iniciar servidor:', err.message);
+    process.exit(1);
   }
-});
+}
 
-// 🔗 BITLY
-app.get('/bitly-prueba', async (req, res) => {
-  try {
-    const longUrl = req.query.url || "https://instagram.com";
-    const response = await axios.post("https://api-ssl.bitly.com/v4/shorten", {
-      long_url: longUrl
-    }, {
-      headers: {
-        Authorization: `Bearer ${process.env.BITLY_TOKEN}`,
-        'Content-Type': 'application/json'
-      }
-    });
-    res.json({ shortUrl: response.data.link });
-  } catch (err) {
-    res.status(500).json({ error: "Error Bitly", details: err.message });
-  }
-});
+startServer();
 
-// 🔥 INICIAR SERVER
-const PORT = process.env.PORT || 3000;
-initBrowser().then(() => {
-  app.listen(PORT, () => {
-    console.log(`🚀 Backend activo en puerto ${PORT}`);
-  });
+// 🛑 Manejo de cierre
+process.on('SIGTERM', async () => {
+  console.log('🛑 Cerrando servidor...');
+  if (browserInstance) await browserInstance.close();
+  process.exit(0);
 });
