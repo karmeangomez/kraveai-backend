@@ -17,32 +17,30 @@ let userAgentIndex = 0;
 
 function getNextUserAgent() {
   const ua = userAgentList[userAgentIndex];
-  userAgentIndex = (userAgentIndex + 1) % userAgentList.length;
+  userAgentIndex = (userAgentIndex + 1) % userAgentList.length; // Rotar cíclicamente
   return ua;
 }
 
-const humanBehavior = {
-  randomDelay: (min = 500, max = 2000) => new Promise(resolve => setTimeout(resolve, min + Math.random() * (max - min))),
-  randomType: async (page, selector, text) => {
-    for (let char of text) {
-      await page.type(selector, char, { delay: 50 + Math.random() * 50 });
-      await humanBehavior.randomDelay(50, 150);
-    }
-  },
-  randomScroll: async (page) => {
-    const scrollHeight = await page.evaluate(() => document.body.scrollHeight);
-    for (let i = 0; i < 2; i++) {
-      await page.evaluate(h => window.scrollBy(0, h * Math.random()), scrollHeight * 0.5);
-      await humanBehavior.randomDelay(500, 1500);
-    }
-  }
-};
+// [Resto del código de humanBehavior, encrypt, decrypt, etc. permanece igual]
 
-async function logAction(message) {
-  const logDir = path.join(__dirname, 'logs');
-  await fs.mkdir(logDir, { recursive: true });
-  const logFile = path.join(logDir, `activity_${new Date().toISOString().split('T')[0]}.log`);
-  await fs.appendFile(logFile, `[${new Date().toISOString()}] ${message}\n`);
+let cachedSessions = new Map();
+
+async function loadAccounts() {
+  try {
+    await fs.mkdir(accountsDir, { recursive: true });
+    await fs.mkdir(sessionsDir, { recursive: true });
+    if (await fs.access(accountsFile).then(() => true).catch(() => false)) {
+      return JSON.parse(await fs.readFile(accountsFile, 'utf8'));
+    }
+    return { accounts: [] };
+  } catch (error) {
+    console.error('Error loading accounts:', error);
+    return { accounts: [] };
+  }
+}
+
+async function saveAccounts(accounts) {
+  await fs.writeFile(accountsFile, JSON.stringify(accounts, null, 2));
 }
 
 async function instagramLogin(page, username, password, cookiesFile = 'default') {
@@ -51,7 +49,7 @@ async function instagramLogin(page, username, password, cookiesFile = 'default')
   const backupPrefix = path.join(sessionsDir, `${sessionKey}_backup_`);
 
   try {
-    await logAction(`🔍 Revisando sesión para: ${username} (${sessionKey})`);
+    console.log(`🔍 Revisando sesión para: ${username} (${sessionKey}) [${new Date().toISOString()}]`);
     const accounts = await loadAccounts();
     let account = accounts.accounts.find(a => a.username === username);
 
@@ -72,7 +70,7 @@ async function instagramLogin(page, username, password, cookiesFile = 'default')
 
     let cachedSession = cachedSessions.get(sessionKey);
     if (cachedSession && Date.now() - cachedSession.lastChecked < SESSION_CHECK_THRESHOLD) {
-      await logAction("🟢 Usando sesión en caché (memoria)");
+      console.log("🟢 Usando sesión en caché (memoria)");
       await page.setCookie(...cachedSession.cookies);
       const sessionActive = await verifySession(page);
       if (sessionActive) {
@@ -84,7 +82,7 @@ async function instagramLogin(page, username, password, cookiesFile = 'default')
 
     let cookies = await loadValidCookies(sessionPath, backupPrefix);
     if (cookies.length > 0) {
-      await logAction("📂 Usando sesión desde archivo local");
+      console.log("📂 Usando sesión desde archivo local");
       await page.setCookie(...cookies);
     }
 
@@ -98,15 +96,15 @@ async function instagramLogin(page, username, password, cookiesFile = 'default')
       return true;
     }
 
-    await logAction(`⚠️ Sesión inválida para ${sessionKey}, intentando login`);
+    console.warn(`⚠️ Sesión inválida para ${sessionKey}, intentando login`);
 
     for (let attempt = 1; attempt <= 3; attempt++) {
-      await logAction(`🔐 Iniciando login completo (intento ${attempt}/3)`);
+      console.log(`🔐 Iniciando login completo (intento ${attempt}/3)`);
       await page.goto('https://www.instagram.com/accounts/login/', { waitUntil: 'domcontentloaded', timeout: NAVIGATION_TIMEOUT });
 
       const currentUrl = page.url();
       if (!currentUrl.includes('accounts/login')) {
-        await logAction(`⚠️ Redirigido fuera de login: ${currentUrl}`);
+        console.warn(`⚠️ Redirigido fuera de login: ${currentUrl}`);
         return false;
       }
 
@@ -117,13 +115,13 @@ async function instagramLogin(page, username, password, cookiesFile = 'default')
 
       const inputReady = await page.$('input[name="username"]', { timeout: 15000 });
       if (!inputReady) {
-        await logAction("❌ El campo de usuario no apareció. La página no cargó bien.");
+        console.error("❌ El campo de usuario no apareció. La página no cargó bien.");
         return false;
       }
 
-      const ua = getNextUserAgent();
+      const ua = getNextUserAgent(); // Usar User-Agent rotativo
       await page.setUserAgent(ua);
-      await logAction(`📱 User-Agent: ${ua}`);
+      console.log(`📱 User-Agent: ${ua}`);
 
       await humanBehavior.randomType(page, 'input[name="username"]', username);
       await humanBehavior.randomDelay(500, 1000);
@@ -131,7 +129,7 @@ async function instagramLogin(page, username, password, cookiesFile = 'default')
       await humanBehavior.randomType(page, 'input[name="password"]', decryptedPassword);
       await humanBehavior.randomDelay(500, 1000);
 
-      await page.click('button[type="submit"]').catch(() => logAction("⚠️ Botón de submit no encontrado"));
+      await page.click('button[type="submit"]').catch(() => console.warn("⚠️ Botón de submit no encontrado"));
 
       const loginSuccess = await Promise.race([
         page.waitForNavigation({ waitUntil: 'networkidle2', timeout: LOGIN_TIMEOUT }),
@@ -142,7 +140,7 @@ async function instagramLogin(page, username, password, cookiesFile = 'default')
         const error = await page.$('#slfErrorAlert');
         if (error) {
           const msg = await page.$eval('#slfErrorAlert', el => el.textContent);
-          await logAction(`❌ Error en login: ${msg}`);
+          console.error("❌ Error en login:", msg);
           account.failCount++;
           if (attempt === 3) {
             account.status = 'inactive';
@@ -162,7 +160,7 @@ async function instagramLogin(page, username, password, cookiesFile = 'default')
         account.failCount = 0;
         account.status = 'active';
         await saveAccounts(accounts);
-        await logAction("🔁 Login completo y cookies guardadas");
+        console.log("🔁 Login completo y cookies guardadas");
         return true;
       }
     }
@@ -171,9 +169,40 @@ async function instagramLogin(page, username, password, cookiesFile = 'default')
     await saveAccounts(accounts);
     return false;
   } catch (error) {
-    await logAction(`❌ Fallo durante login para ${sessionKey}: ${error.message}`);
+    console.error(`❌ Fallo durante login para ${sessionKey}:`, error.message);
     return false;
   }
 }
 
-// Resto de las funciones (encrypt, decrypt, loadAccounts, saveAccounts, etc.) permanecen igual
+async function verifySession(page) {
+  try {
+    const response = await page.goto('https://www.instagram.com/', { waitUntil: 'networkidle0', timeout: NAVIGATION_TIMEOUT });
+    if (response.status() >= 400) return false;
+    const isActive = await page.evaluate(() => !!document.querySelector('svg[aria-label="Inicio"]'));
+    return isActive;
+  } catch {
+    return false;
+  }
+}
+
+async function handleChallenge(page) {
+  const isChallenge = await page.waitForFunction(() => window.location.href.includes('challenge'), { timeout: 15000 })
+    .then(() => true).catch(() => false);
+  if (isChallenge) {
+    const challengeText = await page.evaluate(() => document.body.innerText.toLowerCase());
+    if (challengeText.includes('verifica') || challengeText.includes('sospechosa') || challengeText.includes('captcha')) {
+      console.log("🚧 Desafío detectado, pausa para intervención manual...");
+      await new Promise(resolve => setTimeout(resolve, 300000)); // 5 minutos
+      return true;
+    }
+  }
+  return false;
+}
+
+async function handlePostLoginModals(page) {
+  try {
+    const modals = [
+      '//button[contains(., "Ahora no") or contains(., "Not Now")]',
+      '//button[contains(., "Denegar") or contains(., "Decline")]'
+    ];
+    for (const xpath of modals
