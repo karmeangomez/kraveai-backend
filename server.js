@@ -36,11 +36,13 @@ async function initBrowser() {
     isLoggedIn = await instagramLogin(page, process.env.INSTAGRAM_USER, process.env.INSTAGRAM_PASS, 'default');
     await page.close();
 
-    if (!isLoggedIn) throw new Error("Login fallido");
-    console.log("✅ Chromium listo y sesión activa");
+    if (!isLoggedIn) {
+      console.warn("⚠️ Login fallido. El servidor seguirá activo, pero las funciones protegidas por sesión estarán limitadas.");
+    } else {
+      console.log("✅ Chromium listo y sesión activa");
+    }
   } catch (err) {
-    console.error("❌ Error crítico:", err.message);
-    process.exit(1);
+    console.error("❌ Error crítico al iniciar Chromium:", err.message);
   }
 }
 
@@ -106,7 +108,7 @@ app.get('/api/scrape', async (req, res) => {
   const isTurbo = req.query.turbo === 'true';
 
   if (!igUsername) return res.status(400).json({ error: "Falta ?username=" });
-  if (!browserInstance || !isLoggedIn) return res.status(500).json({ error: "Sistema no preparado" });
+  if (!browserInstance || !isLoggedIn) return res.status(500).json({ error: "Sistema no preparado. Login fallido o no activo." });
 
   try {
     const page = await browserInstance.newPage();
