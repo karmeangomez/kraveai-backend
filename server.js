@@ -17,6 +17,7 @@ const { obtenerHeadersGeo } = require('./lib/geo-headers');
 const { randomDelay, humanScroll } = require('./lib/human-behavior');
 const { getRandomUA } = require('./lib/ua-loader');
 const { instagramLogin } = require('./instagramLogin');
+const db = require('./lib/firebase'); // Conexión Firestore
 
 let browserInstance;
 let isLoggedIn = false;
@@ -44,7 +45,7 @@ async function initBrowser() {
   }
 }
 
-// 🔍 NAVEGAR A PERFIL (espera precisa de contenido real)
+// 🔍 NAVEGAR A PERFIL
 async function safeNavigate(page, url) {
   try {
     await page.setUserAgent(getRandomUA('mobile'));
@@ -53,7 +54,6 @@ async function safeNavigate(page, url) {
 
     await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 });
 
-    // Espera que se carguen: nombre completo, imagen de perfil y seguidores
     await page.waitForFunction(() => {
       return (
         document.querySelector('header h1') &&
@@ -80,7 +80,7 @@ async function extractProfileData(page) {
       let followers = 'N/A';
       const meta = document.querySelector('meta[property="og:description"]')?.content;
       if (meta?.includes('seguidores')) {
-        const match = meta.match(/([\\d,.KM]+)\\sseguidores/);
+        const match = meta.match(/([\d,.KM]+)\sseguidores/);
         if (match) followers = match[1];
       }
       return {
@@ -110,10 +110,6 @@ app.get('/api/scrape', async (req, res) => {
     await safeNavigate(page, `https://instagram.com/${igUsername}`);
     const data = await extractProfileData(page);
 
-    const html = await page.content();
-    console.log("📄 CONTENIDO COMPLETO DEL PERFIL:");
-    console.log(html);
-    await page.screenshot({ path: `screenshot-${igUsername}.png`, fullPage: true });
     await page.close();
 
     const flags = targeting === 'LATAM'
@@ -128,6 +124,10 @@ app.get('/api/scrape', async (req, res) => {
       url: `https://instagram.com/${igUsername}`,
       createdAt: new Date().toISOString()
     };
+
+    // 🧠 GUARDAR EN FIRESTORE
+    await db.collection('clientes').doc(igUsername).set(profileData, { merge: true });
+    console.log(`☁️ Guardado en Firestore: ${igUsername}`);
 
     res.json({ profile: profileData });
   } catch (e) {
