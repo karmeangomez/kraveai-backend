@@ -17,7 +17,7 @@ const { obtenerHeadersGeo } = require('./lib/geo-headers');
 const { randomDelay, humanScroll } = require('./lib/human-behavior');
 const { getRandomUA } = require('./lib/ua-loader');
 const { instagramLogin } = require('./instagramLogin');
-const db = require('./lib/firebase'); // Conexión Firestore
+const db = require('./lib/firebase');
 
 let browserInstance;
 let isLoggedIn = false;
@@ -51,9 +51,7 @@ async function safeNavigate(page, url) {
     await page.setUserAgent(getRandomUA('mobile'));
     await page.setExtraHTTPHeaders(obtenerHeadersGeo());
     await aplicarFingerprint(page);
-
     await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 });
-
     await page.waitForFunction(() => {
       return (
         document.querySelector('header h1') &&
@@ -109,7 +107,6 @@ app.get('/api/scrape', async (req, res) => {
     console.log(`🔍 Scraping: @${igUsername} | ${targeting}`);
     await safeNavigate(page, `https://instagram.com/${igUsername}`);
     const data = await extractProfileData(page);
-
     await page.close();
 
     const flags = targeting === 'LATAM'
@@ -125,13 +122,45 @@ app.get('/api/scrape', async (req, res) => {
       createdAt: new Date().toISOString()
     };
 
-    // 🧠 GUARDAR EN FIRESTORE
     await db.collection('clientes').doc(igUsername).set(profileData, { merge: true });
     console.log(`☁️ Guardado en Firestore: ${igUsername}`);
-
     res.json({ profile: profileData });
   } catch (e) {
     res.status(500).json({ error: "Scraping fallido", reason: e.message });
+  }
+});
+
+// 🔐 GUARDAR CLIENTE MANUAL DESDE HTML
+app.post('/guardar-cliente', async (req, res) => {
+  const data = req.body;
+  if (!data || !data.username) return res.status(400).json({ error: "Datos incompletos" });
+  try {
+    await db.collection('clientes').doc(data.username).set(data, { merge: true });
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ error: "No se pudo guardar el cliente" });
+  }
+});
+
+// 📄 LISTAR CLIENTES GUARDADOS
+app.get('/firestore/clientes', async (req, res) => {
+  try {
+    const snapshot = await db.collection('clientes').get();
+    const clientes = snapshot.docs.map(doc => doc.data());
+    res.json(clientes);
+  } catch (e) {
+    res.status(500).json({ error: "No se pudo cargar Firestore" });
+  }
+});
+
+// 🗑️ ELIMINAR CLIENTE
+app.delete('/eliminar-cliente/:username', async (req, res) => {
+  const { username } = req.params;
+  try {
+    await db.collection('clientes').doc(username).delete();
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ error: "No se pudo eliminar el cliente" });
   }
 });
 
