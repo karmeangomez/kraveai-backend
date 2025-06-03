@@ -8,8 +8,8 @@ const sessionsDir = path.join(accountsDir, 'sessions');
 const accountsFile = path.join(accountsDir, 'accounts.json');
 const LOGIN_TIMEOUT = 120000;
 const NAVIGATION_TIMEOUT = 60000;
-const SESSION_CHECK_THRESHOLD = 86400000; // 24 horas
-const INACTIVITY_THRESHOLD = 172800000;  // 48 horas
+const SESSION_CHECK_THRESHOLD = 86400000;
+const INACTIVITY_THRESHOLD = 172800000;
 const ENCRYPTION_KEY = process.env.ENCRYPTION_KEY || 'mi-clave-secreta-32-bytes-aqui1234';
 
 const humanBehavior = {
@@ -29,7 +29,7 @@ const humanBehavior = {
   }
 };
 
-let cachedSessions = new Map(); // Mapa para caché en memoria
+let cachedSessions = new Map();
 
 function encrypt(data) {
   const iv = crypto.randomBytes(16);
@@ -72,16 +72,22 @@ async function instagramLogin(page, username, password, cookiesFile = 'default')
   try {
     console.log(`🔍 Revisando sesión para: ${username} (${sessionKey}) [${new Date().toISOString()}]`);
     const accounts = await loadAccounts();
-    const account = accounts.accounts.find(a => a.username === username) || {
-      username,
-      password: encrypt(password).encryptedData, // Guardar contraseña encriptada
-      sessionFile: sessionPath,
-      lastLogin: new Date().toISOString(),
-      status: 'active',
-      failCount: 0
-    };
-    if (!accounts.accounts.includes(account)) accounts.accounts.push(account);
-    await saveAccounts(accounts);
+    let account = accounts.accounts.find(a => a.username === username);
+
+    if (!account) {
+      const encrypted = encrypt(password);
+      account = {
+        username,
+        password: encrypted.encryptedData,
+        iv: encrypted.iv,
+        sessionFile: sessionPath,
+        lastLogin: new Date().toISOString(),
+        status: 'active',
+        failCount: 0
+      };
+      accounts.accounts.push(account);
+      await saveAccounts(accounts);
+    }
 
     let cachedSession = cachedSessions.get(sessionKey);
     if (cachedSession && Date.now() - cachedSession.lastChecked < SESSION_CHECK_THRESHOLD) {
@@ -135,7 +141,8 @@ async function instagramLogin(page, username, password, cookiesFile = 'default')
 
       await humanBehavior.randomType(page, 'input[name="username"]', username);
       await humanBehavior.randomDelay(1500, 3000);
-      await humanBehavior.randomType(page, 'input[name="password"]', decrypt({ encryptedData: account.password, iv: crypto.randomBytes(16).toString('hex') }).password);
+      const decryptedPassword = decrypt({ encryptedData: account.password, iv: account.iv });
+      await humanBehavior.randomType(page, 'input[name="password"]', decryptedPassword);
       await humanBehavior.randomDelay(1500, 3000);
 
       await page.click('button[type="submit"]').catch(() => console.warn("⚠️ Botón de submit no encontrado"));
@@ -188,10 +195,6 @@ async function verifySession(page) {
     const response = await page.goto('https://www.instagram.com/', { waitUntil: 'networkidle0', timeout: NAVIGATION_TIMEOUT });
     if (response.status() >= 400) return false;
     const isActive = await page.evaluate(() => document.querySelector('svg[aria-label="Inicio"]') !== null);
-    if (isActive && Date.now() - (cachedSessions.get(`${page.username}_${page.cookiesFile}`)?.lastActivity || 0) > INACTIVITY_THRESHOLD) {
-      await humanBehavior.randomScroll(page);
-      cachedSessions.get(`${page.username}_${page.cookiesFile}`).lastActivity = Date.now();
-    }
     return isActive;
   } catch {
     return false;
@@ -231,7 +234,7 @@ async function saveSession(sessionPath, cookies) {
   const encrypted = encrypt(cookies);
   const backupPath = `${sessionPath}_backup_${Date.now()}.json`;
   await fs.writeFile(sessionPath, JSON.stringify(encrypted, null, 2));
-  await fs.copyFile(sessionPath, backupPath).catch(() => {}); // Backup opcional
+  await fs.copyFile(sessionPath, backupPath).catch(() => {});
 }
 
 async function loadValidCookies(sessionPath, backupPrefix) {
