@@ -1,4 +1,3 @@
-// server.js COMPLETO con diagnóstico HTML y login limpio
 require('dotenv').config();
 const fs = require('fs');
 const express = require('express');
@@ -45,7 +44,7 @@ async function initBrowser() {
   }
 }
 
-// 🔍 NAVEGAR A PERFIL (robusto)
+// 🔍 NAVEGAR A PERFIL (espera precisa de contenido real)
 async function safeNavigate(page, url) {
   try {
     await page.setUserAgent(getRandomUA('mobile'));
@@ -54,24 +53,20 @@ async function safeNavigate(page, url) {
 
     await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 });
 
-    await Promise.race([
-      page.waitForSelector('img[data-testid="user-avatar"], header img', { timeout: 20000 }),
-      page.waitForSelector('meta[property="og:description"]', { timeout: 20000 }),
-      page.waitForFunction(() => {
-        return (
-          document.querySelector('h1') ||
-          document.querySelector('header') ||
-          document.querySelector('section') ||
-          document.querySelector('img')
-        );
-      }, { timeout: 20000 })
-    ]);
+    // Espera que se carguen: nombre completo, imagen de perfil y seguidores
+    await page.waitForFunction(() => {
+      return (
+        document.querySelector('header h1') &&
+        document.querySelector('header img') &&
+        document.querySelector('meta[property="og:description"]')
+      );
+    }, { timeout: 40000 });
 
     await humanScroll(page);
-    await randomDelay();
+    await randomDelay(1500, 3000);
     return true;
   } catch (e) {
-    throw new Error("Instagram bloqueó el acceso o el perfil no cargó correctamente.");
+    throw new Error("Instagram bloqueó el acceso o el perfil no cargó completamente.");
   }
 }
 
@@ -85,7 +80,7 @@ async function extractProfileData(page) {
       let followers = 'N/A';
       const meta = document.querySelector('meta[property="og:description"]')?.content;
       if (meta?.includes('seguidores')) {
-        const match = meta.match(/([\d,.KM]+)\sseguidores/);
+        const match = meta.match(/([\\d,.KM]+)\\sseguidores/);
         if (match) followers = match[1];
       }
       return {
@@ -101,7 +96,7 @@ async function extractProfileData(page) {
   });
 }
 
-// ✅ SCRAPING INSTAGRAM (con diagnóstico HTML)
+// ✅ SCRAPING INSTAGRAM
 app.get('/api/scrape', async (req, res) => {
   const igUsername = req.query.username;
   const targeting = (req.query.targeting || 'GLOBAL').toUpperCase();
@@ -112,7 +107,6 @@ app.get('/api/scrape', async (req, res) => {
   try {
     const page = await browserInstance.newPage();
     console.log(`🔍 Scraping: @${igUsername} | ${targeting}`);
-
     await safeNavigate(page, `https://instagram.com/${igUsername}`);
     const data = await extractProfileData(page);
 
