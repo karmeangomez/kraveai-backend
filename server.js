@@ -1,3 +1,4 @@
+// server.js COMPLETO con diagnóstico HTML y login limpio
 require('dotenv').config();
 const fs = require('fs');
 const express = require('express');
@@ -44,7 +45,7 @@ async function initBrowser() {
   }
 }
 
-// 🔍 NAVEGAR A PERFIL (versión robusta y tolerante)
+// 🔍 NAVEGAR A PERFIL (robusto)
 async function safeNavigate(page, url) {
   try {
     await page.setUserAgent(getRandomUA('mobile'));
@@ -100,7 +101,7 @@ async function extractProfileData(page) {
   });
 }
 
-// ✅ SCRAPING INSTAGRAM (con diagnóstico HTML completo)
+// ✅ SCRAPING INSTAGRAM (con diagnóstico HTML)
 app.get('/api/scrape', async (req, res) => {
   const igUsername = req.query.username;
   const targeting = (req.query.targeting || 'GLOBAL').toUpperCase();
@@ -115,11 +116,9 @@ app.get('/api/scrape', async (req, res) => {
     await safeNavigate(page, `https://instagram.com/${igUsername}`);
     const data = await extractProfileData(page);
 
-    // 📄 Diagnóstico completo: imprime todo el HTML visible
     const html = await page.content();
     console.log("📄 CONTENIDO COMPLETO DEL PERFIL:");
     console.log(html);
-
     await page.screenshot({ path: `screenshot-${igUsername}.png`, fullPage: true });
     await page.close();
 
@@ -142,7 +141,7 @@ app.get('/api/scrape', async (req, res) => {
   }
 });
 
-// 🤖 CHAT IA (GPT)
+// 🤖 CHAT IA
 app.post('/api/chat', async (req, res) => {
   try {
     const { message } = req.body;
@@ -161,7 +160,7 @@ app.post('/api/chat', async (req, res) => {
   }
 });
 
-// 🔊 VOZ (TTS OpenAI)
+// 🔊 VOZ
 app.get('/voz-prueba', async (req, res) => {
   try {
     const text = req.query.text || "Hola, este es un ejemplo de voz generada.";
@@ -201,7 +200,7 @@ app.get('/bitly-prueba', async (req, res) => {
   }
 });
 
-// 🚀 ARRANCAR SERVIDOR
+// 🚀 INICIAR SERVIDOR
 const PORT = process.env.PORT || 3000;
 initBrowser().then(() => {
   app.listen(PORT, () => {
