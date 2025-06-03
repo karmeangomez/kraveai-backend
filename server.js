@@ -179,6 +179,11 @@ app.get('/firebase-check', async (req, res) => {
   }
 });
 
+// ✅ CHEQUEO DE SALUD GENERAL
+app.get('/health', (req, res) => {
+  res.send('🟢 Server running and healthy!');
+});
+
 // 🤖 CHAT IA
 app.post('/api/chat', async (req, res) => {
   try {
