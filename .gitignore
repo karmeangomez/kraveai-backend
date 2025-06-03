@@ -4,4 +4,4 @@ node_modules/
 chromium/
 .DS_Store
 *.log
-lib/firebase-key.json
+
