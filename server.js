@@ -44,20 +44,26 @@ async function initBrowser() {
   }
 }
 
-// 🔍 NAVEGAR A PERFIL
-async function safeNavigate(page, url) {
+// 🔍 NAVEGAR A PERFIL CON O SIN TURBO
+async function safeNavigate(page, url, isTurbo = false) {
   try {
+    const turboGoto = isTurbo ? 10000 : 30000;
+    const turboWait = isTurbo ? 12000 : 40000;
+
+    if (isTurbo) console.log("⚡ Modo Turbo ACTIVADO para esta búsqueda");
+
     await page.setUserAgent(getRandomUA('mobile'));
     await page.setExtraHTTPHeaders(obtenerHeadersGeo());
     await aplicarFingerprint(page);
-    await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 });
+    await page.goto(url, { waitUntil: 'domcontentloaded', timeout: turboGoto });
+
     await page.waitForFunction(() => {
       return (
         document.querySelector('header h1') &&
         document.querySelector('header img') &&
         document.querySelector('meta[property="og:description"]')
       );
-    }, { timeout: 40000 });
+    }, { timeout: turboWait });
 
     await humanScroll(page);
     await randomDelay(1500, 3000);
@@ -97,6 +103,7 @@ async function extractProfileData(page) {
 app.get('/api/scrape', async (req, res) => {
   const igUsername = req.query.username;
   const targeting = (req.query.targeting || 'GLOBAL').toUpperCase();
+  const isTurbo = req.query.turbo === 'true';
 
   if (!igUsername) return res.status(400).json({ error: "Falta ?username=" });
   if (!browserInstance || !isLoggedIn) return res.status(500).json({ error: "Sistema no preparado" });
@@ -104,7 +111,7 @@ app.get('/api/scrape', async (req, res) => {
   try {
     const page = await browserInstance.newPage();
     console.log(`🔍 Scraping: @${igUsername} | ${targeting}`);
-    await safeNavigate(page, `https://instagram.com/${igUsername}`);
+    await safeNavigate(page, `https://instagram.com/${igUsername}`, isTurbo);
     const data = await extractProfileData(page);
     await page.close();
 
