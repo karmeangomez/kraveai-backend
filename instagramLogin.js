@@ -45,6 +45,125 @@ function decrypt(encryptedObj) {
   return JSON.parse(decrypted);
 }
 
+function validateCookies(cookies) {
+  if (!Array.isArray(cookies) || cookies.length === 0) return false;
+  const sessionCookie = cookies.find(cookie => cookie.name === 'sessionid');
+  if (!sessionCookie) return false;
+  if (sessionCookie.expires && sessionCookie.expires * 1000 < Date.now()) {
+    console.warn("⚠️ Cookie 'sessionid' expirada");
+    return false;
+  }
+  return true;
+}
+
+async function loadValidCookies(cookiesPath, backupPath, username) {
+  let cookies = [];
+  try {
+    if (await fs.access(cookiesPath).then(() => true).catch(() => false)) {
+      const encrypted = JSON.parse(await fs.readFile(cookiesPath, 'utf8'));
+      cookies = decrypt(encrypted);
+      if (validateCookies(cookies)) return cookies;
+      console.warn("⚠️ Cookies locales inválidas");
+    }
+  } catch (e) {
+    console.warn("⚠️ Error leyendo cookies locales:", e.message);
+  }
+
+  try {
+    if (await fs.access(backupPath).then(() => true).catch(() => false)) {
+      const encrypted = JSON.parse(await fs.readFile(backupPath, 'utf8'));
+      cookies = decrypt(encrypted);
+      if (validateCookies(cookies)) {
+        await saveSession(cookiesPath, cookies);
+        return cookies;
+      }
+      console.warn("⚠️ Cookies de respaldo inválidas");
+    }
+  } catch (e) {
+    console.warn("⚠️ Error leyendo respaldo:", e.message);
+  }
+
+  try {
+    const ref = db.collection('instagram_sessions').doc(username);
+    const doc = await ref.get();
+    if (doc.exists) {
+      const encrypted = doc.data().cookies;
+      cookies = decrypt(encrypted);
+      if (validateCookies(cookies)) {
+        await saveSession(cookiesPath, cookies);
+        return cookies;
+      }
+      console.warn("⚠️ Cookies Firestore inválidas");
+    }
+  } catch (e) {
+    console.warn("⚠️ Error Firestore:", e.message);
+  }
+
+  return [];
+}
+
+async function verifySession(page) {
+  try {
+    const response = await page.goto('https://www.instagram.com/', { waitUntil: 'networkidle0', timeout: NAVIGATION_TIMEOUT });
+    if (response.status() >= 400) return false;
+    const isActive = await page.evaluate(() => document.querySelector('svg[aria-label="Inicio"]') !== null);
+    if (isActive && Date.now() - cachedSession?.lastActivity > INACTIVITY_THRESHOLD) {
+      await humanBehavior.randomScroll(page);
+      cachedSession.lastActivity = Date.now();
+    }
+    return isActive;
+  } catch (e) {
+    return false;
+  }
+}
+
+async function handleChallenge(page) {
+  const isChallenge = await page.waitForFunction(() => window.location.href.includes('challenge'), { timeout: 20000 })
+    .then(() => true).catch(() => false);
+  if (isChallenge) {
+    const challengeType = await page.evaluate(() => document.body.innerText.toLowerCase());
+    if (challengeType.includes('verifica') || challengeType.includes('sospechosa') || challengeType.includes('captcha')) {
+      console.error("🚧 Desafío detectado: pausa manual requerida");
+      await humanBehavior.randomDelay(60000, 120000);
+      return true;
+    }
+  }
+  return false;
+}
+
+async function handlePostLoginModals(page) {
+  try {
+    const modals = [
+      '//button[contains(., "Ahora no") or contains(., "Not Now")]',
+      '//button[contains(., "Denegar") or contains(., "Decline")]'
+    ];
+    for (const xpath of modals) {
+      const elements = await page.$x(xpath);
+      if (elements.length > 0) {
+        await elements[0].click();
+        await humanBehavior.randomDelay(1000, 2000);
+      }
+    }
+  } catch {}
+}
+
+async function saveSession(cookiesPath, cookies) {
+  const encrypted = encrypt(cookies);
+  await fs.writeFile(cookiesPath, JSON.stringify(encrypted, null, 2));
+  console.log("💾 Sesión guardada en disco (cifrada)");
+}
+
+async function saveToFirestore(username, cookies) {
+  if (db) {
+    const encrypted = encrypt(cookies);
+    await db.collection('instagram_sessions').doc(username).set({
+      cookies: encrypted,
+      updatedAt: new Date().toISOString()
+    }, { merge: true });
+    console.log("☁️ Sesión guardada en Firestore (cifrada)");
+  }
+}
+
 async function instagramLogin(page, username, password, cookiesFile = 'default') {
   const sessionKey = `${username}_${cookiesFile}`;
   const cookiesPath = path.join(cookiesDir, `${sessionKey}.json`);
