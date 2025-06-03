@@ -2,20 +2,29 @@ const fs = require('fs').promises;
 const path = require('path');
 const UserAgent = require('user-agents');
 const crypto = require('crypto');
+const redis = require('redis');
+const axios = require('axios');
 
 const accountsDir = path.join(__dirname, 'accounts');
 const sessionsDir = path.join(accountsDir, 'sessions');
 const accountsFile = path.join(accountsDir, 'accounts.json');
-const LOGIN_TIMEOUT = 60000;
-const NAVIGATION_TIMEOUT = 30000;
+const LOGIN_TIMEOUT = 30000; // Reducido de 60000
+const NAVIGATION_TIMEOUT = 15000; // Reducido de 30000
 const SESSION_CHECK_THRESHOLD = 43200000;
 const INACTIVITY_THRESHOLD = 86400000;
 const ENCRYPTION_KEY = process.env.ENCRYPTION_KEY || crypto.randomBytes(32).toString('hex');
 
-const userAgentList = Array.from({ length: 50 }, () => new UserAgent({ deviceCategory: 'mobile' }).toString());
+const userAgentList = Array.from({ length: 150 }, () => {
+  const device = ['mobile', 'tablet', 'desktop'][Math.floor(Math.random() * 3)];
+  return new UserAgent({ deviceCategory: device, platform: ['Windows', 'Macintosh', 'iOS', 'Android'][Math.floor(Math.random() * 4)] }).toString();
+});
 let userAgentIndex = 0;
 
 function getNextUserAgent() {
+  if (userAgentIndex % 75 === 0) {
+    userAgentList.push(...Array.from({ length: 25 }, () => new UserAgent().toString()));
+    userAgentList.splice(0, userAgentList.length - 150);
+  }
   const ua = userAgentList[userAgentIndex];
   userAgentIndex = (userAgentIndex + 1) % userAgentList.length;
   return ua;
@@ -35,6 +44,25 @@ const humanBehavior = {
       await page.evaluate(h => window.scrollBy(0, h * Math.random()), scrollHeight * 0.5);
       await humanBehavior.randomDelay(500, 1500);
     }
+  },
+  randomMouseMovement: async (page) => {
+    const viewport = await page.evaluate(() => ({ width: window.innerWidth, height: window.innerHeight }));
+    for (let i = 0; i < 3; i++) {
+      const x = Math.random() * viewport.width;
+      const y = Math.random() * viewport.height;
+      await page.mouse.move(x, y, { steps: 10 });
+      await humanBehavior.randomDelay(200, 500);
+    }
+  },
+  randomClick: async (page) => {
+    const nonInteractive = await page.evaluate(() => {
+      const elements = Array.from(document.querySelectorAll('p, span, img'));
+      return elements[Math.floor(Math.random() * elements.length)]?.getBoundingClientRect();
+    });
+    if (nonInteractive) {
+      await page.mouse.click(nonInteractive.x + 5, nonInteractive.y + 5);
+      await humanBehavior.randomDelay(500, 1000);
+    }
   }
 };
 
@@ -52,6 +80,9 @@ function decrypt(encryptedObj) {
   decrypted += decipher.final('utf8');
   return JSON.parse(decrypted);
 }
+
+const client = redis.createClient({ url: process.env.REDIS_URL || 'redis://localhost:6379' });
+client.connect().catch(console.error);
 
 let cachedSessions = new Map();
 
@@ -112,7 +143,7 @@ async function instagramLogin(page, username, password, cookiesFile = 'default')
 
     let cookies = await loadValidCookies(sessionPath, backupPrefix);
     if (cookies.length > 0) {
-      console.log("📂 Usando sesión desde archivo local");
+      console.log("📂 Usando sesión desde Redis o archivo local");
       await page.setCookie(...cookies);
     }
 
@@ -130,6 +161,9 @@ async function instagramLogin(page, username, password, cookiesFile = 'default')
 
     for (let attempt = 1; attempt <= 3; attempt++) {
       console.log(`🔐 Iniciando login completo (intento ${attempt}/3)`);
+      const referers = ['https://www.google.com/search', 'https://twitter.com/explore', 'https://facebook.com'];
+      await page.goto(referers[Math.floor(Math.random() * referers.length)], { waitUntil: 'domcontentloaded', timeout: 5000 });
+      await humanBehavior.randomScroll(page);
       await page.goto('https://www.instagram.com/accounts/login/', { waitUntil: 'domcontentloaded', timeout: NAVIGATION_TIMEOUT });
 
       const currentUrl = page.url();
@@ -143,7 +177,7 @@ async function instagramLogin(page, username, password, cookiesFile = 'default')
         continue;
       }
 
-      const inputReady = await page.$('input[name="username"]', { timeout: 15000 });
+      const inputReady = await page.$('input[name="username"]', { timeout: 5000 });
       if (!inputReady) {
         console.error("❌ El campo de usuario no apareció. La página no cargó bien.");
         return false;
@@ -158,6 +192,9 @@ async function instagramLogin(page, username, password, cookiesFile = 'default')
       const decryptedPassword = decrypt({ encryptedData: account.password, iv: account.iv });
       await humanBehavior.randomType(page, 'input[name="password"]', decryptedPassword);
       await humanBehavior.randomDelay(500, 1000);
+
+      await humanBehavior.randomMouseMovement(page);
+      await humanBehavior.randomClick(page);
 
       await page.click('button[type="submit"]').catch(() => console.warn("⚠️ Botón de submit no encontrado"));
 
@@ -220,7 +257,7 @@ async function verifySession(page) {
 }
 
 async function handleChallenge(page) {
-  const isChallenge = await page.waitForFunction(() => window.location.href.includes('challenge'), { timeout: 15000 })
+  const isChallenge = await page.waitForFunction(() => window.location.href.includes('challenge'), { timeout: 10000 })
     .then(() => true).catch(() => false);
   if (isChallenge) {
     const challengeText = await page.evaluate(() => document.body.innerText.toLowerCase());
@@ -251,22 +288,34 @@ async function handlePostLoginModals(page) {
 
 async function saveSession(sessionPath, cookies) {
   const encrypted = encrypt(cookies);
-  const backupPath = `${sessionPath}_backup_${Date.now()}.json`;
+  const sessionKey = path.basename(sessionPath);
+  await client.set(`session:${sessionKey}`, JSON.stringify(encrypted), { EX: 86400 });
   await fs.writeFile(sessionPath, JSON.stringify(encrypted, null, 2));
+  const backupPath = `${sessionPath}_backup_${Date.now()}.json`;
   if (!(await fs.readdir(sessionsDir)).some(f => f.startsWith(path.basename(backupPath)) && Date.now() - parseInt(f.split('_backup_')[1].split('.')[0]) < 43200000)) {
     await fs.copyFile(sessionPath, backupPath).catch(() => {});
   }
 }
 
 async function loadValidCookies(sessionPath, backupPrefix) {
-  const files = (await fs.readdir(sessionsDir)).filter(f => f.startsWith(path.basename(sessionPath)) || f.startsWith(path.basename(backupPrefix)));
+  const sessionKey = path.basename(sessionPath);
+  const cached = await client.get(`session:${sessionKey}`);
+  if (cached) {
+    const encrypted = JSON.parse(cached);
+    const cookies = decrypt(encrypted);
+    if (await validateCookies(cookies)) return cookies;
+  }
+  const files = (await fs.readdir(sessionsDir)).filter(f => f.startsWith(sessionKey) || f.startsWith(path.basename(backupPrefix)));
   files.sort((a, b) => b.localeCompare(a));
   for (const file of files) {
     try {
       const filePath = path.join(sessionsDir, file);
       const encrypted = JSON.parse(await fs.readFile(filePath, 'utf8'));
       const cookies = decrypt(encrypted);
-      if (await validateCookies(cookies)) return cookies;
+      if (await validateCookies(cookies)) {
+        await client.set(`session:${sessionKey}`, JSON.stringify(encrypted), { EX: 86400 });
+        return cookies;
+      }
     } catch {}
   }
   return [];
@@ -277,6 +326,17 @@ async function validateCookies(cookies) {
   const sessionCookie = cookies.find(c => c.name === 'sessionid');
   if (!sessionCookie) return false;
   return !sessionCookie.expires || sessionCookie.expires * 1000 > Date.now() - SESSION_CHECK_THRESHOLD;
+}
+
+async function monitorSessions(browserInstance) {
+  setInterval(async () => {
+    for (const [key, session] of cachedSessions) {
+      if (Date.now() - session.lastActivity > INACTIVITY_THRESHOLD) {
+        cachedSessions.delete(key);
+        console.log(`🕒 Sesión eliminada por inactividad: ${key}`);
+      }
+    }
+  }, 3600000); // Cada hora
 }
 
 module.exports = { instagramLogin, getNextUserAgent };
