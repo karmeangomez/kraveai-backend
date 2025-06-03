@@ -44,19 +44,33 @@ async function initBrowser() {
   }
 }
 
-// 🔍 NAVEGAR A PERFIL
+// 🔍 NAVEGAR A PERFIL (versión robusta y tolerante)
 async function safeNavigate(page, url) {
   try {
     await page.setUserAgent(getRandomUA('mobile'));
     await page.setExtraHTTPHeaders(obtenerHeadersGeo());
     await aplicarFingerprint(page);
-    await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 25000 });
-    await page.waitForSelector('img[data-testid="user-avatar"], header img', { timeout: 15000 });
+
+    await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 });
+
+    await Promise.race([
+      page.waitForSelector('img[data-testid="user-avatar"], header img', { timeout: 20000 }),
+      page.waitForSelector('meta[property="og:description"]', { timeout: 20000 }),
+      page.waitForFunction(() => {
+        return (
+          document.querySelector('h1') ||
+          document.querySelector('header') ||
+          document.querySelector('section') ||
+          document.querySelector('img')
+        );
+      }, { timeout: 20000 })
+    ]);
+
     await humanScroll(page);
     await randomDelay();
     return true;
   } catch (e) {
-    throw new Error("Instagram bloqueó el acceso o perfil inexistente");
+    throw new Error("Instagram bloqueó el acceso o el perfil no cargó correctamente.");
   }
 }
 
