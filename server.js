@@ -84,7 +84,7 @@ async function extractProfileData(page) {
       let followers = 'N/A';
       const meta = document.querySelector('meta[property="og:description"]')?.content;
       if (meta?.includes('seguidores')) {
-        const match = meta.match(/([\\d,.KM]+)\\sseguidores/);
+        const match = meta.match(/([\d,.KM]+)\sseguidores/);
         if (match) followers = match[1];
       }
       return {
@@ -111,8 +111,15 @@ app.get('/api/scrape', async (req, res) => {
   try {
     const page = await browserInstance.newPage();
     console.log(`🔍 Scraping: @${igUsername} | ${targeting}`);
+
     await safeNavigate(page, `https://instagram.com/${igUsername}`);
     const data = await extractProfileData(page);
+
+    // 🧪 DIAGNÓSTICO EXTRA
+    const html = await page.content();
+    console.log("📄 HTML del perfil (primeros 1000 chars):", html.substring(0, 1000));
+    await page.screenshot({ path: `screenshot-${igUsername}.png`, fullPage: true });
+
     await page.close();
 
     const flags = targeting === 'LATAM'
