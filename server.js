@@ -15,13 +15,13 @@ puppeteer.use(StealthPlugin());
 const { aplicarFingerprint } = require('./lib/fingerprint-generator');
 const { obtenerHeadersGeo } = require('./lib/geo-headers');
 const { randomDelay, humanScroll } = require('./lib/human-behavior');
-const { getRandomUA } = require('./lib/ua-loader');
+const { getNextUserAgent } = require('./instagramLogin'); // Sincronización con User-Agents rotativos
 const { instagramLogin } = require('./instagramLogin');
 
 let browserInstance;
 let isLoggedIn = false;
+const pagePool = new Set(); // Pool para reutilizar páginas
 
-// 🔁 INICIAR CHROMIUM + LOGIN
 async function initBrowser() {
   try {
     console.log("🚀 Iniciando Chromium...");
@@ -33,28 +33,37 @@ async function initBrowser() {
     });
 
     const page = await browserInstance.newPage();
+    pagePool.add(page);
+    const ua = getNextUserAgent(); // Usar User-Agent rotativo
+    await page.setUserAgent(ua);
+    console.log(`📱 User-Agent para login: ${ua}`);
     isLoggedIn = await instagramLogin(page, process.env.INSTAGRAM_USER, process.env.INSTAGRAM_PASS, 'default');
     await page.close();
+    pagePool.delete(page);
 
     if (!isLoggedIn) {
-      console.warn("⚠️ Login fallido. El servidor seguirá activo, pero las funciones protegidas por sesión estarán limitadas.");
+      console.warn("⚠️ Login fallido. Reintentando en 60 segundos...");
+      setTimeout(initBrowser, 60000);
     } else {
       console.log("✅ Chromium listo y sesión activa");
+      const { monitorSessions } = require('./instagramLogin');
+      monitorSessions(browserInstance).catch(console.error);
     }
   } catch (err) {
     console.error("❌ Error crítico al iniciar Chromium:", err.message);
+    setTimeout(initBrowser, 60000);
   }
 }
 
-// 🔍 NAVEGAR A PERFIL CON O SIN TURBO
 async function safeNavigate(page, url, isTurbo = false) {
   try {
-    const turboGoto = isTurbo ? 10000 : 30000;
-    const turboWait = isTurbo ? 12000 : 40000;
+    const turboGoto = isTurbo ? 5000 : 15000; // 5s en Turbo, 15s normal
+    const turboWait = isTurbo ? 8000 : 20000; // 8s en Turbo, 20s normal
 
     if (isTurbo) console.log("⚡ Modo Turbo ACTIVADO para esta búsqueda");
 
-    await page.setUserAgent(getRandomUA('mobile'));
+    const ua = getNextUserAgent(); // Rotar User-Agents
+    await page.setUserAgent(ua);
     await page.setExtraHTTPHeaders(obtenerHeadersGeo());
     await aplicarFingerprint(page);
     await page.goto(url, { waitUntil: 'domcontentloaded', timeout: turboGoto });
@@ -68,14 +77,13 @@ async function safeNavigate(page, url, isTurbo = false) {
     }, { timeout: turboWait });
 
     await humanScroll(page);
-    await randomDelay(1500, 3000);
+    await randomDelay(1000, 2000); // Retraso optimizado
     return true;
   } catch (e) {
-    throw new Error("Instagram bloqueó el acceso o el perfil no cargó completamente.");
+    throw new Error(`Instagram bloqueó el acceso o el perfil no cargó: ${e.message}`);
   }
 }
 
-// 📦 EXTRAER DATOS
 async function extractProfileData(page) {
   return page.evaluate(() => {
     try {
@@ -101,7 +109,6 @@ async function extractProfileData(page) {
   });
 }
 
-// ✅ SCRAPING INSTAGRAM
 app.get('/api/scrape', async (req, res) => {
   const igUsername = req.query.username;
   const targeting = (req.query.targeting || 'GLOBAL').toUpperCase();
@@ -110,12 +117,14 @@ app.get('/api/scrape', async (req, res) => {
   if (!igUsername) return res.status(400).json({ error: "Falta ?username=" });
   if (!browserInstance || !isLoggedIn) return res.status(500).json({ error: "Sistema no preparado. Login fallido o no activo." });
 
+  let page;
   try {
-    const page = await browserInstance.newPage();
+    page = pagePool.size > 0 ? Array.from(pagePool)[0] : await browserInstance.newPage();
+    if (!pagePool.has(page)) pagePool.add(page);
+
     console.log(`🔍 Scraping: @${igUsername} | ${targeting}`);
     await safeNavigate(page, `https://instagram.com/${igUsername}`, isTurbo);
     const data = await extractProfileData(page);
-    await page.close();
 
     const flags = targeting === 'LATAM'
       ? ['🇲🇽', '🇦🇷', '🇨🇴', '🇨🇱', '🇵🇪', '🇻🇪']
@@ -133,15 +142,18 @@ app.get('/api/scrape', async (req, res) => {
     res.json({ profile: profileData });
   } catch (e) {
     res.status(500).json({ error: "Scraping fallido", reason: e.message });
+  } finally {
+    if (page && !page.isClosed()) {
+      await page.close().catch(() => {});
+      pagePool.delete(page);
+    }
   }
 });
 
-// ✅ CHEQUEO DE SALUD GENERAL
 app.get('/health', (req, res) => {
   res.send('🟢 Server running and healthy!');
 });
 
-// 🤖 CHAT IA
 app.post('/api/chat', async (req, res) => {
   try {
     const { message } = req.body;
@@ -160,7 +172,6 @@ app.post('/api/chat', async (req, res) => {
   }
 });
 
-// 🔊 VOZ
 app.get('/voz-prueba', async (req, res) => {
   try {
     const text = req.query.text || "Hola, este es un ejemplo de voz generada.";
@@ -182,7 +193,6 @@ app.get('/voz-prueba', async (req, res) => {
   }
 });
 
-// 🔗 BITLY
 app.get('/bitly-prueba', async (req, res) => {
   try {
     const longUrl = req.query.url || "https://instagram.com";
@@ -200,10 +210,20 @@ app.get('/bitly-prueba', async (req, res) => {
   }
 });
 
-// 🚀 INICIAR SERVIDOR
 const PORT = process.env.PORT || 3000;
 initBrowser().then(() => {
   app.listen(PORT, () => {
     console.log(`🚀 Backend activo en puerto ${PORT}`);
   });
+});
+
+process.on('uncaughtException', (err) => {
+  console.error('❌ Error no capturado:', err.message);
+  if (browserInstance) browserInstance.close().catch(() => {});
+  setTimeout(initBrowser, 60000);
+});
+
+process.on('SIGTERM', async () => {
+  if (browserInstance) await browserInstance.close();
+  process.exit(0);
 });
