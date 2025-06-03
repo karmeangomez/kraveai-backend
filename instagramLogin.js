@@ -3,13 +3,12 @@ const StealthPlugin = require('puppeteer-extra-plugin-stealth');
 const axios = require('axios');
 const crypto = require('crypto');
 const fs = require('fs').promises;
-const Redis = require('ioredis');
+const path = require('path');
 
 puppeteer.use(StealthPlugin());
 
 const ENCRYPTION_KEY = process.env.ENCRYPTION_KEY || 'mi-clave-secreta-32-bytes-aqui1234';
-const REDIS_URL = process.env.REDIS_URL || 'redis://localhost:6379';
-const redis = new Redis(REDIS_URL);
+const COOKIE_PATH = path.join(__dirname, 'cookies');
 
 const proxies = [
   '198.23.239.134:6540:pdsmombq:terqdq67j6mp',
@@ -29,7 +28,6 @@ const userAgents = [
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/118.0.0.0 Safari/537.36',
   'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/118.0.0.0 Safari/537.36',
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/118.0',
-  // Agrega más User-Agents recientes
 ];
 
 const referers = [
@@ -87,20 +85,30 @@ function getNextUserAgent() {
   return userAgents[Math.floor(Math.random() * userAgents.length)];
 }
 
-// 📦 Guardar y cargar cookies desde Redis
+// 📦 Guardar y cargar cookies desde archivo
 async function saveCookies(page, username) {
-  const cookies = await page.cookies();
-  await redis.set(`cookies:${username}`, JSON.stringify(cookies), 'EX', 60 * 60 * 24); // Expira en 24 horas
+  try {
+    const cookies = await page.cookies();
+    await fs.mkdir(COOKIE_PATH, { recursive: true });
+    await fs.writeFile(path.join(COOKIE_PATH, `${username}.json`), JSON.stringify(cookies, null, 2));
+    console.log(`✅ Cookies guardadas para ${username}`);
+  } catch (err) {
+    console.error(`❌ Error al guardar cookies para ${username}:`, err.message);
+  }
 }
 
 async function loadCookies(page, username) {
-  const cookiesString = await redis.get(`cookies:${username}`);
-  if (cookiesString) {
+  try {
+    const cookieFile = path.join(COOKIE_PATH, `${username}.json`);
+    const cookiesString = await fs.readFile(cookieFile, 'utf8');
     const cookies = JSON.parse(cookiesString);
     await page.setCookie(...cookies);
+    console.log(`✅ Cookies cargadas para ${username}`);
     return true;
+  } catch {
+    console.warn(`⚠️ No se encontraron cookies para ${username}`);
+    return false;
   }
-  return false;
 }
 
 // 🚀 Inicialización de Puppeteer
@@ -182,7 +190,7 @@ async function instagramLogin(page, username, encryptedPassword, maxRetries = 3)
 
       await page.goto('https://www.instagram.com/accounts/login/', { waitUntil: 'domcontentloaded', timeout: 15000 });
 
-      // Verificar si hay CAPTCHA o pantalla de verificación
+      // Verificar si hay CAPTCHA
       const isCaptcha = await page.evaluate(() => !!document.querySelector('input[name="verificationCode"]'));
       if (isCaptcha) {
         console.warn('⚠️ CAPTCHA detectado, reintentando con nuevo proxy...');
@@ -214,16 +222,12 @@ async function instagramLogin(page, username, encryptedPassword, maxRetries = 3)
 }
 
 // 🔍 Scraping de datos de perfil
-async function scrapeInstagram(username, encryptedPassword) {
-  const { browser, page } = await initBrowser();
-  if (!browser) return null;
-
+async function scrapeInstagram(page, username, encryptedPassword) {
   try {
     console.log(`🔍 Scraping perfil de Instagram: ${username}`);
     const loginSuccess = await instagramLogin(page, username, encryptedPassword);
     if (!loginSuccess) {
       console.log('❌ Fallo en login, deteniendo scraping');
-      await browser.close();
       return null;
     }
 
@@ -252,17 +256,8 @@ async function scrapeInstagram(username, encryptedPassword) {
   } catch (error) {
     console.error('❌ Error en scraping:', error.message);
     return null;
-  } finally {
-    await browser.close();
   }
 }
 
 // 🎯 Exportar funciones
 module.exports = { scrapeInstagram, encryptPassword };
-
-// Ejemplo de uso
-(async () => {
-  const storedPassword = encryptPassword('tu_contraseña_secreta');
-  const result = await scrapeInstagram('tu_usuario', storedPassword);
-  console.log('🎯 Resultado final:', result);
-})();
