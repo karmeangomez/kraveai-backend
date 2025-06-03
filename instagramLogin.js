@@ -1,14 +1,15 @@
 const fs = require('fs').promises;
 const path = require('path');
 const UserAgent = require('user-agents');
-const db = require('./lib/firebase');
 const crypto = require('crypto');
 
-const cookiesDir = path.join(__dirname, 'cookies');
+const accountsDir = path.join(__dirname, 'accounts');
+const sessionsDir = path.join(accountsDir, 'sessions');
+const accountsFile = path.join(accountsDir, 'accounts.json');
 const LOGIN_TIMEOUT = 120000;
 const NAVIGATION_TIMEOUT = 60000;
-const SESSION_CHECK_THRESHOLD = 86400000;
-const INACTIVITY_THRESHOLD = 172800000;
+const SESSION_CHECK_THRESHOLD = 86400000; // 24 horas
+const INACTIVITY_THRESHOLD = 172800000;  // 48 horas
 const ENCRYPTION_KEY = process.env.ENCRYPTION_KEY || 'mi-clave-secreta-32-bytes-aqui1234';
 
 const humanBehavior = {
@@ -28,7 +29,7 @@ const humanBehavior = {
   }
 };
 
-let cachedSession = null;
+let cachedSessions = new Map(); // Mapa para caché en memoria
 
 function encrypt(data) {
   const iv = crypto.randomBytes(16);
@@ -45,61 +46,141 @@ function decrypt(encryptedObj) {
   return JSON.parse(decrypted);
 }
 
-function validateCookies(cookies) {
-  if (!Array.isArray(cookies) || cookies.length === 0) return false;
-  const sessionCookie = cookies.find(cookie => cookie.name === 'sessionid');
-  if (!sessionCookie) return false;
-  if (sessionCookie.expires && sessionCookie.expires * 1000 < Date.now()) {
-    console.warn("⚠️ Cookie 'sessionid' expirada");
-    return false;
+async function loadAccounts() {
+  try {
+    await fs.mkdir(accountsDir, { recursive: true });
+    await fs.mkdir(sessionsDir, { recursive: true });
+    if (await fs.access(accountsFile).then(() => true).catch(() => false)) {
+      return JSON.parse(await fs.readFile(accountsFile, 'utf8'));
+    }
+    return { accounts: [] };
+  } catch (error) {
+    console.error('Error loading accounts:', error);
+    return { accounts: [] };
   }
-  return true;
 }
 
-async function loadValidCookies(cookiesPath, backupPath, username) {
-  let cookies = [];
-  try {
-    if (await fs.access(cookiesPath).then(() => true).catch(() => false)) {
-      const encrypted = JSON.parse(await fs.readFile(cookiesPath, 'utf8'));
-      cookies = decrypt(encrypted);
-      if (validateCookies(cookies)) return cookies;
-      console.warn("⚠️ Cookies locales inválidas");
-    }
-  } catch (e) {
-    console.warn("⚠️ Error leyendo cookies locales:", e.message);
-  }
+async function saveAccounts(accounts) {
+  await fs.writeFile(accountsFile, JSON.stringify(accounts, null, 2));
+}
+
+async function instagramLogin(page, username, password, cookiesFile = 'default') {
+  const sessionKey = `${username}_${cookiesFile}`;
+  const sessionPath = path.join(sessionsDir, `${sessionKey}.json`);
+  const backupPrefix = path.join(sessionsDir, `${sessionKey}_backup_`);
 
   try {
-    if (await fs.access(backupPath).then(() => true).catch(() => false)) {
-      const encrypted = JSON.parse(await fs.readFile(backupPath, 'utf8'));
-      cookies = decrypt(encrypted);
-      if (validateCookies(cookies)) {
-        await saveSession(cookiesPath, cookies);
-        return cookies;
+    console.log(`🔍 Revisando sesión para: ${username} (${sessionKey}) [${new Date().toISOString()}]`);
+    const accounts = await loadAccounts();
+    const account = accounts.accounts.find(a => a.username === username) || {
+      username,
+      password: encrypt(password).encryptedData, // Guardar contraseña encriptada
+      sessionFile: sessionPath,
+      lastLogin: new Date().toISOString(),
+      status: 'active',
+      failCount: 0
+    };
+    if (!accounts.accounts.includes(account)) accounts.accounts.push(account);
+    await saveAccounts(accounts);
+
+    let cachedSession = cachedSessions.get(sessionKey);
+    if (cachedSession && Date.now() - cachedSession.lastChecked < SESSION_CHECK_THRESHOLD) {
+      console.log("🟢 Usando sesión en caché (memoria)");
+      await page.setCookie(...cachedSession.cookies);
+      const sessionActive = await verifySession(page);
+      if (sessionActive) {
+        cachedSession.lastActivity = Date.now();
+        cachedSessions.set(sessionKey, cachedSession);
+        await saveSession(sessionPath, cachedSession.cookies);
+        return true;
       }
-      console.warn("⚠️ Cookies de respaldo inválidas");
     }
-  } catch (e) {
-    console.warn("⚠️ Error leyendo respaldo:", e.message);
-  }
 
-  try {
-    const ref = db.collection('instagram_sessions').doc(username);
-    const doc = await ref.get();
-    if (doc.exists) {
-      const encrypted = doc.data().cookies;
-      cookies = decrypt(encrypted);
-      if (validateCookies(cookies)) {
-        await saveSession(cookiesPath, cookies);
-        return cookies;
+    let cookies = await loadValidCookies(sessionPath, backupPrefix);
+    if (cookies.length > 0) {
+      console.log("📂 Usando sesión desde archivo local");
+      await page.setCookie(...cookies);
+    }
+
+    const sessionActive = await verifySession(page);
+    if (sessionActive) {
+      cachedSession = { username, cookies, lastChecked: Date.now(), lastActivity: Date.now() };
+      cachedSessions.set(sessionKey, cachedSession);
+      await saveSession(sessionPath, cookies);
+      account.lastLogin = new Date().toISOString();
+      await saveAccounts(accounts);
+      return true;
+    }
+
+    console.warn(`⚠️ Sesión inválida para ${sessionKey}, intentando login`);
+
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      console.log(`🔐 Iniciando login completo (intento ${attempt}/3)`);
+      await page.goto('https://www.instagram.com/accounts/login/', { waitUntil: 'domcontentloaded', timeout: NAVIGATION_TIMEOUT });
+
+      const isChallenge = await handleChallenge(page);
+      if (isChallenge && attempt < 3) {
+        console.warn("🚧 Desafío detectado, reintentando...");
+        await humanBehavior.randomDelay(30000, 60000);
+        continue;
       }
-      console.warn("⚠️ Cookies Firestore inválidas");
-    }
-  } catch (e) {
-    console.warn("⚠️ Error Firestore:", e.message);
-  }
 
-  return [];
+      await page.waitForSelector('input[name="username"]', { visible: true, timeout: 20000 }).catch(() => {
+        console.warn("⏳ Timeout esperando selector de username, reintentando...");
+      });
+
+      const ua = new UserAgent({ deviceCategory: 'mobile' }).toString();
+      await page.setUserAgent(ua);
+      console.log(`📱 User-Agent: ${ua}`);
+
+      await humanBehavior.randomType(page, 'input[name="username"]', username);
+      await humanBehavior.randomDelay(1500, 3000);
+      await humanBehavior.randomType(page, 'input[name="password"]', decrypt({ encryptedData: account.password, iv: crypto.randomBytes(16).toString('hex') }).password);
+      await humanBehavior.randomDelay(1500, 3000);
+
+      await page.click('button[type="submit"]').catch(() => console.warn("⚠️ Botón de submit no encontrado"));
+
+      const loginSuccess = await Promise.race([
+        page.waitForNavigation({ waitUntil: 'networkidle2', timeout: LOGIN_TIMEOUT }),
+        humanBehavior.randomDelay(10000, 15000)
+      ]).then(() => true).catch(() => false);
+
+      if (loginSuccess) {
+        const error = await page.$('#slfErrorAlert');
+        if (error) {
+          const msg = await page.$eval('#slfErrorAlert', el => el.textContent);
+          console.error("❌ Error en login:", msg);
+          account.failCount++;
+          if (attempt === 3) {
+            account.status = 'inactive';
+            await saveAccounts(accounts);
+            return false;
+          }
+          await humanBehavior.randomDelay(30000, 60000);
+          continue;
+        }
+
+        await handlePostLoginModals(page);
+        const newCookies = await page.cookies();
+        cachedSession = { username, cookies: newCookies, lastChecked: Date.now(), lastActivity: Date.now() };
+        cachedSessions.set(sessionKey, cachedSession);
+        await saveSession(sessionPath, newCookies);
+        account.lastLogin = new Date().toISOString();
+        account.failCount = 0;
+        account.status = 'active';
+        await saveAccounts(accounts);
+        console.log("🔁 Login completo y cookies guardadas");
+        return true;
+      }
+    }
+
+    account.status = 'inactive';
+    await saveAccounts(accounts);
+    return false;
+  } catch (error) {
+    console.error(`❌ Fallo durante login para ${sessionKey}:`, error.message);
+    return false;
+  }
 }
 
 async function verifySession(page) {
@@ -107,12 +188,12 @@ async function verifySession(page) {
     const response = await page.goto('https://www.instagram.com/', { waitUntil: 'networkidle0', timeout: NAVIGATION_TIMEOUT });
     if (response.status() >= 400) return false;
     const isActive = await page.evaluate(() => document.querySelector('svg[aria-label="Inicio"]') !== null);
-    if (isActive && Date.now() - cachedSession?.lastActivity > INACTIVITY_THRESHOLD) {
+    if (isActive && Date.now() - (cachedSessions.get(`${page.username}_${page.cookiesFile}`)?.lastActivity || 0) > INACTIVITY_THRESHOLD) {
       await humanBehavior.randomScroll(page);
-      cachedSession.lastActivity = Date.now();
+      cachedSessions.get(`${page.username}_${page.cookiesFile}`).lastActivity = Date.now();
     }
     return isActive;
-  } catch (e) {
+  } catch {
     return false;
   }
 }
@@ -121,9 +202,8 @@ async function handleChallenge(page) {
   const isChallenge = await page.waitForFunction(() => window.location.href.includes('challenge'), { timeout: 20000 })
     .then(() => true).catch(() => false);
   if (isChallenge) {
-    const challengeType = await page.evaluate(() => document.body.innerText.toLowerCase());
-    if (challengeType.includes('verifica') || challengeType.includes('sospechosa') || challengeType.includes('captcha')) {
-      console.error("🚧 Desafío detectado: pausa manual requerida");
+    const challengeText = await page.evaluate(() => document.body.innerText.toLowerCase());
+    if (challengeText.includes('verifica') || challengeText.includes('sospechosa') || challengeText.includes('captcha')) {
       await humanBehavior.randomDelay(60000, 120000);
       return true;
     }
@@ -147,113 +227,39 @@ async function handlePostLoginModals(page) {
   } catch {}
 }
 
-async function saveSession(cookiesPath, cookies) {
+async function saveSession(sessionPath, cookies) {
   const encrypted = encrypt(cookies);
-  await fs.writeFile(cookiesPath, JSON.stringify(encrypted, null, 2));
-  console.log("💾 Sesión guardada en disco (cifrada)");
+  const backupPath = `${sessionPath}_backup_${Date.now()}.json`;
+  await fs.writeFile(sessionPath, JSON.stringify(encrypted, null, 2));
+  await fs.copyFile(sessionPath, backupPath).catch(() => {}); // Backup opcional
 }
 
-async function saveToFirestore(username, cookies) {
-  if (db) {
-    const encrypted = encrypt(cookies);
-    await db.collection('instagram_sessions').doc(username).set({
-      cookies: encrypted,
-      updatedAt: new Date().toISOString()
-    }, { merge: true });
-    console.log("☁️ Sesión guardada en Firestore (cifrada)");
+async function loadValidCookies(sessionPath, backupPrefix) {
+  let cookies = [];
+  const files = await fs.readdir(sessionsDir).catch(() => []);
+
+  for (let file of files) {
+    if (file.startsWith(path.basename(sessionPath)) || file.startsWith(path.basename(backupPrefix))) {
+      try {
+        const filePath = path.join(sessionsDir, file);
+        const encrypted = JSON.parse(await fs.readFile(filePath, 'utf8'));
+        cookies = decrypt(encrypted);
+        if (await validateCookies(cookies)) return cookies;
+      } catch {}
+    }
   }
+  return [];
 }
 
-async function instagramLogin(page, username, password, cookiesFile = 'default') {
-  const sessionKey = `${username}_${cookiesFile}`;
-  const cookiesPath = path.join(cookiesDir, `${sessionKey}.json`);
-  const backupPath = path.join(cookiesDir, `${sessionKey}_backup_${Date.now()}.json`);
-
-  try {
-    console.log(`🔍 Revisando sesión para: ${username} (${sessionKey}) [${new Date().toISOString()}]`);
-    await fs.mkdir(cookiesDir, { recursive: true });
-
-    if (cachedSession && cachedSession.username === username && Date.now() - cachedSession.lastChecked < SESSION_CHECK_THRESHOLD) {
-      console.log("🟢 Usando sesión en caché (memoria)");
-      await page.setCookie(...cachedSession.cookies);
-      const sessionActive = await verifySession(page);
-      if (sessionActive) {
-        cachedSession.lastActivity = Date.now();
-        console.log(`✅ Sesión activa desde caché para ${sessionKey}`);
-        return true;
-      }
-    }
-
-    let cookies = await loadValidCookies(cookiesPath, backupPath, username);
-    if (cookies.length > 0) {
-      console.log("📂 Usando sesión desde archivo local o Firestore");
-      await page.setCookie(...cookies);
-    }
-
-    const sessionActive = await verifySession(page);
-    if (sessionActive) {
-      cachedSession = { username, cookies, lastChecked: Date.now(), lastActivity: Date.now() };
-      console.log(`✅ Sesión activa detectada y/o restaurada para ${sessionKey}`);
-      await saveSession(cookiesPath, cookies);
-      return true;
-    }
-
-    console.warn(`⚠️ Sesión inválida para ${sessionKey}, intentando login`);
-
-    for (let attempt = 1; attempt <= 3; attempt++) {
-      console.log(`🔐 Iniciando login completo (intento ${attempt}/3)`);
-      await page.goto('https://www.instagram.com/accounts/login/', { waitUntil: 'domcontentloaded', timeout: NAVIGATION_TIMEOUT });
-
-      const isChallenge = await handleChallenge(page);
-      if (isChallenge && attempt < 3) {
-        console.warn("🚧 Desafío detectado, reintentando...");
-        await humanBehavior.randomDelay(30000, 60000);
-        continue;
-      }
-
-      await page.waitForSelector('input[name="username"]', { visible: true, timeout: 20000 });
-
-      const ua = new UserAgent({ deviceCategory: 'mobile' }).toString();
-      await page.setUserAgent(ua);
-      console.log(`📱 User-Agent: ${ua}`);
-
-      await humanBehavior.randomType(page, 'input[name="username"]', username);
-      await humanBehavior.randomDelay(1500, 3000);
-      await humanBehavior.randomType(page, 'input[name="password"]', password);
-      await humanBehavior.randomDelay(1500, 3000);
-
-      await page.click('button[type="submit"]');
-
-      const loginSuccess = await Promise.race([
-        page.waitForNavigation({ waitUntil: 'networkidle2', timeout: LOGIN_TIMEOUT }),
-        humanBehavior.randomDelay(10000, 15000)
-      ]).then(() => true).catch(() => false);
-
-      if (loginSuccess) {
-        const error = await page.$('#slfErrorAlert');
-        if (error) {
-          const msg = await page.$eval('#slfErrorAlert', el => el.textContent);
-          console.error("❌ Error en login:", msg);
-          if (attempt === 3) return false;
-          await humanBehavior.randomDelay(30000, 60000);
-          continue;
-        }
-
-        await handlePostLoginModals(page);
-        const newCookies = await page.cookies();
-        cachedSession = { username, cookies: newCookies, lastChecked: Date.now(), lastActivity: Date.now() };
-        await saveSession(cookiesPath, newCookies);
-        await saveToFirestore(username, newCookies);
-        console.log("🔁 Login completo y cookies guardadas");
-        return true;
-      }
-    }
-
-    return false;
-  } catch (error) {
-    console.error(`❌ Fallo durante login para ${sessionKey}:`, error.message);
+async function validateCookies(cookies) {
+  if (!Array.isArray(cookies) || cookies.length === 0) return false;
+  const sessionCookie = cookies.find(c => c.name === 'sessionid');
+  if (!sessionCookie) return false;
+  if (sessionCookie.expires && sessionCookie.expires * 1000 < Date.now()) {
+    console.log("⏰ Cookie sessionid expirada, rotando sesión...");
     return false;
   }
+  return true;
 }
 
 module.exports = { instagramLogin };
