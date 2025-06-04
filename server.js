@@ -1,6 +1,8 @@
+require('dotenv').config();
 const express = require('express');
 const puppeteer = require('puppeteer');
 const StealthPlugin = require('puppeteer-extra-plugin-stealth');
+const cors = require('cors');
 const { scrapeInstagram, encryptPassword } = require('./instagramLogin');
 
 puppeteer.use(StealthPlugin());
@@ -8,10 +10,11 @@ puppeteer.use(StealthPlugin());
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+app.use(cors()); // Habilita CORS para solicitudes externas
+app.use(express.json());
+
 let browserInstance = null;
 const pagePool = new Set();
-
-app.use(express.json());
 
 // 🛠️ Inicializar navegador
 async function initBrowser() {
