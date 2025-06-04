@@ -1,4 +1,4 @@
-// ✅ instagramLogin.js - Módulo optimizado para login y scraping de Instagram con Puppeteer
+// ✅ instagramLogin.js - Versión mejorada con detección adaptable
 const fs = require('fs').promises;
 const path = require('path');
 const UserAgent = require('user-agents');
@@ -8,10 +8,11 @@ const accountsDir = path.join(__dirname, 'accounts');
 const sessionsDir = path.join(accountsDir, 'sessions');
 const accountsFile = path.join(accountsDir, 'accounts.json');
 const LOGIN_TIMEOUT = 120000;
-const NAVIGATION_TIMEOUT = 90000; // Aumentado a 90 segundos
+const NAVIGATION_TIMEOUT = 90000; // 90 segundos
 const SESSION_CHECK_THRESHOLD = 86400000; // 24 horas
 const INACTIVITY_THRESHOLD = 172800000; // 48 horas
 const ENCRYPTION_KEY = process.env.ENCRYPTION_KEY || 'mi-clave-secreta-32-bytes-aqui1234';
+const DELAY_MULTIPLIER = parseFloat(process.env.INSTAGRAM_DELAY_MULTIPLIER) || 1.5;
 
 const humanBehavior = {
   randomDelay: (min = 1000, max = 5000) => new Promise(resolve => setTimeout(resolve, min + Math.random() * (max - min))),
@@ -73,12 +74,11 @@ async function saveAccounts(accounts) {
 function getNextUserAgent() {
   const deviceCategories = ['desktop', 'mobile', 'tablet'];
   const category = deviceCategories[Math.floor(Math.random() * deviceCategories.length)];
-
   try {
     const userAgent = new UserAgent({ deviceCategory: category });
     return userAgent.toString();
   } catch (error) {
-    console.warn(`⚠️ Error generando User-Agent con categoría ${category}: ${error.message}, intentando con configuración genérica`);
+    console.warn(`⚠️ Error generando User-Agent con categoría ${category}: ${error.message}`);
     try {
       const userAgent = new UserAgent();
       return userAgent.toString();
@@ -149,108 +149,247 @@ async function instagramLogin(page, username, password, cookiesFile = 'default')
     for (let attempt = 1; attempt <= 5; attempt++) {
       console.log(`🔐 Iniciando login completo (intento ${attempt}/5)`);
 
-      // Generar y aplicar un nuevo User-Agent para cada intento
+      // 1. Rotación inteligente de User-Agent
       const ua = getNextUserAgent();
       await page.setUserAgent(ua);
       console.log(`📱 User-Agent: ${ua}`);
 
-      await page.goto('https://www.instagram.com/accounts/login/', { waitUntil: 'domcontentloaded', timeout: NAVIGATION_TIMEOUT });
+      // 2. Navegación con detección de estado
+      const navigationResult = await handleNavigation(page, attempt);
+      if (navigationResult === 'HOME_PAGE') {
+        console.log('✅ Redirección a página principal detectada');
+        return handleSuccessfulLogin(page, account, sessionPath, sessionKey, cachedSessions);
+      }
+      if (navigationResult === 'CHALLENGE') continue;
 
-      // Verificar si la página de login se cargó esperando el selector
-      const loginFormLoaded = await page.waitForSelector('input[name="username"]', { visible: true, timeout: 30000 })
-        .then(() => true)
-        .catch(() => false);
-      if (!loginFormLoaded) {
-        console.error('❌ La página de login no se cargó correctamente (selector no encontrado)');
-        delay *= 2; // Backoff exponencial
-        await humanBehavior.randomDelay(delay, delay + 3000);
+      // 3. Detección adaptable del formulario de login
+      const loginState = await detectLoginState(page);
+      if (loginState === 'LOGGED_IN') {
+        return handleSuccessfulLogin(page, account, sessionPath, sessionKey, cachedSessions);
+      }
+      if (loginState !== 'LOGIN_FORM') {
+        await handleNavigationIssues(page, attempt);
         continue;
       }
 
-      const isChallenge = await handleChallenge(page);
-      if (isChallenge && attempt < 5) {
-        console.warn("🚧 Desafío detectado, reintentando...");
-        delay *= 2;
-        await humanBehavior.randomDelay(delay, delay + 3000);
-        continue;
+      // 4. Ejecución del login con verificación en tiempo real
+      await executeLoginForm(page, username, account);
+
+      // 5. Validación post-login
+      const loginResult = await verifyLoginResult(page);
+      if (loginResult === 'SUCCESS') {
+        return handleSuccessfulLogin(page, account, sessionPath, sessionKey, cachedSessions);
       }
 
-      await humanBehavior.randomDelay(1500, 3000);
-      await humanBehavior.randomType(page, 'input[name="username"]', username);
-      await humanBehavior.randomDelay(1500, 3000);
-      const decryptedPassword = decrypt({ encryptedData: account.password, iv: account.iv });
-      await humanBehavior.randomType(page, 'input[name="password"]', decryptedPassword);
-      await humanBehavior.randomDelay(1500, 3000);
-
-      await page.click('button[type="submit"]').catch(() => console.warn("⚠️ Botón de submit no encontrado"));
-
-      const loginSuccess = await Promise.race([
-        page.waitForNavigation({ waitUntil: 'networkidle2', timeout: LOGIN_TIMEOUT }),
-        humanBehavior.randomDelay(10000, 15000)
-      ]).then(() => true).catch(() => false);
-
-      if (loginSuccess) {
-        const error = await page.$('#slfErrorAlert');
-        if (error) {
-          const msg = await page.$eval('#slfErrorAlert', el => el.textContent);
-          console.error("❌ Error en login:", msg);
-          account.failCount++;
-          if (attempt === 5) {
-            account.status = 'inactive';
-            await saveAccounts(accounts);
-            return false;
-          }
-          delay *= 2;
-          await humanBehavior.randomDelay(delay, delay + 3000);
-          continue;
-        }
-
-        await handlePostLoginModals(page);
-        const newCookies = await page.cookies();
-        cachedSession = { username, cookies: newCookies, lastChecked: Date.now(), lastActivity: Date.now() };
-        cachedSessions.set(sessionKey, cachedSession);
-        await saveSession(sessionPath, newCookies);
-        account.lastLogin = new Date().toISOString();
-        account.failCount = 0;
-        account.status = 'active';
-        await saveAccounts(accounts);
-        console.log("🔁 Login completo y cookies guardadas");
-        return true;
-      }
-      delay *= 2; // Backoff exponencial
+      // 6. Manejo de errores específicos
+      await handleLoginErrors(page, loginResult, attempt, account, accounts, sessionKey);
+      delay = calculateBackoffDelay(attempt);
       await humanBehavior.randomDelay(delay, delay + 3000);
     }
 
-    account.status = 'inactive';
-    await saveAccounts(accounts);
-    return false;
+    return handleFinalFailure(account, accounts);
   } catch (error) {
     console.error(`❌ Fallo durante login para ${sessionKey}:`, error.message);
     return false;
   }
 }
 
-async function verifySession(page) {
+// --- Funciones auxiliares mejoradas ---
+
+async function handleNavigation(page, attempt) {
   try {
-    const response = await page.goto('https://www.instagram.com/', { waitUntil: 'networkidle0', timeout: NAVIGATION_TIMEOUT });
-    if (response.status() >= 400) return false;
-    const isActive = await page.evaluate(() => document.querySelector('svg[aria-label="Inicio"]') !== null);
-    return isActive;
-  } catch {
-    return false;
+    await page.goto('https://www.instagram.com/accounts/login/', {
+      waitUntil: 'networkidle0',
+      timeout: NAVIGATION_TIMEOUT,
+      referer: 'https://www.google.com/'
+    });
+
+    // Detección temprana de redirección a página principal
+    const currentUrl = page.url();
+    if (!currentUrl.includes('/accounts/login')) {
+      return 'HOME_PAGE';
+    }
+
+    // Detección de desafíos de seguridad
+    if (await detectSecurityChallenge(page)) {
+      console.warn('🚧 Desafío de seguridad detectado');
+      await handleSecurityChallenge(page);
+      return 'CHALLENGE';
+    }
+
+    return 'LOGIN_PAGE';
+  } catch (error) {
+    console.error(`🚨 Error de navegación (intento ${attempt}):`, error.message);
+    await page.reload();
+    return 'ERROR';
   }
 }
 
-async function handleChallenge(page) {
+async function detectLoginState(page) {
+  // Sistema de detección multi-capa
+  const stateChecks = [
+    { // 1. Verificación de sesión activa
+      test: async () => await page.$('a[href="/accounts/activity/"]'),
+      result: 'LOGGED_IN'
+    },
+    { // 2. Detección de formulario clásico
+      test: async () => await page.waitForSelector('input[name="username"], input[aria-label*="username"], input[type="text"]', 
+          { timeout: 15000, visible: true }),
+      result: 'LOGIN_FORM'
+    },
+    { // 3. Detección de login con teléfono
+      test: async () => await page.waitForSelector('input[type="tel"]', { timeout: 5000 }),
+      result: 'PHONE_LOGIN'
+    },
+    { // 4. Detección de errores
+      test: async () => await page.waitForSelector('#slfErrorAlert, .error-container', { timeout: 5000 }),
+      result: 'ERROR_STATE'
+    }
+  ];
+
+  for (const check of stateChecks) {
+    try {
+      await check.test();
+      return check.result;
+    } catch (error) {
+      // Continuar con siguiente chequeo
+    }
+  }
+
+  // 5. Fallback: Análisis de contenido de página
+  const content = await page.content();
+  if (content.includes('Forgot Password') || content.includes('Contraseña olvidada')) {
+    return 'LOGIN_FORM';
+  }
+
+  return 'UNKNOWN_STATE';
+}
+
+async function executeLoginForm(page, username, account) {
+  // 1. Identificación dinámica de campos
+  const usernameField = await page.$('input[name="username"], input[aria-label*="username"], input[type="text"]');
+  const passwordField = await page.$('input[name="password"], input[aria-label*="password"], input[type="password"]');
+
+  // 2. Interacción humana mejorada
+  await usernameField.click({ clickCount: 3 });
+  await humanBehavior.randomType(page, '', username); // Selector vacío usa elemento enfocado
+
+  await passwordField.click({ clickCount: 3 });
+  const decryptedPassword = decrypt({ encryptedData: account.password, iv: account.iv });
+  await humanBehavior.randomType(page, '', decryptedPassword);
+
+  // 3. Envío inteligente
+  await Promise.all([
+    page.waitForNavigation({ waitUntil: 'networkidle0', timeout: LOGIN_TIMEOUT }),
+    page.keyboard.press('Enter')
+  ]);
+}
+
+async function verifyLoginResult(page) {
+  // Sistema de verificación multicapa
+  try {
+    // 1. Detección de login exitoso
+    await page.waitForSelector('svg[aria-label="Home"], div[role="main"]', { timeout: 20000 });
+    return 'SUCCESS';
+  } catch (error) {
+    // 2. Detección de errores específicos
+    if (await page.$('#slfErrorAlert')) {
+      const errorText = await page.$eval('#slfErrorAlert', el => el.innerText);
+      console.error(`❌ Error de credenciales: ${errorText}`);
+      return 'CREDENTIAL_ERROR';
+    }
+
+    // 3. Detección de desafíos de seguridad
+    if (await page.$('input[name="security_code"]')) {
+      console.warn('⚠️ Verificación de seguridad requerida');
+      return 'SECURITY_CHALLENGE';
+    }
+
+    // 4. Detección de restricciones
+    if ((await page.content()).includes('suspended') || (await page.content()).includes('suspendida')) {
+      console.error('⛔ Cuenta suspendida o restringida');
+      return 'ACCOUNT_SUSPENDED';
+    }
+  }
+  return 'UNKNOWN_ERROR';
+}
+
+async function handleNavigationIssues(page, attempt) {
+  // Estrategias de recuperación
+  const strategies = [
+    async () => {
+      console.log('🔄 Forzando recarga completa');
+      await page.reload({ waitUntil: 'networkidle0', timeout: NAVIGATION_TIMEOUT });
+    },
+    async () => {
+      console.log('🧹 Limpiando caché de página');
+      await page.evaluate(() => location.reload(true));
+    },
+    async () => {
+      console.log('🚫 Eliminando cookies de sesión');
+      const cookies = await page.cookies();
+      const instagramCookies = cookies.filter(c => c.domain.includes('instagram'));
+      await page.deleteCookie(...instagramCookies);
+    }
+  ];
+
+  // Aplicar estrategias secuencialmente
+  for (const strategy of strategies.slice(0, attempt)) {
+    await strategy();
+    await humanBehavior.randomDelay(2000, 5000);
+    if (await detectLoginState(page) === 'LOGIN_FORM') return true;
+  }
+  return false;
+}
+
+async function detectSecurityChallenge(page) {
   const isChallenge = await page.waitForFunction(() => window.location.href.includes('challenge'), { timeout: 20000 })
     .then(() => true).catch(() => false);
   if (isChallenge) {
     const challengeText = await page.evaluate(() => document.body.innerText.toLowerCase());
-    if (challengeText.includes('verifica') || challengeText.includes('sospechosa') || challengeText.includes('captcha')) {
-      await humanBehavior.randomDelay(60000, 120000);
-      return true;
-    }
+    return challengeText.includes('verifica') || challengeText.includes('sospechosa') || challengeText.includes('captcha');
   }
+  return false;
+}
+
+async function handleSecurityChallenge(page) {
+  console.log('⏳ Esperando resolución manual de desafío (2 minutos)');
+  await humanBehavior.randomDelay(120000, 120000);
+}
+
+async function handleSuccessfulLogin(page, account, sessionPath, sessionKey, cachedSessions) {
+  await handlePostLoginModals(page);
+  const newCookies = await page.cookies();
+  const cachedSession = { username: account.username, cookies: newCookies, lastChecked: Date.now(), lastActivity: Date.now() };
+  cachedSessions.set(sessionKey, cachedSession);
+  await saveSession(sessionPath, newCookies);
+  account.lastLogin = new Date().toISOString();
+  account.failCount = 0;
+  account.status = 'active';
+  await saveAccounts({ accounts: [account] }); // Actualiza solo la cuenta afectada
+  console.log("🔁 Login completo y cookies guardadas");
+  return true;
+}
+
+async function handleLoginErrors(page, loginResult, attempt, account, accounts, sessionKey) {
+  account.failCount++;
+  if (attempt === 5) {
+    account.status = 'inactive';
+    await saveAccounts(accounts);
+  }
+  if (loginResult === 'SECURITY_CHALLENGE') {
+    console.warn('⚠️ Retraso adicional por desafío de seguridad');
+    await humanBehavior.randomDelay(60000, 120000);
+  }
+}
+
+function calculateBackoffDelay(attempt) {
+  return Math.pow(2, attempt - 1) * 2000 * DELAY_MULTIPLIER;
+}
+
+async function handleFinalFailure(account, accounts) {
+  account.status = 'inactive';
+  await saveAccounts(accounts);
   return false;
 }
 
@@ -303,6 +442,17 @@ async function validateCookies(cookies) {
     return false;
   }
   return true;
+}
+
+async function verifySession(page) {
+  try {
+    const response = await page.goto('https://www.instagram.com/', { waitUntil: 'networkidle0', timeout: NAVIGATION_TIMEOUT });
+    if (response.status() >= 400) return false;
+    const isActive = await page.evaluate(() => document.querySelector('svg[aria-label="Inicio"]') !== null);
+    return isActive;
+  } catch {
+    return false;
+  }
 }
 
 module.exports = { instagramLogin };
