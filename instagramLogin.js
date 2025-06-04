@@ -1,10 +1,10 @@
-const puppeteer = require('puppeteer');
+const puppeteer = require('puppeteer-extra'); // Usa puppeteer-extra directamente
 const StealthPlugin = require('puppeteer-extra-plugin-stealth');
-const crypto = require('crypto');
 const fs = require('fs').promises;
 const path = require('path');
 const UserAgent = require('user-agents');
 
+// Aplica el plugin de stealth
 puppeteer.use(StealthPlugin());
 
 const ENCRYPTION_KEY = process.env.ENCRYPTION_KEY || 'mi-clave-secreta-32-bytes-aqui1234';
@@ -17,7 +17,7 @@ const referers = [
 ];
 
 function encryptPassword(password) {
-  const iv = crypto.randomBytes(16);
+  const iv = Buffer.from(crypto.randomBytes(16)); // Buffer.from para mejor compatibilidad
   const cipher = crypto.createCipheriv('aes-256-cbc', Buffer.from(ENCRYPTION_KEY), iv);
   let encrypted = cipher.update(password, 'utf8', 'hex');
   encrypted += cipher.final('hex');
@@ -135,14 +135,12 @@ async function scrapeInstagram(page, username, encryptedPassword) {
     await page.evaluate(() => window.scrollBy(0, 300 + Math.random() * 100));
     await new Promise(resolve => setTimeout(resolve, 1000 + Math.random() * 500));
 
-    const data = await page.evaluate(() => {
-      return {
-        username: document.querySelector('h1')?.textContent || '',
-        profile_pic_url: document.querySelector('img[alt*="profile picture"]')?.src || '',
-        followers_count: document.querySelector('header section ul li:nth-child(2) span')?.textContent || '0',
-        is_verified: !!document.querySelector('header section svg[aria-label="Verified"]'),
-      };
-    });
+ دیدار: {
+      username: document.querySelector('h1')?.textContent || '',
+      profile_pic_url: document.querySelector('img[alt*="profile picture"]')?.src || '',
+      followers_count: document.querySelector('header section ul li:nth-child(2) span')?.textContent || '0',
+      is_verified: !!document.querySelector('header section svg[aria-label="Verified"]'),
+    };
 
     console.log('✅ Datos obtenidos:', data);
     return data;
