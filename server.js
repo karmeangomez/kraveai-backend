@@ -18,7 +18,7 @@ app.use(express.json());
 // 🕒 Configuración global
 let browserInstance = null;
 let pageInstance = null;
-let encryptedPassword = null; // Almacenar el objeto cifrado una vez
+let encryptedPassword = null;
 
 // 🔑 Generar y almacenar la contraseña cifrada al inicio
 function initializeEncryptedPassword() {
@@ -39,18 +39,18 @@ async function initializeBrowser() {
         '--disable-dev-shm-usage',
         '--disable-gpu',
         '--disable-blink-features=AutomationControlled',
-        '--enable-javascript', // Forzar habilitación de JavaScript
+        '--enable-javascript',
         '--window-size=1366,768'
       ],
       executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || '/usr/bin/google-chrome',
       ignoreHTTPSErrors: true,
-      timeout: 60000 // Aumentar timeout a 60 segundos
+      timeout: 30000 // Reducir timeout inicial a 30 segundos
     });
 
     browserInstance = browser;
     pageInstance = await browser.newPage();
     await pageInstance.setUserAgent(new (require('user-agents'))().toString());
-    await pageInstance.setJavaScriptEnabled(true); // Asegurar JavaScript en la página
+    await pageInstance.setJavaScriptEnabled(true);
 
     if (!encryptedPassword) initializeEncryptedPassword();
     const loginSuccess = await scrapeInstagram(pageInstance, process.env.INSTAGRAM_USER || '', encryptedPassword);
@@ -67,7 +67,7 @@ async function initializeBrowser() {
     }
     browserInstance = null;
     pageInstance = null;
-    throw err; // Dejar que Railway maneje el reinicio
+    throw err;
   }
 }
 
@@ -75,7 +75,7 @@ async function initializeBrowser() {
 async function monitorSession() {
   if (!browserInstance || !pageInstance) return;
   try {
-    await pageInstance.goto('https://www.instagram.com/', { waitUntil: 'domcontentloaded', timeout: 20000 });
+    await pageInstance.goto('https://www.instagram.com/', { waitUntil: 'networkidle0', timeout: 15000 });
     const isLoggedIn = await pageInstance.evaluate(() => !!document.querySelector('a[href*="/direct/inbox/"]'));
     if (!isLoggedIn) {
       console.warn('⚠️ Sesión expirada. Reiniciando...');
@@ -84,7 +84,7 @@ async function monitorSession() {
       pageInstance = null;
       await initializeBrowser();
     } else {
-      setTimeout(monitorSession, 5 * 60 * 1000); // Revisar cada 5 minutos
+      setTimeout(monitorSession, 10 * 60 * 1000); // Revisar cada 10 minutos para reducir carga
     }
   } catch (err) {
     console.error('❌ Error en monitor de sesión:', err.message);
@@ -185,6 +185,6 @@ app.get('/health', (req, res) => {
     });
   } catch (err) {
     console.error('❌ Fallo al iniciar el servidor:', err.message);
-    process.exit(1); // Permitir que Railway reinicie el contenedor
+    process.exit(1);
   }
 })();
