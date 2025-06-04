@@ -1,29 +1,3 @@
-Gracias por compartir los logs y el código de referencia a las 01:13 AM CST del 4 de junio de 2025. Los documentos que proporcionaste (mensajes de Google Search y JavaScript no disponible en x.com) sugieren que el problema podría estar relacionado con la detección de bots o la deshabilitación de JavaScript por parte de Instagram o un navegador simulado por Puppeteer, pero los logs que compartiste son más específicos y nos dan una pista clara: el error principal es “❌ La página de login no se cargó correctamente” con el mensaje “Página de login no encontrada”. Esto indica que Puppeteer no está llegando a la página de login esperada de Instagram, y el servidor falla porque todos los intentos de login fallan.
-Análisis del Problema
-1. Logs Actuales
-	•	El proceso inicia correctamente (🟢 Iniciando servidor..., 🚀 Iniciando Puppeteer con Stealth...), y el mensaje de cookies se muestra como ℹ️, lo cual es correcto según el código actualizado.
-	•	Sin embargo, al intentar acceder a https://www.instagram.com/accounts/login/, el título de la página es solo “www.instagram.com” en lugar de algo como “Instagram - Log In”, lo que sugiere que la página no carga completamente o redirige a una página diferente (posiblemente una de verificación o error).
-	•	Después de 5 intentos, el login falla (❌ Todos los intentos de login fallaron), y el servidor se detiene con ❌ Fallo al iniciar el servidor: Login fallido.
-2. Causa Probable
-	•	Detección de Bot: Instagram está detectando que Puppeteer es un bot, lo que podría llevar a una página de verificación de JavaScript o CAPTCHA. Esto explicaría por qué el título no coincide con la página de login esperada.
-	•	Timeout o Redirección: El timeout de 20 segundos para goto podría no ser suficiente, o la página podría estar redirigiendo a una URL diferente (como una página de bloqueo).
-	•	JavaScript Deshabilitado: Los documentos que compartiste sugieren que Instagram requiere JavaScript habilitado, y aunque Puppeteer lo tiene activado por defecto, la configuración podría no ser suficiente para evitar detecciones.
-3. Código de Referencia
-El código que proporcionaste como funcional tiene diferencias clave:
-	•	Usa waitUntil: 'domcontentloaded' en lugar de 'load', lo que podría ser más rápido y evitar esperar recursos pesados.
-	•	Incluye referers aleatorios (referers) para simular tráfico humano, lo que podría ayudar a evadir detecciones.
-	•	Usa networkidle2 para waitForNavigation, que espera hasta que solo haya 2 conexiones de red, lo que podría ser más robusto para confirmar la navegación.
-	•	Almacena cookies por usuario en archivos individuales (e.g., ${username}.json) en lugar de un solo archivo cookie-memory.json.
-Estas diferencias podrían estar contribuyendo a que el código anterior funcionara mejor.
-Solución
-Vamos a combinar lo mejor del código de referencia con las mejoras actuales:
-	•	Usar domcontentloaded y networkidle2 para navegación.
-	•	Añadir referers aleatorios.
-	•	Aumentar timeouts y robustez.
-	•	Ajustar la lógica de cookies para usar archivos individuales por usuario, similar al código funcional.
-	•	Verificar si JavaScript está funcionando correctamente en la página.
-Código Actualizado
-`instagramLogin.js`
 // ✅ instagramLogin.js - Módulo optimizado para login y scraping de Instagram con Puppeteer
 const puppeteer = require('puppeteer-extra');
 const StealthPlugin = require('puppeteer-extra-plugin-stealth');
@@ -225,4 +199,51 @@ async function scrapeInstagram(page, username, encryptedPassword) {
 
     // Verificar cache de scraping
     const cachedData = scrapeCache.get(username);
-    if (cachedData && Date.now() - cachedData.timestamp
+    if (cachedData && Date.now() - cachedData.timestamp < CACHE_TTL) {
+      console.log('✅ Datos obtenidos desde cache');
+      return cachedData.data;
+    }
+
+    const loginSuccess = await instagramLogin(page, username, encryptedPassword);
+    if (!loginSuccess) {
+      console.log('❌ Fallo en login, deteniendo scraping');
+      return null;
+    }
+
+    await page.goto(`https://www.instagram.com/${username}/`, { waitUntil: 'domcontentloaded', timeout: 20000 });
+
+    await page.waitForFunction(
+      () => document.querySelector('img[alt*="profile picture"]') || document.querySelector('h1'),
+      { timeout: 15000 }
+    );
+
+    await page.evaluate(() => window.scrollBy(0, 300 + Math.random() * 100));
+    await new Promise(resolve => setTimeout(resolve, 1000 + Math.random() * 500));
+
+    const data = await page.evaluate(() => {
+      return {
+        username: document.querySelector('h1')?.textContent || '',
+        profile_pic_url: document.querySelector('img[alt*="profile picture"]')?.src || '',
+        followers_count: document.querySelector('header section ul li:nth-child(2) span')?.textContent || '0',
+        is_verified: !!document.querySelector('header section svg[aria-label="Verified"]'),
+      };
+    });
+
+    // Guardar en cache
+    scrapeCache.set(username, { data, timestamp: Date.now() });
+    console.log('✅ Datos obtenidos y guardados en cache:', data);
+    return data;
+  } catch (error) {
+    console.error('❌ Error en scraping:', error.message);
+    return null;
+  }
+}
+
+// Inicializar cookie memory al cargar el módulo
+loadCookieMemory();
+
+// Guardar cookie memory al cerrar el proceso
+process.on('SIGTERM', saveCookieMemory);
+process.on('SIGINT', saveCookieMemory);
+
+module.exports = { scrapeInstagram, encryptPassword, decryptPassword };
