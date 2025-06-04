@@ -3,9 +3,9 @@
     "env": {
       "NODE_ENV": "production"
     },
-    "command": "npm install && npm run build || true"
+    "command": "npm install"
   },
   "deploy": {
-    "startCommand": "npm start"
+    "startCommand": "node runAccountCreation.js"
   }
 }
