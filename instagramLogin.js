@@ -3,18 +3,12 @@ const StealthPlugin = require('puppeteer-extra-plugin-stealth');
 const crypto = require('crypto');
 const fs = require('fs').promises;
 const path = require('path');
+const UserAgent = require('user-agents');
 
 puppeteer.use(StealthPlugin());
 
 const ENCRYPTION_KEY = process.env.ENCRYPTION_KEY || 'mi-clave-secreta-32-bytes-aqui1234';
 const COOKIE_PATH = path.join(__dirname, 'cookies');
-
-const userAgents = [
-  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/118.0.0.0 Safari/537.36',
-  'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/118.0.0.0 Safari/537.36',
-  'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/118.0',
-  'Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.0 Mobile/15E148 Safari/604.1',
-];
 
 const referers = [
   'https://www.google.com/search?q=instagram',
@@ -40,7 +34,8 @@ function decryptPassword(encryptedObj) {
 
 // 🎲 Obtener User-Agent aleatorio
 function getNextUserAgent() {
-  return userAgents[Math.floor(Math.random() * userAgents.length)];
+  const userAgent = new UserAgent({ deviceCategory: ['desktop', 'mobile'][Math.floor(Math.random() * 2)] });
+  return userAgent.toString();
 }
 
 // 📦 Guardar y cargar cookies desde archivo
