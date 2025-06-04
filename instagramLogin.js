@@ -72,14 +72,24 @@ async function saveAccounts(accounts) {
 
 function getNextUserAgent() {
   const deviceCategories = ['desktop', 'mobile', 'tablet'];
-  const platforms = ['Windows', 'Macintosh', 'iOS', 'Android'];
-  const browsers = ['chrome', 'firefox', 'safari', 'edge'];
-  const userAgent = new UserAgent({
-    deviceCategory: deviceCategories[Math.floor(Math.random() * deviceCategories.length)],
-    platform: platforms[Math.floor(Math.random() * platforms.length)],
-    browser: browsers[Math.floor(Math.random() * browsers.length)],
-  });
-  return userAgent.toString();
+  const category = deviceCategories[Math.floor(Math.random() * deviceCategories.length)];
+
+  try {
+    // Intento 1: Generar User-Agent con categoría específica
+    const userAgent = new UserAgent({ deviceCategory: category });
+    return userAgent.toString();
+  } catch (error) {
+    console.warn(`⚠️ Error generando User-Agent con categoría ${category}: ${error.message}, intentando con configuración genérica`);
+    try {
+      // Intento 2: Generar User-Agent sin filtros estrictos
+      const userAgent = new UserAgent();
+      return userAgent.toString();
+    } catch (error) {
+      console.error(`❌ Fallo al generar User-Agent genérico: ${error.message}`);
+      // Fallback: User-Agent genérico predefinido
+      return 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36';
+    }
+  }
 }
 
 async function instagramLogin(page, username, password, cookiesFile = 'default') {
@@ -139,7 +149,7 @@ async function instagramLogin(page, username, password, cookiesFile = 'default')
     console.warn(`⚠️ Sesión inválida para ${sessionKey}, intentando login`);
 
     let delay = 2000; // Retraso inicial
-    for (let attempt = 1; attempt <= 5; attempt++) { // Aumentamos a 5 intentos
+    for (let attempt = 1; attempt <= 5; attempt++) {
       console.log(`🔐 Iniciando login completo (intento ${attempt}/5)`);
 
       // Generar y aplicar un nuevo User-Agent para cada intento
