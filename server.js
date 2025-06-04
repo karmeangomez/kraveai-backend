@@ -39,17 +39,18 @@ async function initializeBrowser() {
         '--disable-dev-shm-usage',
         '--disable-gpu',
         '--disable-blink-features=AutomationControlled',
-        '--enable-javascript',
+        '--enable-javascript', // Forzar habilitación de JavaScript
         '--window-size=1366,768'
       ],
       executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || '/usr/bin/google-chrome',
       ignoreHTTPSErrors: true,
-      timeout: 30000
+      timeout: 60000 // Aumentar timeout a 60 segundos
     });
 
     browserInstance = browser;
     pageInstance = await browser.newPage();
     await pageInstance.setUserAgent(new (require('user-agents'))().toString());
+    await pageInstance.setJavaScriptEnabled(true); // Asegurar JavaScript en la página
 
     if (!encryptedPassword) initializeEncryptedPassword();
     const loginSuccess = await scrapeInstagram(pageInstance, process.env.INSTAGRAM_USER || '', encryptedPassword);
@@ -74,7 +75,7 @@ async function initializeBrowser() {
 async function monitorSession() {
   if (!browserInstance || !pageInstance) return;
   try {
-    await pageInstance.goto('https://www.instagram.com/', { waitUntil: 'domcontentloaded', timeout: 10000 });
+    await pageInstance.goto('https://www.instagram.com/', { waitUntil: 'domcontentloaded', timeout: 20000 });
     const isLoggedIn = await pageInstance.evaluate(() => !!document.querySelector('a[href*="/direct/inbox/"]'));
     if (!isLoggedIn) {
       console.warn('⚠️ Sesión expirada. Reiniciando...');
