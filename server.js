@@ -14,6 +14,18 @@ puppeteer.use(StealthPlugin());
 const bot = new Telegraf(process.env.TELEGRAM_BOT_TOKEN);
 const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID;
 
+// Validar variables de entorno al inicio
+const requiredEnvVars = ['INSTAGRAM_USER', 'INSTAGRAM_PASS', 'TELEGRAM_BOT_TOKEN', 'TELEGRAM_CHAT_ID'];
+const missingEnvVars = requiredEnvVars.filter(varName => !process.env[varName]);
+if (missingEnvVars.length > 0) {
+  const errorMsg = `❌ Faltan variables de entorno: ${missingEnvVars.join(', ')}`;
+  console.error(errorMsg);
+  sendTelegramNotification(errorMsg).catch(() => console.warn('⚠️ No se pudo notificar por Telegram'));
+  if (!process.env.INSTAGRAM_USER || !process.env.INSTAGRAM_PASS) {
+    throw new Error(errorMsg);
+  }
+}
+
 // Función para enviar notificaciones a Telegram
 async function sendTelegramNotification(message) {
   try {
@@ -113,9 +125,11 @@ async function initializeBotSession(maxRetries = 3, delayBetweenRetries = 30000)
         await new Promise(resolve => setTimeout(resolve, delayBetweenRetries));
       }
     }
-  } catch (error) {
-    if (browser) await browser.close();
-    throw error;
+  } finally {
+    if (browser) {
+      await browser.close();
+      console.log('🌐 Navegador cerrado tras intento de login');
+    }
   }
 }
 
@@ -145,11 +159,10 @@ async function initializeBotSession(maxRetries = 3, delayBetweenRetries = 30000)
       if (!global.browser || !global.mainPage) {
         throw new Error('❌ No hay sesión de navegador activa, resuelve el desafío o reinicia el servidor');
       }
-      const page = await global.browser.newPage(); // Nueva página para esta acción
+      const page = await global.browser.newPage();
       const accounts = await createMultipleAccounts(count, page);
-      await page.close(); // Cerrar la página después de usarla
+      await page.close();
 
-      // Asegurarse de que kraveaibot no se mezcle con las cuentas creadas
       const existingAccounts = await loadAccounts();
       const kraveaibotUsername = process.env.INSTAGRAM_USER;
       existingAccounts.accounts = existingAccounts.accounts.filter(acc => acc.username !== kraveaibotUsername);
@@ -183,5 +196,6 @@ async function initializeBotSession(maxRetries = 3, delayBetweenRetries = 30000)
 
   app.listen(port, () => {
     console.log(`Server running on port ${port}`);
+    sendTelegramNotification(`🚀 Servidor iniciado en el puerto ${port}`).catch(err => console.error('❌ Error enviando notificación de arranque:', err.message));
   });
 })();
