@@ -211,4 +211,98 @@ async function instagramLogin(page, username, password, cookiesFile = 'default')
         cachedSessions.set(sessionKey, cachedSession);
         await saveSession(sessionPath, newCookies);
         account.lastLogin = new Date().toISOString();
-        account.failCount =
+        account.failCount = 0;
+        account.status = 'active';
+        await saveAccounts(accounts);
+        console.log("🔁 Login completo y cookies guardadas");
+        return true;
+      }
+      delay *= 2; // Backoff exponencial
+      await humanBehavior.randomDelay(delay, delay + 3000);
+    }
+
+    account.status = 'inactive';
+    await saveAccounts(accounts);
+    return false;
+  } catch (error) {
+    console.error(`❌ Fallo durante login para ${sessionKey}:`, error.message);
+    return false;
+  }
+}
+
+async function verifySession(page) {
+  try {
+    const response = await page.goto('https://www.instagram.com/', { waitUntil: 'networkidle0', timeout: NAVIGATION_TIMEOUT });
+    if (response.status() >= 400) return false;
+    const isActive = await page.evaluate(() => document.querySelector('svg[aria-label="Inicio"]') !== null);
+    return isActive;
+  } catch {
+    return false;
+  }
+}
+
+async function handleChallenge(page) {
+  const isChallenge = await page.waitForFunction(() => window.location.href.includes('challenge'), { timeout: 20000 })
+    .then(() => true).catch(() => false);
+  if (isChallenge) {
+    const challengeText = await page.evaluate(() => document.body.innerText.toLowerCase());
+    if (challengeText.includes('verifica') || challengeText.includes('sospechosa') || challengeText.includes('captcha')) {
+      await humanBehavior.randomDelay(60000, 120000);
+      return true;
+    }
+  }
+  return false;
+}
+
+async function handlePostLoginModals(page) {
+  try {
+    const modals = [
+      '//button[contains(., "Ahora no") or contains(., "Not Now")]',
+      '//button[contains(., "Denegar") or contains(., "Decline")]'
+    ];
+    for (const xpath of modals) {
+      const elements = await page.$x(xpath);
+      if (elements.length > 0) {
+        await elements[0].click();
+        await humanBehavior.randomDelay(1000, 2000);
+      }
+    }
+  } catch {}
+}
+
+async function saveSession(sessionPath, cookies) {
+  const encrypted = encrypt(cookies);
+  const backupPath = `${sessionPath}_backup_${Date.now()}.json`;
+  await fs.writeFile(sessionPath, JSON.stringify(encrypted, null, 2));
+  await fs.copyFile(sessionPath, backupPath).catch(() => {});
+}
+
+async function loadValidCookies(sessionPath, backupPrefix) {
+  let cookies = [];
+  const files = await fs.readdir(sessionsDir).catch(() => []);
+
+  for (let file of files) {
+    if (file.startsWith(path.basename(sessionPath)) || file.startsWith(path.basename(backupPrefix))) {
+      try {
+        const filePath = path.join(sessionsDir, file);
+        const encrypted = JSON.parse(await fs.readFile(filePath, 'utf8'));
+        cookies = decrypt(encrypted);
+        if (await validateCookies(cookies)) return cookies;
+      } catch {}
+    }
+  }
+  return [];
+}
+
+async function validateCookies(cookies) {
+  if (!Array.isArray(cookies) || cookies.length === 0) return false;
+  const sessionCookie = cookies.find(c => c.name === 'sessionid');
+  if (!sessionCookie) return false;
+  if (sessionCookie.expires && sessionCookie.expires * 1000 < Date.now()) {
+    console.log("⏰ Cookie sessionid expirada, rotando sesión...");
+    return false;
+  }
+  return true;
+}
+
+module.exports = { instagramLogin };
