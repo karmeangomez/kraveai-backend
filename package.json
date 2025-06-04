@@ -1,16 +1,22 @@
 {
   "name": "kraveai-backend",
   "version": "2.1.2",
+  "description": "Backend de KraveAI con Puppeteer, voz, IA y scraping",
   "scripts": {
     "start": "node server.js"
   },
   "dependencies": {
     "axios": "^1.7.2",
     "cors": "^2.8.5",
+    "crypto": "^1.0.1",
     "dotenv": "^16.4.0",
     "express": "^4.18.2",
     "puppeteer": "^21.5.2",
+    "puppeteer-extra": "^3.3.5",
     "puppeteer-extra-plugin-stealth": "^2.11.2",
     "user-agents": "^1.0.126"
+  },
+  "engines": {
+    "node": ">=18.x"
   }
 }
