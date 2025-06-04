@@ -1,9 +1,10 @@
+// ✅ server.js optimizado - versión estable con IA, Voz, Bitly y login con sesión persistente
 require('dotenv').config();
 const express = require('express');
-const puppeteer = require('puppeteer-extra');
-const StealthPlugin = require('puppeteer-extra-plugin-stealth');
 const cors = require('cors');
 const axios = require('axios');
+const puppeteer = require('puppeteer-extra');
+const StealthPlugin = require('puppeteer-extra-plugin-stealth');
 const { scrapeInstagram, encryptPassword } = require('./instagramLogin');
 
 puppeteer.use(StealthPlugin());
@@ -17,10 +18,10 @@ app.use(express.json());
 let browserInstance = null;
 const pagePool = new Set();
 
-// 🧠 INICIAR CHROMIUM
+// 🔁 Inicializar navegador y mantener sesión
 async function initBrowser() {
   try {
-    console.log('🚀 Iniciando Puppeteer...');
+    console.log('🚀 Iniciando Puppeteer con Stealth...');
     const browser = await puppeteer.launch({
       headless: true,
       args: [
@@ -29,10 +30,11 @@ async function initBrowser() {
         '--disable-dev-shm-usage',
         '--disable-gpu',
         '--disable-blink-features=AutomationControlled',
-        '--window-size=1366,768',
+        '--enable-javascript',
+        '--window-size=1366,768'
       ],
       ignoreHTTPSErrors: true,
-      timeout: 30000,
+      timeout: 30000
     });
 
     browserInstance = browser;
@@ -41,175 +43,123 @@ async function initBrowser() {
 
     const encryptedPassword = encryptPassword(process.env.INSTAGRAM_PASS);
     const loginSuccess = await scrapeInstagram(page, process.env.INSTAGRAM_USER, encryptedPassword);
-
     if (!loginSuccess) {
-      console.warn('⚠️ Login inicial fallido. Reintentando...');
+      console.warn('⚠️ Login fallido. Reintentando en 30s...');
       await browser.close();
       pagePool.clear();
-      setTimeout(initBrowser, 30000);
-      return;
+      return setTimeout(initBrowser, 30000);
     }
 
-    console.log('✅ Chromium listo y sesión activa');
+    console.log('✅ Navegador inicializado con sesión activa');
+    monitorSessions(browserInstance);
   } catch (err) {
-    console.error('❌ Error al iniciar Puppeteer:', err.message);
-    browserInstance?.close();
-    browserInstance = null;
-    pagePool.clear();
+    console.error('❌ Error iniciando navegador:', err.message);
     setTimeout(initBrowser, 30000);
   }
 }
 
-// 🔄 MONITOREAR SESIÓN
-async function monitorSession() {
-  while (true) {
-    try {
-      const page = Array.from(pagePool)[0];
-      if (!page) throw new Error('No hay páginas disponibles');
-
-      await page.goto('https://www.instagram.com/', { waitUntil: 'domcontentloaded', timeout: 15000 });
-      const isLoggedIn = await page.evaluate(() => !!document.querySelector('a[href*="/direct/inbox/"]'));
-
-      if (!isLoggedIn) {
-        console.warn('⚠️ Sesión expirada. Reiniciando...');
-        await browserInstance.close();
-        pagePool.clear();
-        await initBrowser();
-      }
-
-      await new Promise(res => setTimeout(res, 5 * 60 * 1000));
-    } catch (err) {
-      console.error('💥 Error monitor sesión:', err.message);
-      await browserInstance?.close();
+// 👁️ Monitor para mantener la sesión
+async function monitorSessions(browser) {
+  try {
+    const page = Array.from(pagePool)[0];
+    if (!page) return;
+    await page.goto('https://www.instagram.com/', { waitUntil: 'domcontentloaded', timeout: 10000 });
+    const isLoggedIn = await page.evaluate(() => !!document.querySelector('a[href*="/direct/inbox/"]'));
+    if (!isLoggedIn) {
+      console.warn('⚠️ Sesión expirada. Reiniciando...');
+      await browser.close();
       pagePool.clear();
       await initBrowser();
+    } else {
+      setTimeout(() => monitorSessions(browser), 5 * 60 * 1000);
     }
+  } catch (err) {
+    console.error('❌ Monitor de sesión:', err.message);
+    pagePool.clear();
+    await initBrowser();
   }
 }
 
-// 🌐 ENDPOINT SCRAPE
+// 📦 Scraping
 app.get('/scrape/:username', async (req, res) => {
   const { username } = req.params;
   try {
-    if (!browserInstance || !browserInstance.isConnected()) {
-      console.log('🔄 Reiniciando navegador...');
-      await initBrowser();
-    }
-
-    const page = Array.from(pagePool)[0] || await browserInstance.newPage();
+    const page = Array.from(pagePool)[0] || (await browserInstance.newPage());
     const encryptedPassword = encryptPassword(process.env.INSTAGRAM_PASS);
     const data = await scrapeInstagram(page, username, encryptedPassword);
-
-    if (!data) return res.status(500).json({ success: false, error: 'Scraping fallido' });
+    if (!data) return res.status(500).json({ error: 'No se pudo obtener el perfil' });
     res.json({ success: true, data });
   } catch (err) {
-    console.error('❌ Error en /scrape:', err.message);
-    res.status(500).json({ success: false, error: err.message });
+    res.status(500).json({ error: 'Error interno', details: err.message });
   }
 });
 
-// 🤖 ENDPOINT IA (ChatGPT)
+// 🤖 IA
 app.post('/api/chat', async (req, res) => {
-  const { message } = req.body;
-
   try {
-    const completion = await axios.post(
-      'https://api.openai.com/v1/chat/completions',
-      {
-        model: 'gpt-4o',
-        messages: [{ role: 'user', content: message }],
-      },
-      {
-        headers: {
-          Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
-          'Content-Type': 'application/json',
-        },
+    const { message } = req.body;
+    const response = await axios.post('https://api.openai.com/v1/chat/completions', {
+      model: 'gpt-4o',
+      messages: [{ role: 'user', content: message }]
+    }, {
+      headers: {
+        Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
+        'Content-Type': 'application/json'
       }
-    );
-
-    res.json({ response: completion.data.choices[0].message.content });
+    });
+    res.json({ message: response.data.choices[0].message.content });
   } catch (err) {
-    console.error('❌ Error IA:', err.message);
-    res.status(500).json({ error: 'Fallo al consultar la IA' });
+    res.status(500).json({ error: 'Error IA', details: err.message });
   }
 });
 
-// 🔊 ENDPOINT VOZ (OpenAI TTS)
+// 🔊 Voz
 app.get('/voz-prueba', async (req, res) => {
   try {
-    const text = req.query.text || 'Hola, esta es una prueba de voz generada con IA.';
-    const response = await axios.post(
-      'https://api.openai.com/v1/audio/speech',
-      {
-        model: 'tts-1',
-        voice: 'onyx',
-        input: text,
+    const text = req.query.text || "Hola, esta es una voz generada con IA.";
+    const response = await axios.post("https://api.openai.com/v1/audio/speech", {
+      model: 'tts-1',
+      voice: 'onyx',
+      input: text
+    }, {
+      headers: {
+        Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
+        'Content-Type': 'application/json'
       },
-      {
-        headers: {
-          Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
-          'Content-Type': 'application/json',
-        },
-        responseType: 'arraybuffer',
-      }
-    );
-
+      responseType: 'arraybuffer'
+    });
     res.set('Content-Type', 'audio/mpeg');
     res.send(response.data);
   } catch (err) {
-    console.error('❌ Error generando voz:', err.message);
-    res.status(500).send('Error generando voz');
+    res.status(500).send("Error generando voz");
   }
 });
 
-// 🔗 ENDPOINT BITLY
+// 🔗 Bitly
 app.get('/bitly-prueba', async (req, res) => {
-  const longUrl = req.query.url || 'https://instagram.com';
-
   try {
-    const result = await axios.post(
-      'https://api-ssl.bitly.com/v4/shorten',
-      { long_url: longUrl },
-      {
-        headers: {
-          Authorization: `Bearer ${process.env.BITLY_TOKEN}`,
-          'Content-Type': 'application/json',
-        },
+    const longUrl = req.query.url || 'https://instagram.com';
+    const response = await axios.post('https://api-ssl.bitly.com/v4/shorten', {
+      long_url: longUrl
+    }, {
+      headers: {
+        Authorization: `Bearer ${process.env.BITLY_TOKEN}`,
+        'Content-Type': 'application/json'
       }
-    );
-
-    res.json({ shortUrl: result.data.link });
+    });
+    res.json({ shortUrl: response.data.link });
   } catch (err) {
-    console.error('❌ Error Bitly:', err.message);
-    res.status(500).json({ error: 'Error acortando URL' });
+    res.status(500).json({ error: 'Error Bitly', details: err.message });
   }
 });
 
-// ✅ ENDPOINT DE SALUD
+// 🩺 Salud
 app.get('/health', (req, res) => {
   res.send('🟢 Servidor activo y saludable');
 });
 
-// 🚀 INICIO
-async function startServer() {
-  await initBrowser();
-  app.listen(PORT, () => {
-    console.log(`🌐 Servidor activo en puerto ${PORT}`);
-    monitorSession().catch(console.error);
-  });
-}
-
-startServer();
-
-// 🛑 CIERRE ORDENADO
-process.on('SIGTERM', async () => {
-  console.log('🛑 Cerrando servidor (SIGTERM)...');
-  await browserInstance?.close();
-  process.exit(0);
-});
-
-process.on('SIGINT', async () => {
-  console.log('🛑 Cerrando servidor (SIGINT)...');
-  await browserInstance?.close();
-  process.exit(0);
+// 🟢 Iniciar
+app.listen(PORT, () => {
+  console.log(`🚀 Backend activo en puerto ${PORT}`);
+  initBrowser();
 });
