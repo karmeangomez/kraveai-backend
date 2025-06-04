@@ -15,11 +15,11 @@ const PORT = process.env.PORT || 3000;
 app.use(cors());
 app.use(express.json());
 
+// 🕒 Configuración global para evitar reinicios innecesarios
 let browserInstance = null;
-const pagePool = new Set();
+let pageInstance = null;
 
-// 🔁 Inicializar navegador y mantener sesión
-async function initBrowser() {
+async function initializeBrowser() {
   try {
     console.log('🚀 Iniciando Puppeteer con Stealth...');
     const browser = await puppeteer.launch({
@@ -33,60 +33,66 @@ async function initBrowser() {
         '--enable-javascript',
         '--window-size=1366,768'
       ],
+      executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || '/usr/bin/google-chrome',
       ignoreHTTPSErrors: true,
       timeout: 30000
     });
 
     browserInstance = browser;
-    const page = await browser.newPage();
-    pagePool.add(page);
+    pageInstance = await browser.newPage();
+    await pageInstance.setUserAgent(new (require('user-agents'))().toString());
 
-    const encryptedPassword = encryptPassword(process.env.INSTAGRAM_PASS);
-    const loginSuccess = await scrapeInstagram(page, process.env.INSTAGRAM_USER, encryptedPassword);
+    const encryptedPassword = encryptPassword(process.env.INSTAGRAM_PASS || '');
+    const loginSuccess = await scrapeInstagram(pageInstance, process.env.INSTAGRAM_USER || '', encryptedPassword);
     if (!loginSuccess) {
-      console.warn('⚠️ Login fallido. Reintentando en 30s...');
-      await browser.close();
-      pagePool.clear();
-      return setTimeout(initBrowser, 30000);
+      throw new Error('Login fallido');
     }
 
     console.log('✅ Navegador inicializado con sesión activa');
-    monitorSessions(browserInstance);
+    return { browser, page: pageInstance };
   } catch (err) {
     console.error('❌ Error iniciando navegador:', err.message);
-    setTimeout(initBrowser, 30000);
+    if (browserInstance) {
+      await browserInstance.close();
+    }
+    browserInstance = null;
+    pageInstance = null;
+    throw err; // Dejar que Railway maneje el reinicio
   }
 }
 
-// 👁️ Monitor para mantener la sesión
-async function monitorSessions(browser) {
+// 👁️ Monitor de sesión
+async function monitorSession() {
+  if (!browserInstance || !pageInstance) return;
   try {
-    const page = Array.from(pagePool)[0];
-    if (!page) return;
-    await page.goto('https://www.instagram.com/', { waitUntil: 'domcontentloaded', timeout: 10000 });
-    const isLoggedIn = await page.evaluate(() => !!document.querySelector('a[href*="/direct/inbox/"]'));
+    await pageInstance.goto('https://www.instagram.com/', { waitUntil: 'domcontentloaded', timeout: 10000 });
+    const isLoggedIn = await pageInstance.evaluate(() => !!document.querySelector('a[href*="/direct/inbox/"]'));
     if (!isLoggedIn) {
       console.warn('⚠️ Sesión expirada. Reiniciando...');
-      await browser.close();
-      pagePool.clear();
-      await initBrowser();
+      await browserInstance.close();
+      browserInstance = null;
+      pageInstance = null;
+      await initializeBrowser();
     } else {
-      setTimeout(() => monitorSessions(browser), 5 * 60 * 1000);
+      setTimeout(monitorSession, 5 * 60 * 1000); // Revisar cada 5 minutos
     }
   } catch (err) {
-    console.error('❌ Monitor de sesión:', err.message);
-    pagePool.clear();
-    await initBrowser();
+    console.error('❌ Error en monitor de sesión:', err.message);
+    await browserInstance.close();
+    browserInstance = null;
+    pageInstance = null;
+    await initializeBrowser();
   }
 }
 
 // 📦 Scraping
 app.get('/scrape/:username', async (req, res) => {
+  if (!browserInstance || !pageInstance) {
+    return res.status(503).json({ error: 'Servicio temporalmente no disponible' });
+  }
   const { username } = req.params;
   try {
-    const page = Array.from(pagePool)[0] || (await browserInstance.newPage());
-    const encryptedPassword = encryptPassword(process.env.INSTAGRAM_PASS);
-    const data = await scrapeInstagram(page, username, encryptedPassword);
+    const data = await scrapeInstagram(pageInstance, username, encryptPassword(process.env.INSTAGRAM_PASS || ''));
     if (!data) return res.status(500).json({ error: 'No se pudo obtener el perfil' });
     res.json({ success: true, data });
   } catch (err) {
@@ -159,7 +165,15 @@ app.get('/health', (req, res) => {
 });
 
 // 🟢 Iniciar
-app.listen(PORT, () => {
-  console.log(`🚀 Backend activo en puerto ${PORT}`);
-  initBrowser();
-});
+(async () => {
+  try {
+    await initializeBrowser();
+    monitorSession();
+    app.listen(PORT, () => {
+      console.log(`🚀 Backend activo en puerto ${PORT}`);
+    });
+  } catch (err) {
+    console.error('❌ Fallo al iniciar el servidor:', err.message);
+    process.exit(1); // Permitir que Railway reinicie el contenedor
+  }
+})();
