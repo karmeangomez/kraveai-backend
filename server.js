@@ -1,8 +1,9 @@
 require('dotenv').config();
 const express = require('express');
-const puppeteer = require('puppeteer');
+const puppeteer = require('puppeteer-extra');
 const StealthPlugin = require('puppeteer-extra-plugin-stealth');
 const cors = require('cors');
+const axios = require('axios');
 const { scrapeInstagram, encryptPassword } = require('./instagramLogin');
 
 puppeteer.use(StealthPlugin());
@@ -10,16 +11,16 @@ puppeteer.use(StealthPlugin());
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-app.use(cors()); // Habilita CORS para solicitudes externas
+app.use(cors());
 app.use(express.json());
 
 let browserInstance = null;
 const pagePool = new Set();
 
-// 🛠️ Inicializar navegador
+// 🧠 INICIAR CHROMIUM
 async function initBrowser() {
   try {
-    console.log('🚀 Iniciando Puppeteer con Stealth...');
+    console.log('🚀 Iniciando Puppeteer...');
     const browser = await puppeteer.launch({
       headless: true,
       args: [
@@ -28,113 +29,187 @@ async function initBrowser() {
         '--disable-dev-shm-usage',
         '--disable-gpu',
         '--disable-blink-features=AutomationControlled',
-        '--enable-javascript',
         '--window-size=1366,768',
       ],
       ignoreHTTPSErrors: true,
       timeout: 30000,
     });
 
-    const page = await browser.newPage();
     browserInstance = browser;
+    const page = await browser.newPage();
     pagePool.add(page);
 
-    // Verificar login inicial
     const encryptedPassword = encryptPassword(process.env.INSTAGRAM_PASS);
     const loginSuccess = await scrapeInstagram(page, process.env.INSTAGRAM_USER, encryptedPassword);
+
     if (!loginSuccess) {
-      console.warn('⚠️ Login inicial fallido. Reintentando en 30 segundos...');
+      console.warn('⚠️ Login inicial fallido. Reintentando...');
       await browser.close();
       pagePool.clear();
       setTimeout(initBrowser, 30000);
-      return null;
+      return;
     }
 
-    console.log('✅ Navegador inicializado');
-    return browser;
+    console.log('✅ Chromium listo y sesión activa');
   } catch (err) {
-    console.error('❌ Error crítico al iniciar navegador:', err.message);
-    if (browserInstance) await browserInstance.close();
+    console.error('❌ Error al iniciar Puppeteer:', err.message);
+    browserInstance?.close();
+    browserInstance = null;
     pagePool.clear();
     setTimeout(initBrowser, 30000);
-    return null;
   }
 }
 
-// 🔄 Monitor de sesiones
-async function monitorSessions(browser) {
+// 🔄 MONITOREAR SESIÓN
+async function monitorSession() {
   while (true) {
     try {
       const page = Array.from(pagePool)[0];
       if (!page) throw new Error('No hay páginas disponibles');
+
       await page.goto('https://www.instagram.com/', { waitUntil: 'domcontentloaded', timeout: 15000 });
       const isLoggedIn = await page.evaluate(() => !!document.querySelector('a[href*="/direct/inbox/"]'));
+
       if (!isLoggedIn) {
-        console.warn('⚠️ Sesión expirada. Reiniciando navegador...');
-        await browser.close();
+        console.warn('⚠️ Sesión expirada. Reiniciando...');
+        await browserInstance.close();
         pagePool.clear();
         await initBrowser();
       }
-      await new Promise(resolve => setTimeout(resolve, 5 * 60 * 1000)); // Verificar cada 5 minutos
+
+      await new Promise(res => setTimeout(res, 5 * 60 * 1000));
     } catch (err) {
-      console.error('❌ Error en monitor de sesiones:', err.message);
-      await browser.close();
+      console.error('💥 Error monitor sesión:', err.message);
+      await browserInstance?.close();
       pagePool.clear();
       await initBrowser();
-      break;
     }
   }
 }
 
-// 🌐 Endpoint para scraping de perfil
+// 🌐 ENDPOINT SCRAPE
 app.get('/scrape/:username', async (req, res) => {
   const { username } = req.params;
   try {
-    if (!browserInstance || browserInstance.isConnected() === false) {
-      console.warn('⚠️ Navegador no inicializado. Iniciando...');
+    if (!browserInstance || !browserInstance.isConnected()) {
+      console.log('🔄 Reiniciando navegador...');
       await initBrowser();
     }
 
-    const page = Array.from(pagePool)[0] || (await browserInstance.newPage());
+    const page = Array.from(pagePool)[0] || await browserInstance.newPage();
     const encryptedPassword = encryptPassword(process.env.INSTAGRAM_PASS);
     const data = await scrapeInstagram(page, username, encryptedPassword);
 
-    if (!data) {
-      return res.status(500).json({ error: 'Fallo al obtener datos del perfil' });
-    }
-
+    if (!data) return res.status(500).json({ success: false, error: 'Scraping fallido' });
     res.json({ success: true, data });
   } catch (err) {
     console.error('❌ Error en /scrape:', err.message);
-    res.status(500).json({ error: 'Error interno del servidor' });
+    res.status(500).json({ success: false, error: err.message });
   }
 });
 
-// 🚀 Iniciar servidor
-async function startServer() {
+// 🤖 ENDPOINT IA (ChatGPT)
+app.post('/api/chat', async (req, res) => {
+  const { message } = req.body;
+
   try {
-    await initBrowser();
-    app.listen(PORT, () => {
-      console.log(`🌐 Servidor corriendo en puerto ${PORT}`);
-      if (browserInstance) monitorSessions(browserInstance).catch(console.error);
-    });
+    const completion = await axios.post(
+      'https://api.openai.com/v1/chat/completions',
+      {
+        model: 'gpt-4o',
+        messages: [{ role: 'user', content: message }],
+      },
+      {
+        headers: {
+          Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
+          'Content-Type': 'application/json',
+        },
+      }
+    );
+
+    res.json({ response: completion.data.choices[0].message.content });
   } catch (err) {
-    console.error('❌ Error al iniciar servidor:', err.message);
-    setTimeout(startServer, 30000); // Reintentar en 30 segundos
+    console.error('❌ Error IA:', err.message);
+    res.status(500).json({ error: 'Fallo al consultar la IA' });
   }
+});
+
+// 🔊 ENDPOINT VOZ (OpenAI TTS)
+app.get('/voz-prueba', async (req, res) => {
+  try {
+    const text = req.query.text || 'Hola, esta es una prueba de voz generada con IA.';
+    const response = await axios.post(
+      'https://api.openai.com/v1/audio/speech',
+      {
+        model: 'tts-1',
+        voice: 'onyx',
+        input: text,
+      },
+      {
+        headers: {
+          Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        responseType: 'arraybuffer',
+      }
+    );
+
+    res.set('Content-Type', 'audio/mpeg');
+    res.send(response.data);
+  } catch (err) {
+    console.error('❌ Error generando voz:', err.message);
+    res.status(500).send('Error generando voz');
+  }
+});
+
+// 🔗 ENDPOINT BITLY
+app.get('/bitly-prueba', async (req, res) => {
+  const longUrl = req.query.url || 'https://instagram.com';
+
+  try {
+    const result = await axios.post(
+      'https://api-ssl.bitly.com/v4/shorten',
+      { long_url: longUrl },
+      {
+        headers: {
+          Authorization: `Bearer ${process.env.BITLY_TOKEN}`,
+          'Content-Type': 'application/json',
+        },
+      }
+    );
+
+    res.json({ shortUrl: result.data.link });
+  } catch (err) {
+    console.error('❌ Error Bitly:', err.message);
+    res.status(500).json({ error: 'Error acortando URL' });
+  }
+});
+
+// ✅ ENDPOINT DE SALUD
+app.get('/health', (req, res) => {
+  res.send('🟢 Servidor activo y saludable');
+});
+
+// 🚀 INICIO
+async function startServer() {
+  await initBrowser();
+  app.listen(PORT, () => {
+    console.log(`🌐 Servidor activo en puerto ${PORT}`);
+    monitorSession().catch(console.error);
+  });
 }
 
 startServer();
 
-// 🛑 Manejo de cierre
+// 🛑 CIERRE ORDENADO
 process.on('SIGTERM', async () => {
-  console.log('🛑 Cerrando servidor...');
-  if (browserInstance) await browserInstance.close();
+  console.log('🛑 Cerrando servidor (SIGTERM)...');
+  await browserInstance?.close();
   process.exit(0);
 });
 
 process.on('SIGINT', async () => {
-  console.log('🛑 Cerrando servidor por SIGINT...');
-  if (browserInstance) await browserInstance.close();
+  console.log('🛑 Cerrando servidor (SIGINT)...');
+  await browserInstance?.close();
   process.exit(0);
 });
