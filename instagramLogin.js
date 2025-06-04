@@ -1,6 +1,5 @@
-const puppeteer = require('puppeteer-extra');
+const puppeteer = require('puppeteer');
 const StealthPlugin = require('puppeteer-extra-plugin-stealth');
-const axios = require('axios');
 const crypto = require('crypto');
 const fs = require('fs').promises;
 const path = require('path');
@@ -10,30 +9,17 @@ puppeteer.use(StealthPlugin());
 const ENCRYPTION_KEY = process.env.ENCRYPTION_KEY || 'mi-clave-secreta-32-bytes-aqui1234';
 const COOKIE_PATH = path.join(__dirname, 'cookies');
 
-const proxies = [
-  '198.23.239.134:6540:pdsmombq:terqdq67j6mp',
-  '207.244.217.165:6712:pdsmombq:terqdq67j6mp',
-  '107.172.163.27:6543:pdsmombq:terqdq67j6mp',
-  '161.123.152.115:6360:pdsmombq:terqdq67j6mp',
-  '23.94.138.75:6349:pdsmombq:terqdq67j6mp',
-  '216.10.27.159:6837:pdsmombq:terqdq67j6mp',
-  '136.0.207.84:6661:pdsmombq:terqdq67j6mp',
-  '64.64.118.149:6732:pdsmombq:terqdq67j6mp',
-  '142.147.128.93:6593:pdsmombq:terqdq67j6mp',
-  '154.36.110.199:6853:pdsmombq:terqdq67j6mp',
-];
-let proxyIndex = 0;
-
 const userAgents = [
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/118.0.0.0 Safari/537.36',
   'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/118.0.0.0 Safari/537.36',
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/118.0',
+  'Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.0 Mobile/15E148 Safari/604.1',
 ];
 
 const referers = [
-  'https://www.google.com/search',
-  'https://twitter.com/explore',
-  'https://facebook.com',
+  'https://www.google.com/search?q=instagram',
+  'https://x.com/explore',
+  'https://www.facebook.com',
 ];
 
 // 🔐 Encriptar y desencriptar contraseña
@@ -50,34 +36,6 @@ function decryptPassword(encryptedObj) {
   let decrypted = decipher.update(encryptedObj.encryptedData, 'hex', 'utf8');
   decrypted += decipher.final('utf8');
   return decrypted;
-}
-
-// 🛜 Validar y obtener próximo proxy
-async function validateProxy(proxy) {
-  try {
-    const [host, port, username, password] = proxy.split(':');
-    const response = await axios.get('https://www.google.com', {
-      proxy: { host, port: parseInt(port), auth: { username, password } },
-      timeout: 5000,
-    });
-    return response.status === 200;
-  } catch {
-    return false;
-  }
-}
-
-async function getNextProxy() {
-  for (let i = 0; i < proxies.length; i++) {
-    const proxy = proxies[proxyIndex];
-    proxyIndex = (proxyIndex + 1) % proxies.length;
-    if (await validateProxy(proxy)) {
-      console.log(`🛜 Proxy válido: ${proxy}`);
-      return proxy;
-    }
-    console.warn(`⚠️ Proxy inválido: ${proxy}`);
-  }
-  console.warn('⚠️ No hay proxies válidos disponibles');
-  return '';
 }
 
 // 🎲 Obtener User-Agent aleatorio
@@ -114,11 +72,7 @@ async function loadCookies(page, username) {
 // 🚀 Inicialización de Puppeteer
 async function initBrowser() {
   try {
-    console.log('🚀 Iniciando Puppeteer con Stealth y Proxy...');
-    const proxy = await getNextProxy();
-    if (!proxy) throw new Error('No hay proxies válidos');
-
-    const [host, port, username, password] = proxy.split(':');
+    console.log('🚀 Iniciando Puppeteer con Stealth...');
     const browser = await puppeteer.launch({
       headless: true,
       args: [
@@ -128,10 +82,10 @@ async function initBrowser() {
         '--disable-gpu',
         '--disable-blink-features=AutomationControlled',
         '--enable-javascript',
-        '--window-size=1920,1080',
-        `--proxy-server=http://${host}:${port}`,
+        '--window-size=1366,768',
       ],
       ignoreHTTPSErrors: true,
+      timeout: 30000,
     });
 
     const page = await browser.newPage();
@@ -141,7 +95,7 @@ async function initBrowser() {
       'Accept-Language': 'en-US,en;q=0.9',
       'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
     });
-    await page.setViewport({ width: 1920, height: 1080 });
+    await page.setViewport({ width: 1366, height: 768 });
 
     // Evitar detección de bot
     await page.evaluateOnNewDocument(() => {
@@ -152,12 +106,7 @@ async function initBrowser() {
       Object.defineProperty(navigator, 'platform', { get: () => 'Win32' });
     });
 
-    // Autenticar proxy
-    if (username && password) {
-      await page.authenticate({ username, password });
-    }
-
-    console.log(`✅ Navegador listo con proxy: ${host}:${port}, UA: ${ua}`);
+    console.log(`✅ Navegador listo con UA: ${ua}`);
     return { browser, page };
   } catch (err) {
     console.error('❌ Error al iniciar Puppeteer:', err.message);
@@ -174,7 +123,7 @@ async function instagramLogin(page, username, encryptedPassword, maxRetries = 3)
       // Cargar cookies existentes
       const hasCookies = await loadCookies(page, username);
       if (hasCookies) {
-        await page.goto('https://www.instagram.com/', { waitUntil: 'domcontentloaded' });
+        await page.goto('https://www.instagram.com/', { waitUntil: 'domcontentloaded', timeout: 15000 });
         const isLoggedIn = await page.evaluate(() => !!document.querySelector('a[href*="/direct/inbox/"]'));
         if (isLoggedIn) {
           console.log('✅ Sesión activa encontrada, login omitido');
@@ -187,14 +136,16 @@ async function instagramLogin(page, username, encryptedPassword, maxRetries = 3)
       const referer = referers[Math.floor(Math.random() * referers.length)];
       console.log(`🌐 Visitando referer: ${referer}`);
       await page.goto(referer, { waitUntil: 'domcontentloaded', timeout: 5000 }).catch(() => {});
+      await new Promise(resolve => setTimeout(resolve, 1000 + Math.random() * 2000));
 
       await page.goto('https://www.instagram.com/accounts/login/', { waitUntil: 'domcontentloaded', timeout: 15000 });
 
       // Verificar si hay CAPTCHA
       const isCaptcha = await page.evaluate(() => !!document.querySelector('input[name="verificationCode"]'));
       if (isCaptcha) {
-        console.warn('⚠️ CAPTCHA detectado, reintentando con nuevo proxy...');
-        return false;
+        console.warn('⚠️ CAPTCHA detectado, reintentando...');
+        await new Promise(resolve => setTimeout(resolve, 5000));
+        continue;
       }
 
       const password = decryptPassword(encryptedPassword);
@@ -213,8 +164,10 @@ async function instagramLogin(page, username, encryptedPassword, maxRetries = 3)
         return true;
       }
       console.warn('⚠️ Login fallido, reintentando...');
+      await new Promise(resolve => setTimeout(resolve, 5000));
     } catch (error) {
       console.error(`❌ Error en login (intento ${attempt}):`, error.message);
+      await new Promise(resolve => setTimeout(resolve, 5000));
     }
   }
   console.error('❌ Todos los intentos de login fallaron');
