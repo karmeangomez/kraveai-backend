@@ -21,11 +21,12 @@ const CACHE_TTL = 60 * 60 * 1000; // 1 hora
 // Cargar cookies desde archivo al iniciar
 async function loadCookieMemory() {
   try {
+    await fs.mkdir(COOKIE_PATH, { recursive: true }); // Asegurar que el directorio exista
     const data = await fs.readFile(COOKIE_MEMORY_PATH, 'utf8');
     cookieCache = JSON.parse(data);
     console.log('✅ Cookie memory cargado desde archivo');
   } catch (err) {
-    console.warn('⚠️ No se encontró cookie memory, iniciando vacío:', err.message);
+    console.log(`ℹ️ Cookie memory no encontrado en ${COOKIE_MEMORY_PATH}, inicializando vacío (esto es normal en la primera ejecución)`);
     cookieCache = {};
   }
 }
@@ -149,7 +150,12 @@ async function instagramLogin(page, username, encryptedPassword, maxRetries = 3)
       const isLoggedIn = await page.evaluate(() => !!document.querySelector('a[href*="/direct/inbox/"]'));
       if (isLoggedIn) {
         console.log('🚀 Login exitoso');
-        await saveCookies(page, username);
+        const saved = await saveCookies(page, username);
+        if (saved) {
+          console.log('✅ Cookies confirmadas como guardadas');
+        } else {
+          console.warn('⚠️ Cookies no guardadas correctamente');
+        }
         return true;
       }
       console.warn('⚠️ Login fallido, reintentando...');
