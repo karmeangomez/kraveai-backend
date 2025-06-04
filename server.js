@@ -1,208 +1,187 @@
-// ✅ server.js optimizado - versión estable con IA, Voz, Bitly y login con sesión persistente
-require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
-const axios = require('axios');
+const path = require('path');
+const { createMultipleAccounts } = require('./instagramAccountCreator');
 const puppeteer = require('puppeteer-extra');
 const StealthPlugin = require('puppeteer-extra-plugin-stealth');
 const { instagramLogin } = require('./instagramLogin');
+const { Telegraf } = require('telegraf');
+const fs = require('fs').promises;
 
 puppeteer.use(StealthPlugin());
 
-const app = express();
-const PORT = process.env.PORT || 3000;
+// Configurar Telegram para notificaciones
+const bot = new Telegraf(process.env.TELEGRAM_BOT_TOKEN);
+const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID;
 
-app.use(cors());
-app.use(express.json());
-
-// 🕒 Configuración global
-let browserInstance = null;
-let pageInstance = null;
-
-async function initializeBrowser() {
+// Función para enviar notificaciones a Telegram
+async function sendTelegramNotification(message) {
   try {
-    console.log('🚀 Iniciando Puppeteer con Stealth...');
-    const browser = await puppeteer.launch({
-      headless: true,
-      args: [
-        '--no-sandbox',
-        '--disable-setuid-sandbox',
-        '--disable-dev-shm-usage',
-        '--disable-gpu',
-        '--disable-blink-features=AutomationControlled',
-        '--enable-javascript',
-        '--window-size=1366,768',
-        '--disable-web-security',
-        '--disable-features=IsolateOrigins,site-per-process',
-        '--lang=en-US,en;q=0.9',
-      ],
-      executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || '/usr/bin/google-chrome',
-      ignoreHTTPSErrors: true,
-      timeout: 30000
-    });
-
-    browserInstance = browser;
-    pageInstance = await browser.newPage();
-    await pageInstance.setJavaScriptEnabled(true);
-
-    // Inyectar propiedades para evitar detección
-    await pageInstance.evaluateOnNewDocument(() => {
-      Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
-      window.navigator.chrome = { runtime: {} };
-      Object.defineProperty(navigator, 'languages', { get: () => ['en-US', 'en'] });
-      Object.defineProperty(navigator, 'plugins', { get: () => [1, 2, 3, 4, 5] });
-    });
-
-    console.log(`Intentando login con usuario: ${process.env.INSTAGRAM_USER || 'no definido'}`);
-    const loginSuccess = await instagramLogin(pageInstance, process.env.INSTAGRAM_USER || '', process.env.INSTAGRAM_PASS || '');
-    if (!loginSuccess) {
-      throw new Error('Login fallido');
+    if (!process.env.TELEGRAM_BOT_TOKEN || !TELEGRAM_CHAT_ID) {
+      console.warn('⚠️ TELEGRAM_BOT_TOKEN o TELEGRAM_CHAT_ID no definidos, notificaciones desactivadas');
+      return;
     }
-
-    console.log('✅ Navegador inicializado con sesión activa');
-    return { browser, page: pageInstance };
-  } catch (err) {
-    console.error('❌ Error iniciando navegador:', err.message);
-    if (browserInstance) {
-      await browserInstance.close();
-    }
-    browserInstance = null;
-    pageInstance = null;
-    throw err;
+    await bot.telegram.sendMessage(TELEGRAM_CHAT_ID, message);
+    console.log('📩 Notificación enviada a Telegram:', message);
+  } catch (error) {
+    console.error('❌ Error enviando notificación a Telegram:', error.message);
   }
 }
 
-// 👁️ Monitor de sesión
-async function monitorSession() {
-  if (!browserInstance || !pageInstance) return;
+// Función para cargar cuentas existentes y evitar mezclar kraveaibot
+async function loadAccounts() {
+  const accountsFile = path.join(__dirname, 'accounts', 'accounts.json');
   try {
-    await pageInstance.goto('https://www.instagram.com/', { waitUntil: 'domcontentloaded', timeout: 60000 });
-    const isLoggedIn = await pageInstance.evaluate(() => !!document.querySelector('svg[aria-label="Inicio"]'));
-    if (!isLoggedIn) {
-      console.warn('⚠️ Sesión expirada. Reiniciando...');
-      await browserInstance.close();
-      browserInstance = null;
-      pageInstance = null;
-      await initializeBrowser();
-    } else {
-      setTimeout(monitorSession, 15 * 60 * 1000);
+    await fs.mkdir(path.join(__dirname, 'accounts'), { recursive: true });
+    if (await fs.access(accountsFile).then(() => true).catch(() => false)) {
+      return JSON.parse(await fs.readFile(accountsFile, 'utf8'));
     }
-  } catch (err) {
-    console.error('❌ Error en monitor de sesión:', err.message);
-    await browserInstance.close();
-    browserInstance = null;
-    pageInstance = null;
-    await initializeBrowser();
+    return { accounts: [] };
+  } catch (error) {
+    console.error('❌ Error loading accounts:', error.message);
+    return { accounts: [] };
   }
 }
 
-// 📦 Scraping (Ejemplo básico, ajustar según necesidades)
-app.get('/scrape/:username', async (req, res) => {
-  if (!browserInstance || !pageInstance) {
-    return res.status(503).json({ error: 'Servicio temporalmente no disponible' });
-  }
-  const { username } = req.params;
+// Función para guardar cuentas creadas (excluyendo kraveaibot)
+async function saveAccounts(accounts) {
+  const accountsFile = path.join(__dirname, 'accounts', 'accounts.json');
   try {
-    await pageInstance.goto(`https://www.instagram.com/${username}/`, { waitUntil: 'domcontentloaded', timeout: 60000 });
-
-    await pageInstance.waitForFunction(
-      () => document.querySelector('img[alt*="profile picture"]') || document.querySelector('h1'),
-      { timeout: 15000 }
-    );
-
-    await pageInstance.evaluate(() => window.scrollBy(0, 300 + Math.random() * 100));
-    await new Promise(resolve => setTimeout(resolve, 1000 + Math.random() * 500));
-
-    const data = await pageInstance.evaluate(() => {
-      return {
-        username: document.querySelector('h1')?.textContent || '',
-        profile_pic_url: document.querySelector('img[alt*="profile picture"]')?.src || '',
-        followers_count: document.querySelector('header section ul li:nth-child(2) span')?.textContent || '0',
-        is_verified: !!document.querySelector('header section svg[aria-label="Verified"]'),
-      };
-    });
-
-    res.json({ success: true, data });
-  } catch (err) {
-    res.status(500).json({ error: 'Error interno', details: err.message });
+    await fs.writeFile(accountsFile, JSON.stringify(accounts, null, 2));
+    console.log('✅ Accounts saved successfully');
+  } catch (error) {
+    console.error('❌ Error saving accounts:', error.message);
   }
-});
+}
 
-// 🤖 IA
-app.post('/api/chat', async (req, res) => {
+// Función para iniciar sesión con reintentos y manejo de desafíos
+async function initializeBotSession(maxRetries = 3, delayBetweenRetries = 30000) {
+  const username = process.env.INSTAGRAM_USER;
+  const password = process.env.INSTAGRAM_PASS;
+
+  if (!username || !password) {
+    const errorMsg = '❌ Variables de entorno INSTAGRAM_USER o INSTAGRAM_PASS no definidas';
+    await sendTelegramNotification(errorMsg);
+    throw new Error(errorMsg);
+  }
+
+  let browser;
   try {
-    const { message } = req.body;
-    const response = await axios.post('https://api.openai.com/v1/chat/completions', {
-      model: 'gpt-4o',
-      messages: [{ role: 'user', content: message }]
-    }, {
-      headers: {
-        Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
-        'Content-Type': 'application/json'
+    browser = await puppeteer.launch({ headless: 'new', args: ['--no-sandbox', '--disable-setuid-sandbox'] });
+    const page = await browser.newPage();
+
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        console.log(`🔐 Intento ${attempt}/${maxRetries} de iniciar sesión como kraveaibot (${username})...`);
+        const loginSuccess = await instagramLogin(page, username, password, 'kraveaibot');
+        if (loginSuccess) {
+          console.log('✅ Sesión de kraveaibot iniciada correctamente');
+          await sendTelegramNotification('✅ Sesión de kraveaibot iniciada correctamente');
+          global.browser = browser; // Guardar navegador para uso en funciones
+          global.mainPage = page; // Guardar página principal para reutilizar
+
+          // Guardar sesión de kraveaibot en un archivo separado
+          const cookies = await page.cookies();
+          const sessionPath = path.join(__dirname, 'accounts', 'sessions', 'kraveaibot.json');
+          await fs.mkdir(path.dirname(sessionPath), { recursive: true });
+          await fs.writeFile(sessionPath, JSON.stringify(cookies, null, 2));
+          console.log('✅ Sesión de kraveaibot guardada en:', sessionPath);
+
+          return true;
+        } else {
+          console.warn(`⚠️ Fallo al iniciar sesión de kraveaibot (intento ${attempt}/${maxRetries}), posible desafío de seguridad`);
+          const pageContent = await page.content();
+          if (pageContent.includes('captcha') || pageContent.includes('phone')) {
+            const challengeMsg = `⚠️ Desafío de seguridad detectado para kraveaibot (${username}). Resuelve manualmente: ${page.url()}`;
+            await sendTelegramNotification(challengeMsg);
+            console.log('⏳ Esperando resolución manual...');
+            await new Promise(resolve => setTimeout(resolve, 120000)); // Espera 2 minutos
+          }
+          if (attempt === maxRetries) {
+            const errorMsg = '❌ Fallo final al iniciar sesión de kraveaibot después de todos los intentos';
+            await sendTelegramNotification(errorMsg);
+            throw new Error(errorMsg);
+          }
+        }
+      } catch (error) {
+        console.error(`❌ Error en intento ${attempt}/${maxRetries}:`, error.message);
+        if (attempt === maxRetries) {
+          const errorMsg = `❌ Fallo final al iniciar sesión de kraveaibot: ${error.message}`;
+          await sendTelegramNotification(errorMsg);
+          throw new Error(errorMsg);
+        }
+        await new Promise(resolve => setTimeout(resolve, delayBetweenRetries));
       }
-    });
-    res.json({ message: response.data.choices[0].message.content });
-  } catch (err) {
-    res.status(500).json({ error: 'Error IA', details: err.message });
+    }
+  } catch (error) {
+    if (browser) await browser.close();
+    throw error;
   }
-});
+}
 
-// 🔊 Voz
-app.get('/voz-prueba', async (req, res) => {
-  try {
-    const text = req.query.text || "Hola, esta es una voz generada con IA.";
-    const response = await axios.post("https://api.openai.com/v1/audio/speech", {
-      model: 'tts-1',
-      voice: 'onyx',
-      input: text
-    }, {
-      headers: {
-        Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
-        'Content-Type': 'application/json'
-      },
-      responseType: 'arraybuffer'
-    });
-    res.set('Content-Type', 'audio/mpeg');
-    res.send(response.data);
-  } catch (err) {
-    res.status(500).send("Error generando voz");
-  }
-});
-
-// 🔗 Bitly
-app.get('/bitly-prueba', async (req, res) => {
-  try {
-    const longUrl = req.query.url || 'https://www.instagram.com';
-    const response = await axios.post('https://api-ssl.bitly.com/v4/shorten', {
-      long_url: longUrl
-    }, {
-      headers: {
-        Authorization: `Bearer ${process.env.BITLY_TOKEN}`,
-        'Content-Type': 'application/json'
-      }
-    });
-    res.json({ shortUrl: response.data.link });
-  } catch (err) {
-    res.status(500).json({ error: 'Error Bitly', details: err.message });
-  }
-});
-
-// 🩺 Salud
-app.get('/health', (req, res) => {
-  res.send('🟢 Servidor activo y saludable');
-});
-
-// 🟢 Iniciar
+// Iniciar el servidor y la sesión
 (async () => {
   try {
-    console.log('🟢 Iniciando servidor...');
-    await initializeBrowser();
-    monitorSession();
-    app.listen(PORT, () => {
-      console.log(`🚀 Backend activo en puerto ${PORT}`);
-    });
-  } catch (err) {
-    console.error('❌ Fallo al iniciar el servidor:', err.message);
-    process.exit(1);
+    await initializeBotSession();
+  } catch (error) {
+    console.error('⚠️ No se pudo iniciar sesión de kraveaibot, pero el servidor seguirá funcionando:', error.message);
+    await sendTelegramNotification(`⚠️ No se pudo iniciar sesión de kraveaibot: ${error.message}`);
   }
+
+  const app = express();
+  const port = process.env.PORT || 3000;
+
+  app.use(cors());
+  app.use(express.json());
+  app.use(express.static(path.join(__dirname, '.')));
+
+  // Endpoint para "Crear Cuentas"
+  app.post('/create-accounts', async (req, res) => {
+    try {
+      const { count = 3 } = req.body;
+      if (count < 1 || count > 10) {
+        return res.status(400).json({ error: 'El número de cuentas debe estar entre 1 y 10' });
+      }
+      if (!global.browser || !global.mainPage) {
+        throw new Error('❌ No hay sesión de navegador activa, resuelve el desafío o reinicia el servidor');
+      }
+      const page = await global.browser.newPage(); // Nueva página para esta acción
+      const accounts = await createMultipleAccounts(count, page);
+      await page.close(); // Cerrar la página después de usarla
+
+      // Asegurarse de que kraveaibot no se mezcle con las cuentas creadas
+      const existingAccounts = await loadAccounts();
+      const kraveaibotUsername = process.env.INSTAGRAM_USER;
+      existingAccounts.accounts = existingAccounts.accounts.filter(acc => acc.username !== kraveaibotUsername);
+      existingAccounts.accounts.push(...accounts);
+      await saveAccounts(existingAccounts);
+
+      res.json({ success: true, accounts });
+    } catch (err) {
+      res.status(500).json({ error: 'Error creando cuentas', details: err.message });
+    }
+  });
+
+  // Endpoint para "Añadir Clientes" (placeholder)
+  app.post('/add-client', async (req, res) => {
+    try {
+      const { username } = req.body;
+      if (!username) {
+        return res.status(400).json({ error: 'Se requiere un username para añadir un cliente' });
+      }
+      if (!global.browser || !global.mainPage) {
+        throw new Error('❌ No hay sesión de navegador activa, resuelve el desafío o reinicia el servidor');
+      }
+      const page = await global.browser.newPage();
+      console.log(`📋 Añadiendo cliente: ${username}`);
+      await page.close();
+      res.json({ success: true, message: `Cliente ${username} añadido` });
+    } catch (err) {
+      res.status(500).json({ error: 'Error añadiendo cliente', details: err.message });
+    }
+  });
+
+  app.listen(port, () => {
+    console.log(`Server running on port ${port}`);
+  });
 })();
