@@ -1,11 +1,11 @@
-// ✅ server.js optimizado - versión estable con IA, Voz, Bitly y login con sesión persistente
+// ✅ server.js ultra optimizado - versión estable con IA, Voz, Bitly y login con sesión persistente
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const axios = require('axios');
 const puppeteer = require('puppeteer-extra');
 const StealthPlugin = require('puppeteer-extra-plugin-stealth');
-const { scrapeInstagram, encryptPassword } = require('./instagramLogin');
+const { scrapeInstagram, encryptPassword, loadCookiesFromBackup, saveCookiesToBackup } = require('./instagramLogin');
 
 puppeteer.use(StealthPlugin());
 
@@ -40,17 +40,24 @@ async function initializeBrowser() {
         '--disable-gpu',
         '--disable-blink-features=AutomationControlled',
         '--enable-javascript',
-        '--window-size=1366,768'
+        '--window-size=1366,768',
+        '--lang=en-US,en',
+        '--disable-web-security',
+        '--disable-features=IsolateOrigins,site-per-process',
       ],
       executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || '/usr/bin/google-chrome',
       ignoreHTTPSErrors: true,
-      timeout: 30000 // Reducir timeout inicial a 30 segundos
+      timeout: 20000
     });
 
     browserInstance = browser;
     pageInstance = await browser.newPage();
-    await pageInstance.setUserAgent(new (require('user-agents'))().toString());
-    await pageInstance.setJavaScriptEnabled(true);
+
+    // Simular navegador real
+    await pageInstance.setExtraHTTPHeaders({
+      'Accept-Language': 'en-US,en;q=0.9',
+      'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+    });
 
     if (!encryptedPassword) initializeEncryptedPassword();
     const loginSuccess = await scrapeInstagram(pageInstance, process.env.INSTAGRAM_USER || '', encryptedPassword);
@@ -75,7 +82,7 @@ async function initializeBrowser() {
 async function monitorSession() {
   if (!browserInstance || !pageInstance) return;
   try {
-    await pageInstance.goto('https://www.instagram.com/', { waitUntil: 'networkidle0', timeout: 15000 });
+    await pageInstance.goto('https://www.instagram.com/', { waitUntil: 'networkidle0', timeout: 8000 });
     const isLoggedIn = await pageInstance.evaluate(() => !!document.querySelector('a[href*="/direct/inbox/"]'));
     if (!isLoggedIn) {
       console.warn('⚠️ Sesión expirada. Reiniciando...');
@@ -84,7 +91,7 @@ async function monitorSession() {
       pageInstance = null;
       await initializeBrowser();
     } else {
-      setTimeout(monitorSession, 10 * 60 * 1000); // Revisar cada 10 minutos para reducir carga
+      setTimeout(monitorSession, 15 * 60 * 1000); // Revisar cada 15 minutos
     }
   } catch (err) {
     console.error('❌ Error en monitor de sesión:', err.message);
@@ -178,8 +185,18 @@ app.get('/health', (req, res) => {
 // 🟢 Iniciar
 (async () => {
   try {
+    await loadCookiesFromBackup(); // Cargar cookies al inicio
     await initializeBrowser();
     monitorSession();
+
+    // Guardar cookies al cerrar el servidor
+    process.on('SIGTERM', async () => {
+      console.log('🛑 Servidor cerrándose, guardando cookies...');
+      await saveCookiesToBackup();
+      if (browserInstance) await browserInstance.close();
+      process.exit(0);
+    });
+
     app.listen(PORT, () => {
       console.log(`🚀 Backend activo en puerto ${PORT}`);
     });
