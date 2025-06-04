@@ -47,7 +47,7 @@ async function initializeBrowser() {
       ],
       executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || '/usr/bin/google-chrome',
       ignoreHTTPSErrors: true,
-      timeout: 30000 // Aumentado a 30 segundos
+      timeout: 30000
     });
 
     browserInstance = browser;
@@ -87,7 +87,7 @@ async function initializeBrowser() {
 async function monitorSession() {
   if (!browserInstance || !pageInstance) return;
   try {
-    await pageInstance.goto('https://www.instagram.com/', { waitUntil: 'load', timeout: 20000 });
+    await pageInstance.goto('https://www.instagram.com/', { waitUntil: 'domcontentloaded', timeout: 20000 });
     const isLoggedIn = await pageInstance.evaluate(() => !!document.querySelector('a[href*="/direct/inbox/"]'));
     if (!isLoggedIn) {
       console.warn('⚠️ Sesión expirada. Reiniciando...');
