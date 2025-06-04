@@ -15,9 +15,18 @@ const PORT = process.env.PORT || 3000;
 app.use(cors());
 app.use(express.json());
 
-// 🕒 Configuración global para evitar reinicios innecesarios
+// 🕒 Configuración global
 let browserInstance = null;
 let pageInstance = null;
+let encryptedPassword = null; // Almacenar el objeto cifrado una vez
+
+// 🔑 Generar y almacenar la contraseña cifrada al inicio
+function initializeEncryptedPassword() {
+  const password = process.env.INSTAGRAM_PASS || '';
+  if (!password) throw new Error('INSTAGRAM_PASS no está definido');
+  encryptedPassword = encryptPassword(password);
+  console.log('🔒 Contraseña cifrada inicializada');
+}
 
 async function initializeBrowser() {
   try {
@@ -42,7 +51,7 @@ async function initializeBrowser() {
     pageInstance = await browser.newPage();
     await pageInstance.setUserAgent(new (require('user-agents'))().toString());
 
-    const encryptedPassword = encryptPassword(process.env.INSTAGRAM_PASS || '');
+    if (!encryptedPassword) initializeEncryptedPassword();
     const loginSuccess = await scrapeInstagram(pageInstance, process.env.INSTAGRAM_USER || '', encryptedPassword);
     if (!loginSuccess) {
       throw new Error('Login fallido');
@@ -92,7 +101,8 @@ app.get('/scrape/:username', async (req, res) => {
   }
   const { username } = req.params;
   try {
-    const data = await scrapeInstagram(pageInstance, username, encryptPassword(process.env.INSTAGRAM_PASS || ''));
+    if (!encryptedPassword) initializeEncryptedPassword();
+    const data = await scrapeInstagram(pageInstance, username, encryptedPassword);
     if (!data) return res.status(500).json({ error: 'No se pudo obtener el perfil' });
     res.json({ success: true, data });
   } catch (err) {
