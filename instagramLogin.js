@@ -26,7 +26,7 @@ async function loadCookieMemory() {
     cookieCache = JSON.parse(data);
     console.log('✅ Cookie memory cargado desde archivo');
   } catch (err) {
-    console.log(`ℹ️ Cookie memory no encontrado en ${COOKIE_MEMORY_PATH}, inicializando vacío (esto es normal en la primera ejecución)`);
+    console.log(`ℹ️ Cookie memory no encontrado en ${COOKIE_MEMORY_PATH}, inicializando vacío (normal en la primera ejecución)`);
     cookieCache = {};
   }
 }
@@ -105,7 +105,7 @@ async function instagramLogin(page, username, encryptedPassword, maxRetries = 3)
       // 🍪 Intenta cargar cookies para evitar login
       const hasCookies = await loadCookies(page, username);
       if (hasCookies) {
-        await page.goto('https://www.instagram.com/', { waitUntil: 'load', timeout: 10000 });
+        await page.goto('https://www.instagram.com/', { waitUntil: 'load', timeout: 15000 });
         const isLoggedIn = await page.evaluate(() => !!document.querySelector('a[href*="/direct/inbox/"]'));
         if (isLoggedIn) {
           console.log('✅ Sesión activa encontrada, login omitido');
@@ -115,10 +115,16 @@ async function instagramLogin(page, username, encryptedPassword, maxRetries = 3)
 
       // 📲 Accede a la página de login de Instagram
       console.log('🌐 Accediendo a la página de login de Instagram');
-      await page.goto('https://www.instagram.com/accounts/login/', { waitUntil: 'load', timeout: 10000 });
+      await page.goto('https://www.instagram.com/accounts/login/', { waitUntil: 'load', timeout: 15000 });
+      const pageTitle = await page.title();
+      console.log(`Título de la página: ${pageTitle}`);
+      if (!pageTitle.includes('Instagram')) {
+        console.error('❌ La página de login no se cargó correctamente');
+        throw new Error('Página de login no encontrada');
+      }
 
       // Retraso inicial para carga
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      await new Promise(resolve => setTimeout(resolve, 2000));
 
       // 🔍 Verifica si hay un CAPTCHA o página cargada
       const isCaptcha = await page.evaluate(() => !!document.querySelector('input[name="verificationCode"]'));
@@ -130,21 +136,24 @@ async function instagramLogin(page, username, encryptedPassword, maxRetries = 3)
       }
 
       // Esperar dinámicamente el formulario de login
+      console.log('Esperando campos de login...');
       await page.waitForFunction(
         () => document.querySelector('input[name="username"]') && document.querySelector('input[name="password"]'),
-        { timeout: 10000 }
+        { timeout: 30000 } // Aumentado a 30 segundos
       );
+      console.log('✅ Campos de login encontrados');
 
       // Simular movimiento de mouse para parecer humano
       await page.mouse.move(100 + Math.random() * 200, 100 + Math.random() * 200, { steps: 10 });
 
       // 🔓 Desencripta la contraseña y realiza el login
       const password = decryptPassword(encryptedPassword);
-      await page.type('input[name="username"]', username, { delay: 30 + Math.random() * 20 });
-      await page.type('input[name="password"]', password, { delay: 30 + Math.random() * 20 });
+      await page.type('input[name="username"]', username, { delay: 50 + Math.random() * 20 });
+      await page.type('input[name="password"]', password, { delay: 50 + Math.random() * 20 });
 
       await page.click('button[type="submit"]');
-      await page.waitForNavigation({ waitUntil: 'load', timeout: 10000 });
+      console.log('Formulario enviado, esperando navegación...');
+      await page.waitForNavigation({ waitUntil: 'load', timeout: 15000 });
 
       // ✅ Verifica si el login fue exitoso
       const isLoggedIn = await page.evaluate(() => !!document.querySelector('a[href*="/direct/inbox/"]'));
@@ -189,15 +198,15 @@ async function scrapeInstagram(page, username, encryptedPassword) {
       return null;
     }
 
-    await page.goto(`https://www.instagram.com/${username}/`, { waitUntil: 'load', timeout: 10000 });
+    await page.goto(`https://www.instagram.com/${username}/`, { waitUntil: 'load', timeout: 15000 });
 
     await page.waitForFunction(
       () => document.querySelector('img[alt*="profile picture"]') || document.querySelector('h1'),
-      { timeout: 5000 }
+      { timeout: 10000 }
     );
 
     await page.evaluate(() => window.scrollBy(0, 100 + Math.random() * 50));
-    await new Promise(resolve => setTimeout(resolve, 300 + Math.random() * 100));
+    await new Promise(resolve => setTimeout(resolve, 500 + Math.random() * 200));
 
     const data = await page.evaluate(() => {
       return {
