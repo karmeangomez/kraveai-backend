@@ -1,6 +1,7 @@
 // ✅ instagramLogin.js - Módulo para login y scraping de Instagram con Puppeteer
 const puppeteer = require('puppeteer-extra'); // Usar puppeteer-extra para integrar Stealth
 const StealthPlugin = require('puppeteer-extra-plugin-stealth');
+const crypto = require('crypto'); // Módulo nativo de Node.js para encriptación
 const fs = require('fs').promises;
 const path = require('path');
 const UserAgent = require('user-agents');
@@ -157,4 +158,16 @@ async function scrapeInstagram(page, username, encryptedPassword) {
         username: document.querySelector('h1')?.textContent || '',
         profile_pic_url: document.querySelector('img[alt*="profile picture"]')?.src || '',
         followers_count: document.querySelector('header section ul li:nth-child(2) span')?.textContent || '0',
-        is_verified: !!document
+        is_verified: !!document.querySelector('header section svg[aria-label="Verified"]'),
+      };
+    });
+
+    console.log('✅ Datos obtenidos:', data);
+    return data;
+  } catch (error) {
+    console.error('❌ Error en scraping:', error.message);
+    return null;
+  }
+}
+
+module.exports = { scrapeInstagram, encryptPassword, decryptPassword };
