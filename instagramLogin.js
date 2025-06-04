@@ -8,7 +8,7 @@ const accountsDir = path.join(__dirname, 'accounts');
 const sessionsDir = path.join(accountsDir, 'sessions');
 const accountsFile = path.join(accountsDir, 'accounts.json');
 const LOGIN_TIMEOUT = 120000;
-const NAVIGATION_TIMEOUT = 60000;
+const NAVIGATION_TIMEOUT = 90000; // Aumentado a 90 segundos
 const SESSION_CHECK_THRESHOLD = 86400000; // 24 horas
 const INACTIVITY_THRESHOLD = 172800000; // 48 horas
 const ENCRYPTION_KEY = process.env.ENCRYPTION_KEY || 'mi-clave-secreta-32-bytes-aqui1234';
@@ -75,18 +75,15 @@ function getNextUserAgent() {
   const category = deviceCategories[Math.floor(Math.random() * deviceCategories.length)];
 
   try {
-    // Intento 1: Generar User-Agent con categoría específica
     const userAgent = new UserAgent({ deviceCategory: category });
     return userAgent.toString();
   } catch (error) {
     console.warn(`⚠️ Error generando User-Agent con categoría ${category}: ${error.message}, intentando con configuración genérica`);
     try {
-      // Intento 2: Generar User-Agent sin filtros estrictos
       const userAgent = new UserAgent();
       return userAgent.toString();
     } catch (error) {
       console.error(`❌ Fallo al generar User-Agent genérico: ${error.message}`);
-      // Fallback: User-Agent genérico predefinido
       return 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36';
     }
   }
@@ -159,11 +156,12 @@ async function instagramLogin(page, username, password, cookiesFile = 'default')
 
       await page.goto('https://www.instagram.com/accounts/login/', { waitUntil: 'domcontentloaded', timeout: NAVIGATION_TIMEOUT });
 
-      // Verificar el título de la página
-      const pageTitle = await page.title();
-      console.log(`Título de la página: ${pageTitle}`);
-      if (!pageTitle.includes('Instagram') && !pageTitle.includes('Log In')) {
-        console.error('❌ La página de login no se cargó correctamente');
+      // Verificar si la página de login se cargó esperando el selector
+      const loginFormLoaded = await page.waitForSelector('input[name="username"]', { visible: true, timeout: 30000 })
+        .then(() => true)
+        .catch(() => false);
+      if (!loginFormLoaded) {
+        console.error('❌ La página de login no se cargó correctamente (selector no encontrado)');
         delay *= 2; // Backoff exponencial
         await humanBehavior.randomDelay(delay, delay + 3000);
         continue;
@@ -176,12 +174,6 @@ async function instagramLogin(page, username, password, cookiesFile = 'default')
         await humanBehavior.randomDelay(delay, delay + 3000);
         continue;
       }
-
-      await page.waitForSelector('input[name="username"]', { visible: true, timeout: 20000 }).catch(() => {
-        console.warn("⏳ Timeout esperando selector de username, reintentando...");
-        delay *= 2;
-        return;
-      });
 
       await humanBehavior.randomDelay(1500, 3000);
       await humanBehavior.randomType(page, 'input[name="username"]', username);
@@ -219,98 +211,4 @@ async function instagramLogin(page, username, password, cookiesFile = 'default')
         cachedSessions.set(sessionKey, cachedSession);
         await saveSession(sessionPath, newCookies);
         account.lastLogin = new Date().toISOString();
-        account.failCount = 0;
-        account.status = 'active';
-        await saveAccounts(accounts);
-        console.log("🔁 Login completo y cookies guardadas");
-        return true;
-      }
-      delay *= 2; // Backoff exponencial
-      await humanBehavior.randomDelay(delay, delay + 3000);
-    }
-
-    account.status = 'inactive';
-    await saveAccounts(accounts);
-    return false;
-  } catch (error) {
-    console.error(`❌ Fallo durante login para ${sessionKey}:`, error.message);
-    return false;
-  }
-}
-
-async function verifySession(page) {
-  try {
-    const response = await page.goto('https://www.instagram.com/', { waitUntil: 'networkidle0', timeout: NAVIGATION_TIMEOUT });
-    if (response.status() >= 400) return false;
-    const isActive = await page.evaluate(() => document.querySelector('svg[aria-label="Inicio"]') !== null);
-    return isActive;
-  } catch {
-    return false;
-  }
-}
-
-async function handleChallenge(page) {
-  const isChallenge = await page.waitForFunction(() => window.location.href.includes('challenge'), { timeout: 20000 })
-    .then(() => true).catch(() => false);
-  if (isChallenge) {
-    const challengeText = await page.evaluate(() => document.body.innerText.toLowerCase());
-    if (challengeText.includes('verifica') || challengeText.includes('sospechosa') || challengeText.includes('captcha')) {
-      await humanBehavior.randomDelay(60000, 120000);
-      return true;
-    }
-  }
-  return false;
-}
-
-async function handlePostLoginModals(page) {
-  try {
-    const modals = [
-      '//button[contains(., "Ahora no") or contains(., "Not Now")]',
-      '//button[contains(., "Denegar") or contains(., "Decline")]'
-    ];
-    for (const xpath of modals) {
-      const elements = await page.$x(xpath);
-      if (elements.length > 0) {
-        await elements[0].click();
-        await humanBehavior.randomDelay(1000, 2000);
-      }
-    }
-  } catch {}
-}
-
-async function saveSession(sessionPath, cookies) {
-  const encrypted = encrypt(cookies);
-  const backupPath = `${sessionPath}_backup_${Date.now()}.json`;
-  await fs.writeFile(sessionPath, JSON.stringify(encrypted, null, 2));
-  await fs.copyFile(sessionPath, backupPath).catch(() => {});
-}
-
-async function loadValidCookies(sessionPath, backupPrefix) {
-  let cookies = [];
-  const files = await fs.readdir(sessionsDir).catch(() => []);
-
-  for (let file of files) {
-    if (file.startsWith(path.basename(sessionPath)) || file.startsWith(path.basename(backupPrefix))) {
-      try {
-        const filePath = path.join(sessionsDir, file);
-        const encrypted = JSON.parse(await fs.readFile(filePath, 'utf8'));
-        cookies = decrypt(encrypted);
-        if (await validateCookies(cookies)) return cookies;
-      } catch {}
-    }
-  }
-  return [];
-}
-
-async function validateCookies(cookies) {
-  if (!Array.isArray(cookies) || cookies.length === 0) return false;
-  const sessionCookie = cookies.find(c => c.name === 'sessionid');
-  if (!sessionCookie) return false;
-  if (sessionCookie.expires && sessionCookie.expires * 1000 < Date.now()) {
-    console.log("⏰ Cookie sessionid expirada, rotando sesión...");
-    return false;
-  }
-  return true;
-}
-
-module.exports = { instagramLogin };
+        account.failCount =
