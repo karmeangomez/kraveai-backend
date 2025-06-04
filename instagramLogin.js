@@ -9,7 +9,6 @@ puppeteer.use(StealthPlugin());
 
 const ENCRYPTION_KEY = process.env.ENCRYPTION_KEY || 'mi-clave-secreta-32-bytes-aqui1234';
 const COOKIE_PATH = path.join(__dirname, 'cookies');
-const CLIENTES_PATH = path.join(__dirname, 'clientes');
 
 const referers = [
   'https://www.google.com/search?q=instagram',
@@ -96,6 +95,7 @@ async function instagramLogin(page, username, encryptedPassword, maxRetries = 3)
       await page.waitForSelector('input[name="username"]', { timeout: 10000 });
       await page.type('input[name="username"]', username, { delay: 100 + Math.random() * 50 });
       await page.type('input[name="password"]', password, { delay: 100 + Math.random() * 50 });
+
       await page.click('button[type="submit"]');
       await page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 30000 });
 
@@ -120,10 +120,18 @@ async function scrapeInstagram(page, username, encryptedPassword) {
   try {
     console.log(`🔍 Scraping perfil de Instagram: ${username}`);
     const loginSuccess = await instagramLogin(page, username, encryptedPassword);
-    if (!loginSuccess) return null;
+    if (!loginSuccess) {
+      console.log('❌ Fallo en login, deteniendo scraping');
+      return null;
+    }
 
     await page.goto(`https://www.instagram.com/${username}/`, { waitUntil: 'domcontentloaded', timeout: 15000 });
-    await page.waitForFunction(() => document.querySelector('img[alt*="profile picture"]') || document.querySelector('h1'), { timeout: 10000 });
+
+    await page.waitForFunction(
+      () => document.querySelector('img[alt*="profile picture"]') || document.querySelector('h1'),
+      { timeout: 10000 }
+    );
+
     await page.evaluate(() => window.scrollBy(0, 300 + Math.random() * 100));
     await new Promise(resolve => setTimeout(resolve, 1000 + Math.random() * 500));
 
@@ -136,10 +144,7 @@ async function scrapeInstagram(page, username, encryptedPassword) {
       };
     });
 
-    await fs.mkdir(CLIENTES_PATH, { recursive: true });
-    await fs.writeFile(path.join(CLIENTES_PATH, `${username}.json`), JSON.stringify(data, null, 2));
-    console.log(`✅ Datos guardados en clientes/${username}.json`);
-
+    console.log('✅ Datos obtenidos:', data);
     return data;
   } catch (error) {
     console.error('❌ Error en scraping:', error.message);
