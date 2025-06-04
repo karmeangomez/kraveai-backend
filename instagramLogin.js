@@ -1,24 +1,16 @@
-// ✅ instagramLogin.js - Módulo para login y scraping de Instagram con Puppeteer
-const puppeteer = require('puppeteer-extra'); // Usar puppeteer-extra para integrar Stealth
+// ✅ instagramLogin.js - Módulo optimizado para login y scraping de Instagram con Puppeteer
+const puppeteer = require('puppeteer-extra');
 const StealthPlugin = require('puppeteer-extra-plugin-stealth');
-const crypto = require('crypto'); // Módulo nativo de Node.js para encriptación
+const crypto = require('crypto');
 const fs = require('fs').promises;
 const path = require('path');
 const UserAgent = require('user-agents');
 
-// Aplica el plugin de stealth para evitar detección
 puppeteer.use(StealthPlugin());
 
 // 🔑 Configuración de encriptación y almacenamiento de cookies
 const ENCRYPTION_KEY = process.env.ENCRYPTION_KEY || 'mi-clave-secreta-32-bytes-aqui1234';
 const COOKIE_PATH = path.join(__dirname, 'cookies');
-
-// 🌐 Lista de referers para simular navegación natural
-const referers = [
-  'https://www.google.com/search?q=instagram',
-  'https://x.com/explore',
-  'https://www.facebook.com',
-];
 
 // 🔒 Función para encriptar la contraseña
 function encryptPassword(password) {
@@ -48,24 +40,27 @@ async function saveCookies(page, username) {
   try {
     const cookies = await page.cookies();
     await fs.mkdir(COOKIE_PATH, { recursive: true });
-    await fs.writeFile(path.join(COOKIE_PATH, `${username}.json`), JSON.stringify(cookies, null, 2));
-    console.log(`✅ Cookies guardadas para ${username}`);
+    const cookieFile = path.join(COOKIE_PATH, `${username}-cookies.json`); // Nombre más específico
+    await fs.writeFile(cookieFile, JSON.stringify(cookies, null, 2));
+    console.log(`✅ Cookies guardadas para ${username} en ${cookieFile}`);
+    return true;
   } catch (err) {
     console.error(`❌ Error al guardar cookies para ${username}:`, err.message);
+    return false;
   }
 }
 
 // 🍪 Cargar cookies para reutilizar la sesión
 async function loadCookies(page, username) {
   try {
-    const cookieFile = path.join(COOKIE_PATH, `${username}.json`);
+    const cookieFile = path.join(COOKIE_PATH, `${username}-cookies.json`);
     const cookiesString = await fs.readFile(cookieFile, 'utf8');
     const cookies = JSON.parse(cookiesString);
     await page.setCookie(...cookies);
-    console.log(`✅ Cookies cargadas para ${username}`);
+    console.log(`✅ Cookies cargadas para ${username} desde ${cookieFile}`);
     return true;
-  } catch {
-    console.warn(`⚠️ No se encontraron cookies para ${username}`);
+  } catch (err) {
+    console.warn(`⚠️ No se encontraron cookies para ${username}:`, err.message);
     return false;
   }
 }
@@ -79,53 +74,50 @@ async function instagramLogin(page, username, encryptedPassword, maxRetries = 3)
       // 🍪 Intenta cargar cookies para evitar login si ya hay sesión activa
       const hasCookies = await loadCookies(page, username);
       if (hasCookies) {
-        await page.goto('https://www.instagram.com/', { waitUntil: 'domcontentloaded', timeout: 15000 });
+        await page.goto('https://www.instagram.com/', { waitUntil: 'networkidle0', timeout: 15000 });
         const isLoggedIn = await page.evaluate(() => !!document.querySelector('a[href*="/direct/inbox/"]'));
         if (isLoggedIn) {
           console.log('✅ Sesión activa encontrada, login omitido');
-          await saveCookies(page, username);
           return true;
         }
       }
 
-      // 🌐 Simula navegación natural visitando un referer aleatorio
-      const referer = referers[Math.floor(Math.random() * referers.length)];
-      console.log(`🌐 Visitando referer: ${referer}`);
-      await page.goto(referer, { waitUntil: 'domcontentloaded', timeout: 5000 }).catch(() => {});
-      await new Promise(resolve => setTimeout(resolve, 1000 + Math.random() * 2000));
-
-      // 📲 Accede a la página de login de Instagram
-      await page.goto('https://www.instagram.com/accounts/login/', { waitUntil: 'domcontentloaded', timeout: 15000 });
+      // 📲 Accede a la página de login de Instagram directamente
+      console.log('🌐 Accediendo a la página de login de Instagram');
+      await page.goto('https://www.instagram.com/accounts/login/', { waitUntil: 'networkidle0', timeout: 15000 });
 
       // 🔍 Verifica si hay un CAPTCHA
       const isCaptcha = await page.evaluate(() => !!document.querySelector('input[name="verificationCode"]'));
       if (isCaptcha) {
         console.warn('⚠️ CAPTCHA detectado, reintentando...');
-        await new Promise(resolve => setTimeout(resolve, 5000));
+        await new Promise(resolve => setTimeout(resolve, 3000)); // Reducir retraso a 3 segundos
         continue;
       }
 
       // 🔓 Desencripta la contraseña y realiza el login
       const password = decryptPassword(encryptedPassword);
-      await page.waitForSelector('input[name="username"]', { timeout: 10000 });
-      await page.type('input[name="username"]', username, { delay: 100 + Math.random() * 50 });
-      await page.type('input[name="password"]', password, { delay: 100 + Math.random() * 50 });
+      await page.waitForSelector('input[name="username"]', { timeout: 15000 }); // Aumentar timeout a 15 segundos
+      await page.type('input[name="username"]', username, { delay: 50 + Math.random() * 30 }); // Reducir retraso
+      await page.type('input[name="password"]', password, { delay: 50 + Math.random() * 30 });
 
       await page.click('button[type="submit"]');
-      await page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 30000 });
+      await page.waitForNavigation({ waitUntil: 'networkidle0', timeout: 20000 });
 
       // ✅ Verifica si el login fue exitoso
       const isLoggedIn = await page.evaluate(() => !!document.querySelector('a[href*="/direct/inbox/"]'));
       if (isLoggedIn) {
         console.log('🚀 Login exitoso');
-        await saveCookies(page, username);
+        const cookiesSaved = await saveCookies(page, username);
+        if (!cookiesSaved) {
+          console.warn('⚠️ No se pudieron guardar las cookies, pero el login fue exitoso');
+        }
         return true;
       }
       console.warn('⚠️ Login fallido, reintentando...');
-      await new Promise(resolve => setTimeout(resolve, 5000));
+      await new Promise(resolve => setTimeout(resolve, 3000)); // Reducir retraso
     } catch (error) {
       console.error(`❌ Error en login (intento ${attempt}):`, error.message);
-      await new Promise(resolve => setTimeout(resolve, 5000));
+      await new Promise(resolve => setTimeout(resolve, 3000));
     }
   }
   console.error('❌ Todos los intentos de login fallaron');
@@ -142,15 +134,15 @@ async function scrapeInstagram(page, username, encryptedPassword) {
       return null;
     }
 
-    await page.goto(`https://www.instagram.com/${username}/`, { waitUntil: 'domcontentloaded', timeout: 15000 });
+    await page.goto(`https://www.instagram.com/${username}/`, { waitUntil: 'networkidle0', timeout: 15000 });
 
     await page.waitForFunction(
       () => document.querySelector('img[alt*="profile picture"]') || document.querySelector('h1'),
       { timeout: 10000 }
     );
 
-    await page.evaluate(() => window.scrollBy(0, 300 + Math.random() * 100));
-    await new Promise(resolve => setTimeout(resolve, 1000 + Math.random() * 500));
+    await page.evaluate(() => window.scrollBy(0, 200 + Math.random() * 50)); // Reducir scroll
+    await new Promise(resolve => setTimeout(resolve, 500 + Math.random() * 200)); // Reducir retraso
 
     // 📊 Extrae los datos del perfil
     const data = await page.evaluate(() => {
