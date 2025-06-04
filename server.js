@@ -5,7 +5,7 @@ const cors = require('cors');
 const axios = require('axios');
 const puppeteer = require('puppeteer-extra');
 const StealthPlugin = require('puppeteer-extra-plugin-stealth');
-const { scrapeInstagram, encryptPassword } = require('./instagramLogin');
+const { instagramLogin } = require('./instagramLogin');
 
 puppeteer.use(StealthPlugin());
 
@@ -18,15 +18,6 @@ app.use(express.json());
 // 🕒 Configuración global
 let browserInstance = null;
 let pageInstance = null;
-let encryptedPassword = null;
-
-// 🔑 Generar y almacenar la contraseña cifrada al inicio
-function initializeEncryptedPassword() {
-  const password = process.env.INSTAGRAM_PASS || '';
-  if (!password) throw new Error('INSTAGRAM_PASS no está definido');
-  encryptedPassword = encryptPassword(password);
-  console.log('🔒 Contraseña cifrada inicializada');
-}
 
 async function initializeBrowser() {
   try {
@@ -52,7 +43,6 @@ async function initializeBrowser() {
 
     browserInstance = browser;
     pageInstance = await browser.newPage();
-    await pageInstance.setUserAgent(new (require('user-agents'))().toString());
     await pageInstance.setJavaScriptEnabled(true);
 
     // Inyectar propiedades para evitar detección
@@ -63,9 +53,8 @@ async function initializeBrowser() {
       Object.defineProperty(navigator, 'plugins', { get: () => [1, 2, 3, 4, 5] });
     });
 
-    if (!encryptedPassword) initializeEncryptedPassword();
     console.log(`Intentando login con usuario: ${process.env.INSTAGRAM_USER || 'no definido'}`);
-    const loginSuccess = await scrapeInstagram(pageInstance, process.env.INSTAGRAM_USER || '', encryptedPassword);
+    const loginSuccess = await instagramLogin(pageInstance, process.env.INSTAGRAM_USER || '', process.env.INSTAGRAM_PASS || '');
     if (!loginSuccess) {
       throw new Error('Login fallido');
     }
@@ -87,8 +76,8 @@ async function initializeBrowser() {
 async function monitorSession() {
   if (!browserInstance || !pageInstance) return;
   try {
-    await pageInstance.goto('https://www.instagram.com/', { waitUntil: 'domcontentloaded', timeout: 20000 });
-    const isLoggedIn = await pageInstance.evaluate(() => !!document.querySelector('a[href*="/direct/inbox/"]'));
+    await pageInstance.goto('https://www.instagram.com/', { waitUntil: 'domcontentloaded', timeout: 60000 });
+    const isLoggedIn = await pageInstance.evaluate(() => !!document.querySelector('svg[aria-label="Inicio"]'));
     if (!isLoggedIn) {
       console.warn('⚠️ Sesión expirada. Reiniciando...');
       await browserInstance.close();
@@ -107,16 +96,32 @@ async function monitorSession() {
   }
 }
 
-// 📦 Scraping
+// 📦 Scraping (Ejemplo básico, ajustar según necesidades)
 app.get('/scrape/:username', async (req, res) => {
   if (!browserInstance || !pageInstance) {
     return res.status(503).json({ error: 'Servicio temporalmente no disponible' });
   }
   const { username } = req.params;
   try {
-    if (!encryptedPassword) initializeEncryptedPassword();
-    const data = await scrapeInstagram(pageInstance, username, encryptedPassword);
-    if (!data) return res.status(500).json({ error: 'No se pudo obtener el perfil' });
+    await pageInstance.goto(`https://www.instagram.com/${username}/`, { waitUntil: 'domcontentloaded', timeout: 60000 });
+
+    await pageInstance.waitForFunction(
+      () => document.querySelector('img[alt*="profile picture"]') || document.querySelector('h1'),
+      { timeout: 15000 }
+    );
+
+    await pageInstance.evaluate(() => window.scrollBy(0, 300 + Math.random() * 100));
+    await new Promise(resolve => setTimeout(resolve, 1000 + Math.random() * 500));
+
+    const data = await pageInstance.evaluate(() => {
+      return {
+        username: document.querySelector('h1')?.textContent || '',
+        profile_pic_url: document.querySelector('img[alt*="profile picture"]')?.src || '',
+        followers_count: document.querySelector('header section ul li:nth-child(2) span')?.textContent || '0',
+        is_verified: !!document.querySelector('header section svg[aria-label="Verified"]'),
+      };
+    });
+
     res.json({ success: true, data });
   } catch (err) {
     res.status(500).json({ error: 'Error interno', details: err.message });
