@@ -1,4 +1,4 @@
-// ✅ instagramLogin.js - Módulo ultraoptimizado para login y scraping de Instagram con Puppeteer
+// ✅ instagramLogin.js - Módulo optimizado para login y scraping de Instagram con Puppeteer
 const puppeteer = require('puppeteer-extra');
 const StealthPlugin = require('puppeteer-extra-plugin-stealth');
 const crypto = require('crypto');
@@ -6,14 +6,40 @@ const fs = require('fs').promises;
 const path = require('path');
 const UserAgent = require('user-agents');
 
-// Configuración global para cookies en memoria
-const inMemoryCookies = new Map();
-
 puppeteer.use(StealthPlugin());
 
 // 🔑 Configuración de encriptación y almacenamiento de cookies
 const ENCRYPTION_KEY = process.env.ENCRYPTION_KEY || 'mi-clave-secreta-32-bytes-aqui1234';
 const COOKIE_PATH = process.env.COOKIE_PATH || '/tmp/cookies';
+const COOKIE_MEMORY_PATH = path.join(COOKIE_PATH, 'cookie-memory.json');
+
+// Cache en memoria para cookies y datos scrapeados
+let cookieCache = {};
+let scrapeCache = new Map();
+const CACHE_TTL = 60 * 60 * 1000; // 1 hora
+
+// Cargar cookies desde archivo al iniciar
+async function loadCookieMemory() {
+  try {
+    const data = await fs.readFile(COOKIE_MEMORY_PATH, 'utf8');
+    cookieCache = JSON.parse(data);
+    console.log('✅ Cookie memory cargado desde archivo');
+  } catch (err) {
+    console.warn('⚠️ No se encontró cookie memory, iniciando vacío:', err.message);
+    cookieCache = {};
+  }
+}
+
+// Guardar cookies en archivo al cerrar
+async function saveCookieMemory() {
+  try {
+    await fs.mkdir(COOKIE_PATH, { recursive: true });
+    await fs.writeFile(COOKIE_MEMORY_PATH, JSON.stringify(cookieCache, null, 2));
+    console.log('✅ Cookie memory guardado en archivo');
+  } catch (err) {
+    console.error('❌ Error al guardar cookie memory:', err.message);
+  }
+}
 
 // 🔒 Función para encriptar la contraseña
 function encryptPassword(password) {
@@ -34,18 +60,17 @@ function decryptPassword(encryptedObj) {
 
 // 🌐 Generar un User-Agent aleatorio
 function getNextUserAgent() {
-  return new UserAgent({ deviceCategory: ['desktop', 'mobile'][Math.floor(Math.random() * 2)] }).toString();
+  const userAgent = new UserAgent({ deviceCategory: 'desktop' });
+  return userAgent.toString();
 }
 
-// 🍪 Guardar cookies en archivo y memoria
+// 🍪 Guardar cookies en memoria y archivo
 async function saveCookies(page, username) {
   try {
-    await fs.mkdir(COOKIE_PATH, { recursive: true });
     const cookies = await page.cookies();
-    const cookieFile = path.join(COOKIE_PATH, `${username}-cookies.json`);
-    await fs.writeFile(cookieFile, JSON.stringify(cookies, null, 2));
-    inMemoryCookies.set(username, cookies); // Guardar en memoria
-    console.log(`✅ Cookies guardadas para ${username} en ${cookieFile} y memoria`);
+    cookieCache[username] = cookies;
+    await saveCookieMemory();
+    console.log(`✅ Cookies guardadas para ${username} en memoria y archivo`);
     return true;
   } catch (err) {
     console.error(`❌ Error al guardar cookies para ${username}:`, err.message);
@@ -53,38 +78,33 @@ async function saveCookies(page, username) {
   }
 }
 
-// 🍪 Cargar cookies desde archivo o memoria
+// 🍪 Cargar cookies desde memoria
 async function loadCookies(page, username) {
   try {
-    const cachedCookies = inMemoryCookies.get(username);
-    if (cachedCookies) {
-      await page.setCookie(...cachedCookies);
-      console.log(`✅ Cookies cargadas desde memoria para ${username}`);
+    if (cookieCache[username]) {
+      await page.setCookie(...cookieCache[username]);
+      console.log(`✅ Cookies cargadas para ${username} desde memoria`);
       return true;
     }
-
-    const cookieFile = path.join(COOKIE_PATH, `${username}-cookies.json`);
-    const cookiesString = await fs.readFile(cookieFile, 'utf8');
-    const cookies = JSON.parse(cookiesString);
-    await page.setCookie(...cookies);
-    inMemoryCookies.set(username, cookies); // Actualizar memoria
-    console.log(`✅ Cookies cargadas desde ${cookieFile} para ${username}`);
-    return true;
+    console.warn(`⚠️ No se encontraron cookies en memoria para ${username}`);
+    return false;
   } catch (err) {
-    console.warn(`⚠️ No se encontraron cookies para ${username}:`, err.message);
+    console.error(`❌ Error al cargar cookies para ${username}:`, err.message);
     return false;
   }
 }
 
-// 🔐 Función para realizar el login en Instagram
+// 🔐 Función para realizar el login en Instagram con backoff exponencial
 async function instagramLogin(page, username, encryptedPassword, maxRetries = 3) {
+  let delay = 1000; // Retraso inicial de 1 segundo
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
       console.log(`🔐 Intento de login ${attempt}/${maxRetries} para ${username}`);
 
+      // 🍪 Intenta cargar cookies para evitar login
       const hasCookies = await loadCookies(page, username);
       if (hasCookies) {
-        await page.goto('https://www.instagram.com/', { waitUntil: 'networkidle0', timeout: 15000 });
+        await page.goto('https://www.instagram.com/', { waitUntil: 'load', timeout: 10000 });
         const isLoggedIn = await page.evaluate(() => !!document.querySelector('a[href*="/direct/inbox/"]'));
         if (isLoggedIn) {
           console.log('✅ Sesión activa encontrada, login omitido');
@@ -92,28 +112,40 @@ async function instagramLogin(page, username, encryptedPassword, maxRetries = 3)
         }
       }
 
+      // 📲 Accede a la página de login de Instagram
       console.log('🌐 Accediendo a la página de login de Instagram');
-      await page.goto('https://www.instagram.com/accounts/login/', { waitUntil: 'networkidle0', timeout: 20000 });
+      await page.goto('https://www.instagram.com/accounts/login/', { waitUntil: 'load', timeout: 10000 });
 
-      // Simular interacción humana
-      await page.evaluate(() => {
-        window.scrollBy(0, 100);
-        document.dispatchEvent(new Event('mousemove'));
-      });
+      // Retraso inicial para carga
+      await new Promise(resolve => setTimeout(resolve, 1000));
 
-      // Esperar dinámicamente el formulario
+      // 🔍 Verifica si hay un CAPTCHA o página cargada
+      const isCaptcha = await page.evaluate(() => !!document.querySelector('input[name="verificationCode"]'));
+      if (isCaptcha) {
+        console.warn('⚠️ CAPTCHA detectado, reintentando...');
+        delay *= 2; // Backoff exponencial
+        await new Promise(resolve => setTimeout(resolve, delay));
+        continue;
+      }
+
+      // Esperar dinámicamente el formulario de login
       await page.waitForFunction(
         () => document.querySelector('input[name="username"]') && document.querySelector('input[name="password"]'),
-        { timeout: 20000 }
+        { timeout: 10000 }
       );
 
+      // Simular movimiento de mouse para parecer humano
+      await page.mouse.move(100 + Math.random() * 200, 100 + Math.random() * 200, { steps: 10 });
+
+      // 🔓 Desencripta la contraseña y realiza el login
       const password = decryptPassword(encryptedPassword);
-      await page.type('input[name="username"]', username, { delay: 30 });
-      await page.type('input[name="password"]', password, { delay: 30 });
+      await page.type('input[name="username"]', username, { delay: 30 + Math.random() * 20 });
+      await page.type('input[name="password"]', password, { delay: 30 + Math.random() * 20 });
 
       await page.click('button[type="submit"]');
-      await page.waitForNavigation({ waitUntil: 'networkidle0', timeout: 20000 });
+      await page.waitForNavigation({ waitUntil: 'load', timeout: 10000 });
 
+      // ✅ Verifica si el login fue exitoso
       const isLoggedIn = await page.evaluate(() => !!document.querySelector('a[href*="/direct/inbox/"]'));
       if (isLoggedIn) {
         console.log('🚀 Login exitoso');
@@ -121,10 +153,12 @@ async function instagramLogin(page, username, encryptedPassword, maxRetries = 3)
         return true;
       }
       console.warn('⚠️ Login fallido, reintentando...');
-      await page.reload({ waitUntil: 'networkidle0', timeout: 15000 }); // Recargar antes de reintentar
+      delay *= 2; // Backoff exponencial
+      await new Promise(resolve => setTimeout(resolve, delay));
     } catch (error) {
       console.error(`❌ Error en login (intento ${attempt}):`, error.message);
-      if (attempt < maxRetries) await new Promise(resolve => setTimeout(resolve, 2000));
+      delay *= 2; // Backoff exponencial
+      await new Promise(resolve => setTimeout(resolve, delay));
     }
   }
   console.error('❌ Todos los intentos de login fallaron');
@@ -135,21 +169,29 @@ async function instagramLogin(page, username, encryptedPassword, maxRetries = 3)
 async function scrapeInstagram(page, username, encryptedPassword) {
   try {
     console.log(`🔍 Scraping perfil de Instagram: ${username}`);
+
+    // Verificar cache de scraping
+    const cachedData = scrapeCache.get(username);
+    if (cachedData && Date.now() - cachedData.timestamp < CACHE_TTL) {
+      console.log('✅ Datos obtenidos desde cache');
+      return cachedData.data;
+    }
+
     const loginSuccess = await instagramLogin(page, username, encryptedPassword);
     if (!loginSuccess) {
       console.log('❌ Fallo en login, deteniendo scraping');
       return null;
     }
 
-    await page.goto(`https://www.instagram.com/${username}/`, { waitUntil: 'networkidle0', timeout: 15000 });
+    await page.goto(`https://www.instagram.com/${username}/`, { waitUntil: 'load', timeout: 10000 });
 
     await page.waitForFunction(
       () => document.querySelector('img[alt*="profile picture"]') || document.querySelector('h1'),
-      { timeout: 10000 }
+      { timeout: 5000 }
     );
 
-    await page.evaluate(() => window.scrollBy(0, 100));
-    await new Promise(resolve => setTimeout(resolve, 300));
+    await page.evaluate(() => window.scrollBy(0, 100 + Math.random() * 50));
+    await new Promise(resolve => setTimeout(resolve, 300 + Math.random() * 100));
 
     const data = await page.evaluate(() => {
       return {
@@ -160,12 +202,21 @@ async function scrapeInstagram(page, username, encryptedPassword) {
       };
     });
 
-    console.log('✅ Datos obtenidos:', data);
+    // Guardar en cache
+    scrapeCache.set(username, { data, timestamp: Date.now() });
+    console.log('✅ Datos obtenidos y guardados en cache:', data);
     return data;
   } catch (error) {
     console.error('❌ Error en scraping:', error.message);
     return null;
   }
 }
+
+// Inicializar cookie memory al cargar el módulo
+loadCookieMemory();
+
+// Guardar cookie memory al cerrar el proceso
+process.on('SIGTERM', saveCookieMemory);
+process.on('SIGINT', saveCookieMemory);
 
 module.exports = { scrapeInstagram, encryptPassword, decryptPassword };
