@@ -1,207 +1,222 @@
-// ✅ server.js ultra optimizado - versión estable con IA, Voz, Bitly y login con sesión persistente
-require('dotenv').config();
-const express = require('express');
-const cors = require('cors');
-const axios = require('axios');
+// ✅ instagramLogin.js - Módulo optimizado para login y scraping de Instagram con Puppeteer
 const puppeteer = require('puppeteer-extra');
 const StealthPlugin = require('puppeteer-extra-plugin-stealth');
-const { scrapeInstagram, encryptPassword, loadCookiesFromBackup, saveCookiesToBackup } = require('./instagramLogin');
+const crypto = require('crypto');
+const fs = require('fs').promises;
+const path = require('path');
+const UserAgent = require('user-agents');
 
 puppeteer.use(StealthPlugin());
 
-const app = express();
-const PORT = process.env.PORT || 3000;
+// 🔑 Configuración de encriptación y almacenamiento de cookies
+const ENCRYPTION_KEY = process.env.ENCRYPTION_KEY || 'mi-clave-secreta-32-bytes-aqui1234';
+const COOKIE_PATH = process.env.COOKIE_PATH || '/tmp/cookies';
+const COOKIE_MEMORY_PATH = path.join(COOKIE_PATH, 'cookie-memory.json');
 
-app.use(cors());
-app.use(express.json());
+// Cache en memoria para cookies y datos scrapeados
+let cookieCache = {};
+let scrapeCache = new Map();
+const CACHE_TTL = 60 * 60 * 1000; // 1 hora
 
-// 🕒 Configuración global
-let browserInstance = null;
-let pageInstance = null;
-let encryptedPassword = null;
-
-// 🔑 Generar y almacenar la contraseña cifrada al inicio
-function initializeEncryptedPassword() {
-  const password = process.env.INSTAGRAM_PASS || '';
-  if (!password) throw new Error('INSTAGRAM_PASS no está definido');
-  encryptedPassword = encryptPassword(password);
-  console.log('🔒 Contraseña cifrada inicializada');
+// Cargar cookies desde archivo al iniciar
+async function loadCookieMemory() {
+  try {
+    const data = await fs.readFile(COOKIE_MEMORY_PATH, 'utf8');
+    cookieCache = JSON.parse(data);
+    console.log('✅ Cookie memory cargado desde archivo');
+  } catch (err) {
+    console.warn('⚠️ No se encontró cookie memory, iniciando vacío:', err.message);
+    cookieCache = {};
+  }
 }
 
-async function initializeBrowser() {
+// Guardar cookies en archivo al cerrar
+async function saveCookieMemory() {
   try {
-    console.log('🚀 Iniciando Puppeteer con Stealth...');
-    const browser = await puppeteer.launch({
-      headless: true,
-      args: [
-        '--no-sandbox',
-        '--disable-setuid-sandbox',
-        '--disable-dev-shm-usage',
-        '--disable-gpu',
-        '--disable-blink-features=AutomationControlled',
-        '--enable-javascript',
-        '--window-size=1366,768',
-        '--lang=en-US,en',
-        '--disable-web-security',
-        '--disable-features=IsolateOrigins,site-per-process',
-      ],
-      executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || '/usr/bin/google-chrome',
-      ignoreHTTPSErrors: true,
-      timeout: 20000
-    });
+    await fs.mkdir(COOKIE_PATH, { recursive: true });
+    await fs.writeFile(COOKIE_MEMORY_PATH, JSON.stringify(cookieCache, null, 2));
+    console.log('✅ Cookie memory guardado en archivo');
+  } catch (err) {
+    console.error('❌ Error al guardar cookie memory:', err.message);
+  }
+}
 
-    browserInstance = browser;
-    pageInstance = await browser.newPage();
+// 🔒 Función para encriptar la contraseña
+function encryptPassword(password) {
+  const iv = Buffer.from(crypto.randomBytes(16));
+  const cipher = crypto.createCipheriv('aes-256-cbc', Buffer.from(ENCRYPTION_KEY), iv);
+  let encrypted = cipher.update(password, 'utf8', 'hex');
+  encrypted += cipher.final('hex');
+  return { iv: iv.toString('hex'), encryptedData: encrypted };
+}
 
-    // Simular navegador real
-    await pageInstance.setExtraHTTPHeaders({
-      'Accept-Language': 'en-US,en;q=0.9',
-      'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-    });
+// 🔓 Función para desencriptar la contraseña
+function decryptPassword(encryptedObj) {
+  const decipher = crypto.createDecipheriv('aes-256-cbc', Buffer.from(ENCRYPTION_KEY), Buffer.from(encryptedObj.iv, 'hex'));
+  let decrypted = decipher.update(encryptedObj.encryptedData, 'hex', 'utf8');
+  decrypted += decipher.final('utf8');
+  return decrypted;
+}
 
-    if (!encryptedPassword) initializeEncryptedPassword();
-    const loginSuccess = await scrapeInstagram(pageInstance, process.env.INSTAGRAM_USER || '', encryptedPassword);
+// 🌐 Generar un User-Agent aleatorio
+function getNextUserAgent() {
+  const userAgent = new UserAgent({ deviceCategory: 'desktop' });
+  return userAgent.toString();
+}
+
+// 🍪 Guardar cookies en memoria y archivo
+async function saveCookies(page, username) {
+  try {
+    const cookies = await page.cookies();
+    cookieCache[username] = cookies;
+    await saveCookieMemory();
+    console.log(`✅ Cookies guardadas para ${username} en memoria y archivo`);
+    return true;
+  } catch (err) {
+    console.error(`❌ Error al guardar cookies para ${username}:`, err.message);
+    return false;
+  }
+}
+
+// 🍪 Cargar cookies desde memoria
+async function loadCookies(page, username) {
+  try {
+    if (cookieCache[username]) {
+      await page.setCookie(...cookieCache[username]);
+      console.log(`✅ Cookies cargadas para ${username} desde memoria`);
+      return true;
+    }
+    console.warn(`⚠️ No se encontraron cookies en memoria para ${username}`);
+    return false;
+  } catch (err) {
+    console.error(`❌ Error al cargar cookies para ${username}:`, err.message);
+    return false;
+  }
+}
+
+// 🔐 Función para realizar el login en Instagram con backoff exponencial
+async function instagramLogin(page, username, encryptedPassword, maxRetries = 3) {
+  let delay = 1000; // Retraso inicial de 1 segundo
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      console.log(`🔐 Intento de login ${attempt}/${maxRetries} para ${username}`);
+
+      // 🍪 Intenta cargar cookies para evitar login
+      const hasCookies = await loadCookies(page, username);
+      if (hasCookies) {
+        await page.goto('https://www.instagram.com/', { waitUntil: 'load', timeout: 10000 });
+        const isLoggedIn = await page.evaluate(() => !!document.querySelector('a[href*="/direct/inbox/"]'));
+        if (isLoggedIn) {
+          console.log('✅ Sesión activa encontrada, login omitido');
+          return true;
+        }
+      }
+
+      // 📲 Accede a la página de login de Instagram
+      console.log('🌐 Accediendo a la página de login de Instagram');
+      await page.goto('https://www.instagram.com/accounts/login/', { waitUntil: 'load', timeout: 10000 });
+
+      // Retraso inicial para carga
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
+      // 🔍 Verifica si hay un CAPTCHA o página cargada
+      const isCaptcha = await page.evaluate(() => !!document.querySelector('input[name="verificationCode"]'));
+      if (isCaptcha) {
+        console.warn('⚠️ CAPTCHA detectado, reintentando...');
+        delay *= 2; // Backoff exponencial
+        await new Promise(resolve => setTimeout(resolve, delay));
+        continue;
+      }
+
+      // Esperar dinámicamente el formulario de login
+      await page.waitForFunction(
+        () => document.querySelector('input[name="username"]') && document.querySelector('input[name="password"]'),
+        { timeout: 10000 }
+      );
+
+      // Simular movimiento de mouse para parecer humano
+      await page.mouse.move(100 + Math.random() * 200, 100 + Math.random() * 200, { steps: 10 });
+
+      // 🔓 Desencripta la contraseña y realiza el login
+      const password = decryptPassword(encryptedPassword);
+      await page.type('input[name="username"]', username, { delay: 30 + Math.random() * 20 });
+      await page.type('input[name="password"]', password, { delay: 30 + Math.random() * 20 });
+
+      await page.click('button[type="submit"]');
+      await page.waitForNavigation({ waitUntil: 'load', timeout: 10000 });
+
+      // ✅ Verifica si el login fue exitoso
+      const isLoggedIn = await page.evaluate(() => !!document.querySelector('a[href*="/direct/inbox/"]'));
+      if (isLoggedIn) {
+        console.log('🚀 Login exitoso');
+        await saveCookies(page, username);
+        return true;
+      }
+      console.warn('⚠️ Login fallido, reintentando...');
+      delay *= 2; // Backoff exponencial
+      await new Promise(resolve => setTimeout(resolve, delay));
+    } catch (error) {
+      console.error(`❌ Error en login (intento ${attempt}):`, error.message);
+      delay *= 2; // Backoff exponencial
+      await new Promise(resolve => setTimeout(resolve, delay));
+    }
+  }
+  console.error('❌ Todos los intentos de login fallaron');
+  return false;
+}
+
+// 🔍 Función para realizar scraping de un perfil de Instagram
+async function scrapeInstagram(page, username, encryptedPassword) {
+  try {
+    console.log(`🔍 Scraping perfil de Instagram: ${username}`);
+
+    // Verificar cache de scraping
+    const cachedData = scrapeCache.get(username);
+    if (cachedData && Date.now() - cachedData.timestamp < CACHE_TTL) {
+      console.log('✅ Datos obtenidos desde cache');
+      return cachedData.data;
+    }
+
+    const loginSuccess = await instagramLogin(page, username, encryptedPassword);
     if (!loginSuccess) {
-      throw new Error('Login fallido');
+      console.log('❌ Fallo en login, deteniendo scraping');
+      return null;
     }
 
-    console.log('✅ Navegador inicializado con sesión activa');
-    return { browser, page: pageInstance };
-  } catch (err) {
-    console.error('❌ Error iniciando navegador:', err.message);
-    if (browserInstance) {
-      await browserInstance.close();
-    }
-    browserInstance = null;
-    pageInstance = null;
-    throw err;
+    await page.goto(`https://www.instagram.com/${username}/`, { waitUntil: 'load', timeout: 10000 });
+
+    await page.waitForFunction(
+      () => document.querySelector('img[alt*="profile picture"]') || document.querySelector('h1'),
+      { timeout: 5000 }
+    );
+
+    await page.evaluate(() => window.scrollBy(0, 100 + Math.random() * 50));
+    await new Promise(resolve => setTimeout(resolve, 300 + Math.random() * 100));
+
+    const data = await page.evaluate(() => {
+      return {
+        username: document.querySelector('h1')?.textContent || '',
+        profile_pic_url: document.querySelector('img[alt*="profile picture"]')?.src || '',
+        followers_count: document.querySelector('header section ul li:nth-child(2) span')?.textContent || '0',
+        is_verified: !!document.querySelector('header section svg[aria-label="Verified"]'),
+      };
+    });
+
+    // Guardar en cache
+    scrapeCache.set(username, { data, timestamp: Date.now() });
+    console.log('✅ Datos obtenidos y guardados en cache:', data);
+    return data;
+  } catch (error) {
+    console.error('❌ Error en scraping:', error.message);
+    return null;
   }
 }
 
-// 👁️ Monitor de sesión
-async function monitorSession() {
-  if (!browserInstance || !pageInstance) return;
-  try {
-    await pageInstance.goto('https://www.instagram.com/', { waitUntil: 'networkidle0', timeout: 8000 });
-    const isLoggedIn = await pageInstance.evaluate(() => !!document.querySelector('a[href*="/direct/inbox/"]'));
-    if (!isLoggedIn) {
-      console.warn('⚠️ Sesión expirada. Reiniciando...');
-      await browserInstance.close();
-      browserInstance = null;
-      pageInstance = null;
-      await initializeBrowser();
-    } else {
-      setTimeout(monitorSession, 15 * 60 * 1000); // Revisar cada 15 minutos
-    }
-  } catch (err) {
-    console.error('❌ Error en monitor de sesión:', err.message);
-    await browserInstance.close();
-    browserInstance = null;
-    pageInstance = null;
-    await initializeBrowser();
-  }
-}
+// Inicializar cookie memory al cargar el módulo
+loadCookieMemory();
 
-// 📦 Scraping
-app.get('/scrape/:username', async (req, res) => {
-  if (!browserInstance || !pageInstance) {
-    return res.status(503).json({ error: 'Servicio temporalmente no disponible' });
-  }
-  const { username } = req.params;
-  try {
-    if (!encryptedPassword) initializeEncryptedPassword();
-    const data = await scrapeInstagram(pageInstance, username, encryptedPassword);
-    if (!data) return res.status(500).json({ error: 'No se pudo obtener el perfil' });
-    res.json({ success: true, data });
-  } catch (err) {
-    res.status(500).json({ error: 'Error interno', details: err.message });
-  }
-});
+// Guardar cookie memory al cerrar el proceso
+process.on('SIGTERM', saveCookieMemory);
+process.on('SIGINT', saveCookieMemory);
 
-// 🤖 IA
-app.post('/api/chat', async (req, res) => {
-  try {
-    const { message } = req.body;
-    const response = await axios.post('https://api.openai.com/v1/chat/completions', {
-      model: 'gpt-4o',
-      messages: [{ role: 'user', content: message }]
-    }, {
-      headers: {
-        Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
-        'Content-Type': 'application/json'
-      }
-    });
-    res.json({ message: response.data.choices[0].message.content });
-  } catch (err) {
-    res.status(500).json({ error: 'Error IA', details: err.message });
-  }
-});
-
-// 🔊 Voz
-app.get('/voz-prueba', async (req, res) => {
-  try {
-    const text = req.query.text || "Hola, esta es una voz generada con IA.";
-    const response = await axios.post("https://api.openai.com/v1/audio/speech", {
-      model: 'tts-1',
-      voice: 'onyx',
-      input: text
-    }, {
-      headers: {
-        Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
-        'Content-Type': 'application/json'
-      },
-      responseType: 'arraybuffer'
-    });
-    res.set('Content-Type', 'audio/mpeg');
-    res.send(response.data);
-  } catch (err) {
-    res.status(500).send("Error generando voz");
-  }
-});
-
-// 🔗 Bitly
-app.get('/bitly-prueba', async (req, res) => {
-  try {
-    const longUrl = req.query.url || 'https://instagram.com';
-    const response = await axios.post('https://api-ssl.bitly.com/v4/shorten', {
-      long_url: longUrl
-    }, {
-      headers: {
-        Authorization: `Bearer ${process.env.BITLY_TOKEN}`,
-        'Content-Type': 'application/json'
-      }
-    });
-    res.json({ shortUrl: response.data.link });
-  } catch (err) {
-    res.status(500).json({ error: 'Error Bitly', details: err.message });
-  }
-});
-
-// 🩺 Salud
-app.get('/health', (req, res) => {
-  res.send('🟢 Servidor activo y saludable');
-});
-
-// 🟢 Iniciar
-(async () => {
-  try {
-    await loadCookiesFromBackup(); // Cargar cookies al inicio
-    await initializeBrowser();
-    monitorSession();
-
-    // Guardar cookies al cerrar el servidor
-    process.on('SIGTERM', async () => {
-      console.log('🛑 Servidor cerrándose, guardando cookies...');
-      await saveCookiesToBackup();
-      if (browserInstance) await browserInstance.close();
-      process.exit(0);
-    });
-
-    app.listen(PORT, () => {
-      console.log(`🚀 Backend activo en puerto ${PORT}`);
-    });
-  } catch (err) {
-    console.error('❌ Fallo al iniciar el servidor:', err.message);
-    process.exit(1);
-  }
-})();
+module.exports = { scrapeInstagram, encryptPassword, decryptPassword };
