@@ -9,6 +9,7 @@ const puppeteer = require('puppeteer-extra');
 const StealthPlugin = require('puppeteer-extra-plugin-stealth');
 const { ensureLoggedIn, getCookies, notifyTelegram } = require('./instagramLogin');
 const fs = require('fs').promises;
+const UserAgent = require('user-agents'); // Añadido
 
 puppeteer.use(StealthPlugin());
 
@@ -29,19 +30,23 @@ async function loadProxies() {
     const data = await fs.readFile(path.join(__dirname, 'proxies.json'), 'utf8');
     proxies = JSON.parse(data);
     console.log(`📡 Cargados ${proxies.length} proxies desde proxies.json`);
-    if (proxies.length === 0) await scrapeProxies(); // Extrae proxies si no hay ninguno
   } catch (err) {
     console.warn('⚠️ No se pudo cargar proxies.json, iniciando extracción:', err.message);
-    await scrapeProxies(); // Extrae proxies si el archivo no existe
+    await scrapeProxies(); // Extrae proxies si no existe
+  }
+  if (proxies.length === 0) {
+    console.warn('⚠️ Lista de proxies vacía, intentando extracción adicional...');
+    await scrapeProxies();
   }
 }
 
-// 🔍 Extrae proxies (basado en tu script anterior)
+// 🔍 Extrae proxies (con todas las fuentes)
 async function scrapeProxies() {
   console.log('🔍 Iniciando extracción de proxies...');
   const browser = await puppeteer.launch({
     headless: 'new',
     args: ['--no-sandbox', '--disable-setuid-sandbox'],
+    executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || '/usr/bin/google-chrome',
   });
   const page = await browser.newPage();
   const userAgent = new UserAgent();
@@ -54,8 +59,53 @@ async function scrapeProxies() {
       type: 'api',
       parse: (data) => data.split('\n').map(line => line.trim()).filter(line => line),
     },
-    // Agrega más fuentes si lo deseas (FreeProxyList, SpysOne, Hidemy)
-    // Para simplificar, usamos solo ProxyScrape aquí
+    {
+      name: 'FreeProxyList',
+      url: 'https://free-proxy-list.net/',
+      type: 'html',
+      parse: async (page) => {
+        await page.goto('https://free-proxy-list.net/', { waitUntil: 'load', timeout: 30000 });
+        return await page.evaluate(() => {
+          const rows = document.querySelectorAll('#list table tbody tr');
+          return Array.from(rows).map(row => {
+            const ip = row.cells[0].textContent.trim();
+            const port = row.cells[1].textContent.trim();
+            return `${ip}:${port}`;
+          }).filter(line => line.match(/^\d+\.\d+\.\d+\.\d+:\d+$/));
+        });
+      },
+    },
+    {
+      name: 'SpysOne',
+      url: 'https://spys.one/en/http-proxy-list/',
+      type: 'html',
+      parse: async (page) => {
+        await page.goto('https://spys.one/en/http-proxy-list/', { waitUntil: 'load', timeout: 30000 });
+        return await page.evaluate(() => {
+          const rows = document.querySelectorAll('table tr.spy1xx, tr.spy1x');
+          return Array.from(rows).slice(1).map(row => {
+            const ipPort = row.cells[0].textContent.trim();
+            return ipPort.match(/^\d+\.\d+\.\d+\.\d+:\d+$/) ? ipPort : '';
+          }).filter(line => line);
+        });
+      },
+    },
+    {
+      name: 'Hidemy',
+      url: 'https://hidemy.name/en/proxy-list/?type=hs',
+      type: 'html',
+      parse: async (page) => {
+        await page.goto('https://hidemy.name/en/proxy-list/?type=hs', { waitUntil: 'load', timeout: 30000 });
+        return await page.evaluate(() => {
+          const rows = document.querySelectorAll('.table_block tbody tr');
+          return Array.from(rows).map(row => {
+            const ip = row.cells[0].textContent.trim();
+            const port = row.cells[1].textContent.trim();
+            return `${ip}:${port}`;
+          }).filter(line => line.match(/^\d+\.\d+\.\d+\.\d+:\d+$/));
+        });
+      },
+    },
   ];
 
   try {
@@ -63,8 +113,13 @@ async function scrapeProxies() {
       proxySources.map(async (source) => {
         try {
           console.log(`🌐 Extrayendo de ${source.name}...`);
-          const response = await axios.get(source.url, { timeout: 30000 });
-          const proxies = source.parse(response.data);
+          let proxies;
+          if (source.type === 'api') {
+            const response = await axios.get(source.url, { timeout: 30000 });
+            proxies = source.parse(response.data);
+          } else {
+            proxies = await source.parse(page);
+          }
           console.log(`✅ ${source.name}: ${proxies.length} proxies encontrados`);
           return proxies;
         } catch (error) {
@@ -78,7 +133,7 @@ async function scrapeProxies() {
     proxies = results
       .filter(result => result.status === 'fulfilled')
       .flatMap(result => result.value)
-      .filter(proxy => proxy.match(/^\d+\.\d+\.\d+\.\d+:\d+$/)); // Filtra formato válido
+      .filter(proxy => proxy.match(/^\d+\.\d+\.\d+\.\d+:\d+$/));
 
     console.log(`🔥 Total proxies encontrados: ${proxies.length}`);
     await fs.writeFile(path.join(__dirname, 'proxies.json'), JSON.stringify(proxies, null, 2));
