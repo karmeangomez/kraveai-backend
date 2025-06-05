@@ -1,27 +1,31 @@
-// ✅ runAccountCreation.js - Ejecución optimizada con logs y modo turbo
+// ✅ runAccountCreation.js - Controlado desde frontend vía POST
+const express = require('express');
 const { createMultipleAccounts } = require('./instagramAccountCreator');
 
-const TOTAL = 5; // 🔁 Número de cuentas a crear (modificable desde el frontend)
-const TURBO_MODE = true; // ⚡ true = sin pausas largas (usar solo en pruebas internas)
+const router = express.Router();
 
-(async () => {
+router.post('/create-accounts', async (req, res) => {
+  const total = parseInt(req.body.count) || 1;
+  const turbo = req.body.turbo === true;
+
+  console.log(`🚀 Creación solicitada desde frontend: ${total} cuentas`);
+  console.time('⏱️ Tiempo de ejecución');
+
   try {
-    console.time('⏱️ Tiempo total');
-    console.log(`🚀 Iniciando creación de ${TOTAL} cuentas...`);
+    const cuentas = await createMultipleAccounts(total, turbo); // turbo puede ser usado si lo agregas
+    console.log(`✅ ${cuentas.length} creadas correctamente`);
+    console.timeEnd('⏱️ Tiempo de ejecución');
 
-    const accounts = await createMultipleAccounts(TOTAL);
-
-    const creadas = accounts.length;
-    const fallidas = TOTAL - creadas;
-
-    console.log('✅ Cuentas creadas con éxito:', creadas);
-    console.log('❌ Fallidas:', fallidas);
-    console.log('📦 Detalle:', accounts);
-
-    console.timeEnd('⏱️ Tiempo total');
-
-    // 💾 Si quieres guardar en otro lado (como base de datos), puedes hacerlo aquí
+    res.status(200).json({
+      success: true,
+      total,
+      creadas: cuentas.length,
+      detalle: cuentas
+    });
   } catch (error) {
-    console.error('❌ Error general en el proceso:', error.message);
+    console.error('❌ Error general:', error.message);
+    res.status(500).json({ success: false, error: error.message });
   }
-})();
+});
+
+module.exports = router;
