@@ -1,28 +1,32 @@
+// ✅ server.js completo: Instagram + IA + Telegram + Frontend
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
+const path = require('path');
 const axios = require('axios');
-const app = express();
-app.use(express.json());
-app.use(cors());
-
-// Importa el módulo de login mejorado
-const { ensureLoggedIn, getCookies } = require('./instagramLogin');
+const { createMultipleAccounts } = require('./instagramAccountCreator');
 const puppeteer = require('puppeteer-extra');
 const StealthPlugin = require('puppeteer-extra-plugin-stealth');
+const { ensureLoggedIn, getCookies, notifyTelegram } = require('./instagramLogin');
+
 puppeteer.use(StealthPlugin());
 
+const app = express();
+const PORT = process.env.PORT || 3000;
 let browserInstance = null;
 let sessionStatus = 'INITIALIZING';
 
-// 🔁 Inicializa navegador y sesión de Instagram
+app.use(express.json());
+app.use(cors());
+app.use(express.static(path.join(__dirname, '.')));
+
+// 🔐 Inicia navegador y login Instagram
 async function initBrowser() {
   try {
     console.log("🚀 Verificando sesión de Instagram...");
-    await ensureLoggedIn(); // Usa el nuevo sistema de login
+    await ensureLoggedIn();
     console.log("✅ Sesión de Instagram lista.");
 
-    console.log("🚀 Iniciando Chromium con Stealth...");
     browserInstance = await puppeteer.launch({
       headless: 'new',
       args: [
@@ -37,132 +41,86 @@ async function initBrowser() {
       ignoreHTTPSErrors: true
     });
 
-    console.log("✅ Chromium listo.");
     sessionStatus = 'ACTIVE';
-    
-    // Verificación periódica de sesión
-    setInterval(checkSessionValidity, 60 * 60 * 1000); // Cada hora
-    
+    setInterval(checkSessionValidity, 60 * 60 * 1000);
   } catch (err) {
-    console.error("❌ Error al iniciar Chromium:", err.message);
+    console.error("❌ Error al iniciar Chromium:", err);
     sessionStatus = 'ERROR';
-    throw err;
+    notifyTelegram(`❌ Error al iniciar sesión de Instagram: ${err.message}`);
   }
 }
 
-// 🔍 Verifica la validez de la sesión
+// 🔁 Verifica sesión cada hora
 async function checkSessionValidity() {
   try {
     const cookies = getCookies();
-    if (!cookies || cookies.length === 0) {
-      throw new Error('No hay cookies disponibles');
-    }
-    
+    if (!cookies || cookies.length === 0) throw new Error('No hay cookies disponibles');
+
     const page = await browserInstance.newPage();
     await page.setCookie(...cookies);
-    
-    await page.goto('https://www.instagram.com/', {
-      waitUntil: 'domcontentloaded',
-      timeout: 15000
-    });
-    
+    await page.goto('https://www.instagram.com/', { waitUntil: 'domcontentloaded', timeout: 15000 });
+
     const isLoggedIn = await page.evaluate(() => {
       return document.querySelector('a[href*="/accounts/activity/"]') !== null;
     });
-    
+
     await page.close();
-    
     if (!isLoggedIn) {
-      console.warn("⚠️ Sesión de Instagram expirada, reiniciando...");
+      console.warn("⚠️ Sesión expirada, reintentando login...");
       await ensureLoggedIn();
       console.log("✅ Sesión renovada exitosamente");
     }
-    
     sessionStatus = 'ACTIVE';
   } catch (err) {
-    console.error("❌ Error verificando sesión:", err.message);
+    console.error("❌ Error verificando sesión:", err);
     sessionStatus = 'EXPIRED';
+    notifyTelegram(`⚠️ Sesión de Instagram expirada: ${err.message}`);
   }
 }
 
-// 🔍 Scraping con sesión activa
+// 📥 API: crear cuentas desde el frontend
+app.post('/create-accounts', async (req, res) => {
+  try {
+    const count = req.body.count || 3;
+    if (!browserInstance) return res.status(500).json({ error: "Navegador no iniciado" });
+
+    const page = await browserInstance.newPage();
+    const accounts = await createMultipleAccounts(count, page);
+    await page.close();
+
+    res.json({ success: true, accounts });
+    notifyTelegram(`✅ ${accounts.length} cuentas creadas exitosamente.`);
+  } catch (err) {
+    console.error("❌ Error creando cuentas:", err);
+    notifyTelegram(`❌ Error al crear cuentas: ${err.message}`);
+    res.status(500).json({ error: 'Error creando cuentas', details: err.message });
+  }
+});
+
+// 🔍 API: scraping de Instagram
 app.get('/api/scrape', async (req, res) => {
   const username = req.query.username;
   if (!username) return res.status(400).json({ error: "Falta ?username=" });
-
-  // Verificar estado de la sesión
-  if (sessionStatus !== 'ACTIVE') {
-    return res.status(503).json({ 
-      error: "Sesión no disponible", 
-      status: sessionStatus,
-      message: "Intente nuevamente en unos minutos"
-    });
-  }
+  if (sessionStatus !== 'ACTIVE') return res.status(503).json({ error: "Sesión no disponible", status: sessionStatus });
 
   try {
     const cookies = getCookies();
-    if (!cookies || cookies.length === 0) {
-      throw new Error('No hay cookies de sesión disponibles');
-    }
-
     const page = await browserInstance.newPage();
-    
-    // Configuración anti-detección
-    await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36');
-    await page.setExtraHTTPHeaders({
-      'Accept-Language': 'en-US,en;q=0.9'
-    });
-    
-    // Establecer cookies de sesión
     await page.setCookie(...cookies);
-
-    // Navegación con manejo de errores
-    const response = await page.goto(`https://www.instagram.com/${username}/`, {
-      waitUntil: 'domcontentloaded',
-      timeout: 30000
-    });
-
-    // Verificar respuesta HTTP
-    if (response.status() >= 400) {
-      throw new Error(`Página no disponible (HTTP ${response.status()})`);
-    }
-
-    // Esperar selectores críticos
-    await Promise.race([
-      page.waitForSelector('header section', { timeout: 10000 }),
-      page.waitForSelector('main', { timeout: 10000 })
-    ]);
+    await page.goto(`https://www.instagram.com/${username}/`, { waitUntil: 'domcontentloaded', timeout: 30000 });
 
     const profile = await page.evaluate(() => {
-      // Selectores mejorados y compatibles
-      const avatar = document.querySelector('header img') || 
-                    document.querySelector('img[data-testid="user-avatar"]') ||
-                    document.querySelector('img.xpdipgo');
-      
-      const usernameElem = document.querySelector('header section h2') || 
-                          document.querySelector('header h2') ||
-                          document.querySelector('h2.xd7yjzq');
-      
-      const verifiedElem = document.querySelector('svg[aria-label="Verified"]') ||
-                          document.querySelector('div.x1qs8t0q');
-      
-      const fullNameElem = document.querySelector('header section h1') || 
-                          document.querySelector('header h1') ||
-                          document.querySelector('h1.x1heor9g');
-      
-      // Método alternativo para seguidores
-      let followers = 'N/A';
-      const metaDesc = document.querySelector('meta[name="description"]')?.content;
-      if (metaDesc) {
-        const match = metaDesc.match(/([\d,KM.]+)\s+Followers/);
-        if (match) followers = match[1];
-      }
-
+      const avatar = document.querySelector('header img');
+      const usernameElem = document.querySelector('header section h2');
+      const verified = !!document.querySelector('svg[aria-label="Verified"]');
+      const fullName = document.querySelector('header section h1')?.textContent;
+      const meta = document.querySelector('meta[name="description"]')?.content;
+      const match = meta?.match(/([\d,.KM]+)\s+Followers/);
       return {
         username: usernameElem?.textContent || 'N/A',
-        fullName: fullNameElem?.textContent || 'N/A',
-        verified: !!verifiedElem,
-        followers,
+        fullName: fullName || 'N/A',
+        verified,
+        followers: match ? match[1] : 'N/A',
         profilePic: avatar?.src || 'N/A'
       };
     });
@@ -171,27 +129,11 @@ app.get('/api/scrape', async (req, res) => {
     res.json({ profile });
   } catch (err) {
     console.error("❌ Scraping fallido:", err.message);
-    
-    // Intenta renovar sesión si falla
-    if (err.message.includes('sesión') || err.message.includes('cookie')) {
-      sessionStatus = 'EXPIRED';
-      try {
-        await ensureLoggedIn();
-        sessionStatus = 'ACTIVE';
-      } catch (refreshErr) {
-        console.error("❌ Error renovando sesión:", refreshErr.message);
-      }
-    }
-    
-    res.status(500).json({ 
-      error: "Scraping fallido", 
-      reason: err.message,
-      solution: "Intente nuevamente en 1 minuto"
-    });
+    res.status(500).json({ error: "Scraping fallido", reason: err.message });
   }
 });
 
-// 🌐 IA - Mantenemos igual
+// 🧠 API: chatbot IA (OpenAI)
 app.post('/api/chat', async (req, res) => {
   try {
     const { message } = req.body;
@@ -212,7 +154,7 @@ app.post('/api/chat', async (req, res) => {
   }
 });
 
-// 🔊 Voz - Mantenemos igual
+// 🔊 API: voz con OpenAI TTS
 app.get('/voz-prueba', async (req, res) => {
   try {
     const text = req.query.text || "Hola, este es un ejemplo de voz generada.";
@@ -235,7 +177,7 @@ app.get('/voz-prueba', async (req, res) => {
   }
 });
 
-// 🔗 Bitly - Mantenemos igual
+// 🔗 API: prueba de Bitly
 app.get('/bitly-prueba', async (req, res) => {
   try {
     const longUrl = req.query.url || "https://instagram.com";
@@ -254,25 +196,23 @@ app.get('/bitly-prueba', async (req, res) => {
   }
 });
 
-// 🟢 Health mejorado
+// 🟢 Healthcheck
 app.get('/health', (req, res) => {
-  const status = {
+  res.json({
     status: sessionStatus,
     browser: browserInstance ? 'ACTIVE' : 'INACTIVE',
     memory: process.memoryUsage().rss,
     uptime: process.uptime()
-  };
-  res.json(status);
+  });
 });
 
-// 🔥 Inicio del backend
-const PORT = process.env.PORT || 3000;
+// 🚀 Inicia el servidor
 initBrowser().then(() => {
   app.listen(PORT, () => {
     console.log(`🚀 Backend activo en puerto ${PORT}`);
-    console.log(`🔑 Sesión Instagram: ${sessionStatus}`);
+    notifyTelegram(`🚀 Servidor backend activo en puerto ${PORT}`);
   });
 }).catch(err => {
   console.error('❌ Falla crítica - Servidor no iniciado:', err.message);
-  process.exit(1);
+  notifyTelegram(`❌ Falla crítica al iniciar el backend: ${err.message}`);
 });
