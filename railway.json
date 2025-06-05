@@ -3,9 +3,11 @@
     "env": {
       "NODE_ENV": "production"
     },
-    "command": "npm install"
+    "builder": "NIXPACKS",
+    "buildCommand": "npm install"
   },
   "deploy": {
-    "startCommand": "node runAccountCreation.js"
+    "startCommand": "npm start",
+    "restartPolicy": "ON_FAILURE"
   }
 }
