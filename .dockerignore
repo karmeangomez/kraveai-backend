@@ -2,7 +2,6 @@
 node_modules
 npm-debug.log
 yarn-error.log
-package-lock.json
 
 # Archivos de sistema
 .DS_Store
@@ -10,6 +9,6 @@ package-lock.json
 .env.local
 .vscode
 
-# Opcional: carpetas de sesión o caché
+# Opcional: carpetas de sesión o caché local
 session_data/
 .cache/
