@@ -7,9 +7,10 @@ const axios = require('axios');
 const { createMultipleAccounts } = require('./instagramAccountCreator'); // Asegúrate de que exista
 const puppeteer = require('puppeteer-extra');
 const StealthPlugin = require('puppeteer-extra-plugin-stealth');
-const { ensureLoggedIn, getCookies, notifyTelegram } = require('./instagramLogin');
+const { instagramLogin } = require('./instagramLogin'); // Asegúrate de que exista
 const fs = require('fs').promises;
-const UserAgent = require('user-agents'); // Añadido
+const UserAgent = require('user-agents');
+const { Telegraf } = require('telegraf');
 
 puppeteer.use(StealthPlugin());
 
@@ -19,30 +20,54 @@ let browserInstance = null;
 let sessionStatus = 'INITIALIZING';
 let proxyIndex = 0;
 let proxies = [];
+let invalidProxies = new Set(); // Para marcar proxies no funcionales
 
+const telegramBot = new Telegraf(process.env.TELEGRAM_BOT_TOKEN);
+
+// Middleware para Express
 app.use(express.json());
 app.use(cors());
 app.use(express.static(path.join(__dirname, '.')));
+
+// Función para enviar logs a Railway y Telegram
+async function logAndNotify(message, level = 'info', error = null) {
+  const timestamp = new Date().toISOString();
+  const logMessage = `[${timestamp}] [${level.toUpperCase()}] ${message}${error ? `: ${error.message}` : ''}`;
+  
+  // Enviar a stdout/stderr para Railway
+  if (level === 'error') {
+    console.error(logMessage);
+  } else {
+    console.log(logMessage);
+  }
+  
+  // Enviar a Telegram
+  try {
+    await telegramBot.telegram.sendMessage(process.env.TELEGRAM_CHAT_ID, logMessage);
+  } catch (err) {
+    console.error(`[${timestamp}] [ERROR] Error enviando a Telegram: ${err.message}`);
+  }
+}
 
 // 🔐 Carga proxies desde proxies.json
 async function loadProxies() {
   try {
     const data = await fs.readFile(path.join(__dirname, 'proxies.json'), 'utf8');
     proxies = JSON.parse(data);
-    console.log(`📡 Cargados ${proxies.length} proxies desde proxies.json`);
+    await logAndNotify(`Cargados ${proxies.length} proxies desde proxies.json`);
   } catch (err) {
-    console.warn('⚠️ No se pudo cargar proxies.json, iniciando extracción:', err.message);
+    await logAndNotify('No se pudo cargar proxies.json, iniciando extracción', 'warn', err);
     await scrapeProxies(); // Extrae proxies si no existe
   }
   if (proxies.length === 0) {
-    console.warn('⚠️ Lista de proxies vacía, intentando extracción adicional...');
+    await logAndNotify('Lista de proxies vacía, intentando extracción adicional...', 'warn');
     await scrapeProxies();
   }
 }
 
 // 🔍 Extrae proxies (con todas las fuentes)
 async function scrapeProxies() {
-  console.log('🔍 Iniciando extracción de proxies...');
+  await logAndNotify('Iniciando extracción de proxies...');
   const browser = await puppeteer.launch({
     headless: 'new',
     args: ['--no-sandbox', '--disable-setuid-sandbox'],
@@ -112,7 +137,7 @@ async function scrapeProxies() {
     const results = await Promise.allSettled(
       proxySources.map(async (source) => {
         try {
-          console.log(`🌐 Extrayendo de ${source.name}...`);
+          await logAndNotify(`Extrayendo de ${source.name}...`);
           let proxies;
           if (source.type === 'api') {
             const response = await axios.get(source.url, { timeout: 30000 });
@@ -120,11 +145,10 @@ async function scrapeProxies() {
           } else {
             proxies = await source.parse(page);
           }
-          console.log(`✅ ${source.name}: ${proxies.length} proxies encontrados`);
+          await logAndNotify(`${source.name}: ${proxies.length} proxies encontrados`);
           return proxies;
         } catch (error) {
-          console.error(`❌ Error en ${source.name}: ${error.message}`);
-          await notifyTelegram(`❌ Error al extraer proxies de ${source.name}: ${error.message}`);
+          await logAndNotify(`Error en ${source.name}`, 'error', error);
           return [];
         }
       })
@@ -135,11 +159,25 @@ async function scrapeProxies() {
       .flatMap(result => result.value)
       .filter(proxy => proxy.match(/^\d+\.\d+\.\d+\.\d+:\d+$/));
 
-    console.log(`🔥 Total proxies encontrados: ${proxies.length}`);
+    await logAndNotify(`Total proxies encontrados: ${proxies.length}`);
     await fs.writeFile(path.join(__dirname, 'proxies.json'), JSON.stringify(proxies, null, 2));
-    await notifyTelegram(`✅ Extracción de proxies completada: ${proxies.length} proxies encontrados`);
   } finally {
     await browser.close();
+  }
+}
+
+// 🔎 Verifica si un proxy es funcional
+async function checkProxy(proxy) {
+  try {
+    const response = await axios.get('https://www.google.com', {
+      proxy: { host: proxy.split(':')[0], port: parseInt(proxy.split(':')[1]) },
+      timeout: 5000,
+    });
+    await logAndNotify(`Proxy ${proxy} es funcional`);
+    return response.status === 200;
+  } catch (error) {
+    await logAndNotify(`Proxy ${proxy} no es funcional`, 'warn', error);
+    return false;
   }
 }
 
@@ -147,9 +185,24 @@ async function scrapeProxies() {
 async function initBrowser() {
   await loadProxies(); // Carga proxies al iniciar
   try {
-    console.log("🚀 Verificando sesión de Instagram...");
-    const proxy = proxies[proxyIndex];
-    proxyIndex = (proxyIndex + 1) % proxies.length;
+    await logAndNotify("Verificando sesión de Instagram...");
+
+    // Encuentra un proxy funcional
+    let proxy = null;
+    for (let i = 0; i < proxies.length; i++) {
+      const candidate = proxies[proxyIndex];
+      proxyIndex = (proxyIndex + 1) % proxies.length;
+      if (!invalidProxies.has(candidate) && await checkProxy(candidate)) {
+        proxy = candidate;
+        break;
+      } else {
+        invalidProxies.add(candidate); // Marca como inválido si falla
+      }
+    }
+
+    if (!proxy) {
+      throw new Error('No se encontró un proxy funcional');
+    }
 
     browserInstance = await puppeteer.launch({
       headless: 'new',
@@ -161,23 +214,25 @@ async function initBrowser() {
         '--disable-blink-features=AutomationControlled',
         '--single-process',
         '--js-flags=--max-old-space-size=256',
-        proxy ? `--proxy-server=http://${proxy}` : ''
+        `--proxy-server=http://${proxy}`
       ],
       executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || '/usr/bin/google-chrome',
       ignoreHTTPSErrors: true
     });
 
     const page = await browserInstance.newPage();
-    await ensureLoggedIn(page);
+    const isLoggedIn = await instagramLogin(page, process.env.INSTAGRAM_USERNAME, process.env.INSTAGRAM_PASSWORD);
+    if (!isLoggedIn) {
+      throw new Error('No se pudo iniciar sesión en Instagram');
+    }
     await page.close();
 
-    console.log("✅ Sesión de Instagram lista con proxy:", proxy);
+    await logAndNotify(`Sesión de Instagram lista con proxy: ${proxy}`);
     sessionStatus = 'ACTIVE';
     setInterval(checkSessionValidity, 60 * 60 * 1000); // Verifica cada hora
   } catch (err) {
-    console.error("❌ Error al iniciar Chromium:", err.message);
     sessionStatus = 'ERROR';
-    notifyTelegram(`❌ Error al iniciar sesión de Instagram: ${err.message}`);
+    await logAndNotify('Error al iniciar Chromium', 'error', err);
     await restartBrowser(); // Intenta reiniciar si falla
   }
 }
@@ -186,13 +241,13 @@ async function initBrowser() {
 async function checkSessionValidity() {
   if (!browserInstance) {
     sessionStatus = 'INACTIVE';
+    await logAndNotify('Navegador no disponible, reiniciando...');
     await restartBrowser();
     return;
   }
 
   try {
     const page = await browserInstance.newPage();
-    await page.setCookie(...getCookies());
     await page.goto('https://www.instagram.com/', { waitUntil: 'domcontentloaded', timeout: 15000 });
 
     const isLoggedIn = await page.evaluate(() => {
@@ -201,15 +256,16 @@ async function checkSessionValidity() {
 
     await page.close();
     if (!isLoggedIn) {
-      console.warn("⚠️ Sesión expirada, reintentando login...");
-      await ensureLoggedIn(await browserInstance.newPage());
-      console.log("✅ Sesión renovada exitosamente");
+      await logAndNotify('Sesión expirada, reintentando login...', 'warn');
+      const loginPage = await browserInstance.newPage();
+      await instagramLogin(loginPage, process.env.INSTAGRAM_USERNAME, process.env.INSTAGRAM_PASSWORD);
+      await loginPage.close();
+      await logAndNotify('Sesión renovada exitosamente');
     }
     sessionStatus = 'ACTIVE';
   } catch (err) {
-    console.error("❌ Error verificando sesión:", err.message);
     sessionStatus = 'EXPIRED';
-    notifyTelegram(`⚠️ Sesión de Instagram expirada: ${err.message}`);
+    await logAndNotify('Error verificando sesión', 'error', err);
     await restartBrowser(); // Reinicia si la sesión falla
   }
 }
@@ -217,7 +273,7 @@ async function checkSessionValidity() {
 // 🔄 Reinicia el navegador en caso de fallo
 async function restartBrowser() {
   if (browserInstance) {
-    console.log('🔄 Cerrando navegador existente...');
+    await logAndNotify('Cerrando navegador existente...');
     await browserInstance.close();
   }
   browserInstance = null;
@@ -229,17 +285,18 @@ async function restartBrowser() {
 app.post('/create-accounts', async (req, res) => {
   try {
     const count = req.body.count || 3;
-    if (!browserInstance || sessionStatus !== 'ACTIVE') return res.status(503).json({ error: "Navegador no disponible" });
+    if (!browserInstance || sessionStatus !== 'ACTIVE') {
+      return res.status(503).json({ error: "Navegador no disponible" });
+    }
 
     const page = await browserInstance.newPage();
     const accounts = await createMultipleAccounts(count, page);
     await page.close();
 
+    await logAndNotify(`${accounts.length} cuentas creadas exitosamente`);
     res.json({ success: true, accounts });
-    notifyTelegram(`✅ ${accounts.length} cuentas creadas exitosamente.`);
   } catch (err) {
-    console.error("❌ Error creando cuentas:", err.message);
-    notifyTelegram(`❌ Error al crear cuentas: ${err.message}`);
+    await logAndNotify('Error creando cuentas', 'error', err);
     res.status(500).json({ error: 'Error creando cuentas', details: err.message });
   }
 });
@@ -247,13 +304,15 @@ app.post('/create-accounts', async (req, res) => {
 // 🔍 API: scraping de Instagram
 app.get('/api/scrape', async (req, res) => {
   const username = req.query.username;
-  if (!username) return res.status(400).json({ error: "Falta ?username=" });
-  if (!browserInstance || sessionStatus !== 'ACTIVE') return res.status(503).json({ error: "Sesión no disponible", status: sessionStatus });
+  if (!username) {
+    return res.status(400).json({ error: "Falta ?username=" });
+  }
+  if (!browserInstance || sessionStatus !== 'ACTIVE') {
+    return res.status(503).json({ error: "Sesión no disponible", status: sessionStatus });
+  }
 
   try {
-    const cookies = getCookies();
     const page = await browserInstance.newPage();
-    await page.setCookie(...cookies);
     await page.goto(`https://www.instagram.com/${username}/`, { waitUntil: 'domcontentloaded', timeout: 30000 });
 
     const profile = await page.evaluate(() => {
@@ -273,9 +332,10 @@ app.get('/api/scrape', async (req, res) => {
     });
 
     await page.close();
+    await logAndNotify(`Scraping exitoso para ${username}`);
     res.json({ profile });
   } catch (err) {
-    console.error("❌ Scraping fallido:", err.message);
+    await logAndNotify('Scraping fallido', 'error', err);
     res.status(500).json({ error: "Scraping fallido", reason: err.message });
   }
 });
@@ -295,8 +355,10 @@ app.post('/api/chat', async (req, res) => {
       },
       timeout: 30000
     });
+    await logAndNotify('Consulta de chat IA exitosa');
     res.json({ message: resp.data.choices[0].message.content });
   } catch (err) {
+    await logAndNotify('Error en consulta de chat IA', 'error', err);
     res.status(500).json({ error: "Error IA", details: err.message });
   }
 });
@@ -317,9 +379,11 @@ app.get('/voz-prueba', async (req, res) => {
       responseType: 'arraybuffer',
       timeout: 30000
     });
+    await logAndNotify('Generación de voz exitosa');
     res.set('Content-Type', 'audio/mpeg');
     res.send(response.data);
   } catch (err) {
+    await logAndNotify('Error generando voz', 'error', err);
     res.status(500).send("Error generando voz");
   }
 });
@@ -337,8 +401,10 @@ app.get('/bitly-prueba', async (req, res) => {
       },
       timeout: 10000
     });
+    await logAndNotify('Acortamiento de URL con Bitly exitoso');
     res.json({ shortUrl: response.data.link });
   } catch (err) {
+    await logAndNotify('Error en Bitly', 'error', err);
     res.status(500).json({ error: "Error Bitly", details: err.message });
   }
 });
@@ -357,16 +423,13 @@ app.get('/health', (req, res) => {
 // 🚀 Inicia el servidor
 loadProxies().then(() => {
   initBrowser().then(() => {
-    app.listen(PORT, () => {
-      console.log(`🚀 Backend activo en puerto ${PORT}`);
-      notifyTelegram(`🚀 Servidor backend activo en puerto ${PORT}`);
+    app.listen(PORT, async () => {
+      await logAndNotify(`Backend activo en puerto ${PORT}`);
     });
-  }).catch(err => {
-    console.error('❌ Falla crítica - Servidor no iniciado:', err.message);
-    notifyTelegram(`❌ Falla crítica al iniciar el backend: ${err.message}`);
+  }).catch(async err => {
+    await logAndNotify('Falla crítica - Servidor no iniciado', 'error', err);
     process.exit(1);
   });
-}).catch(err => {
-  console.error('❌ Error cargando proxies:', err.message);
-  notifyTelegram(`❌ Error al cargar proxies: ${err.message}`);
+}).catch(async err => {
+  await logAndNotify('Error cargando proxies', 'error', err);
 });
