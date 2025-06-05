@@ -167,9 +167,11 @@ async function initBrowser() {
       ignoreHTTPSErrors: true
     });
 
-    await ensureLoggedIn();
-    console.log("✅ Sesión de Instagram lista con proxy:", proxy);
+    const page = await browserInstance.newPage();
+    await ensureLoggedIn(page);
+    await page.close();
 
+    console.log("✅ Sesión de Instagram lista con proxy:", proxy);
     sessionStatus = 'ACTIVE';
     setInterval(checkSessionValidity, 60 * 60 * 1000); // Verifica cada hora
   } catch (err) {
@@ -189,11 +191,8 @@ async function checkSessionValidity() {
   }
 
   try {
-    const cookies = getCookies();
-    if (!cookies || cookies.length === 0) throw new Error('No hay cookies disponibles');
-
     const page = await browserInstance.newPage();
-    await page.setCookie(...cookies);
+    await page.setCookie(...getCookies());
     await page.goto('https://www.instagram.com/', { waitUntil: 'domcontentloaded', timeout: 15000 });
 
     const isLoggedIn = await page.evaluate(() => {
@@ -203,7 +202,7 @@ async function checkSessionValidity() {
     await page.close();
     if (!isLoggedIn) {
       console.warn("⚠️ Sesión expirada, reintentando login...");
-      await ensureLoggedIn();
+      await ensureLoggedIn(await browserInstance.newPage());
       console.log("✅ Sesión renovada exitosamente");
     }
     sessionStatus = 'ACTIVE';
@@ -233,10 +232,6 @@ app.post('/create-accounts', async (req, res) => {
     if (!browserInstance || sessionStatus !== 'ACTIVE') return res.status(503).json({ error: "Navegador no disponible" });
 
     const page = await browserInstance.newPage();
-    const proxy = proxies[proxyIndex];
-    if (proxy) await page.setExtraHTTPHeaders({ 'Proxy-Server': `http://${proxy}` });
-    proxyIndex = (proxyIndex + 1) % proxies.length;
-
     const accounts = await createMultipleAccounts(count, page);
     await page.close();
 
@@ -258,9 +253,6 @@ app.get('/api/scrape', async (req, res) => {
   try {
     const cookies = getCookies();
     const page = await browserInstance.newPage();
-    const proxy = proxies[proxyIndex];
-    if (proxy) await page.setExtraHTTPHeaders({ 'Proxy-Server': `http://${proxy}` });
-    proxyIndex = (proxyIndex + 1) % proxies.length;
     await page.setCookie(...cookies);
     await page.goto(`https://www.instagram.com/${username}/`, { waitUntil: 'domcontentloaded', timeout: 30000 });
 
