@@ -1,4 +1,4 @@
-// ✅ instagramLogin.js - Adaptado para ENCRYPTION_KEY, ENCRYPTION_IV e INSTAGRAM_PASS
+// ✅ instagramLogin.js - Adaptado con notificaciones Telegram, login inteligente, y cookies
 const puppeteer = require('puppeteer-extra');
 const StealthPlugin = require('puppeteer-extra-plugin-stealth');
 puppeteer.use(StealthPlugin());
@@ -6,9 +6,25 @@ const fs = require('fs').promises;
 const path = require('path');
 const crypto = require('crypto');
 const UserAgent = require('user-agents');
+const { Telegraf } = require('telegraf');
 
 const COOKIE_PATH = path.join(__dirname, 'instagram_cookies.json');
 let cookiesCache = [];
+
+// Configurar Telegram
+const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID;
+const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
+const telegramBot = TELEGRAM_BOT_TOKEN ? new Telegraf(TELEGRAM_BOT_TOKEN) : null;
+
+async function notifyTelegram(message) {
+  if (!telegramBot || !TELEGRAM_CHAT_ID) return;
+  try {
+    await telegramBot.telegram.sendMessage(TELEGRAM_CHAT_ID, message);
+    console.log('📩 Notificación enviada a Telegram:', message);
+  } catch (err) {
+    console.error('❌ Error al enviar notificación Telegram:', err.message);
+  }
+}
 
 const CONFIG = {
   loginUrl: 'https://www.instagram.com/accounts/login/',
@@ -61,18 +77,27 @@ async function smartLogin(page, username, password) {
   await page.setViewport({ width: 1280, height: 800 });
 
   await page.goto(CONFIG.loginUrl, { waitUntil: 'networkidle0' });
-  await page.waitForSelector('input[name="username"]', { visible: true });
-  await page.waitForSelector('input[name="password"]', { visible: true });
-  await page.waitForSelector('button[type="submit"]', { visible: true });
 
-  await page.mouse.move(100, 150, { steps: 20 });
-  await page.mouse.move(120, 180, { steps: 15 });
-
-  await page.click('input[name="username"]');
-  for (const char of username) {
-    await page.keyboard.press(char);
-    await page.waitForTimeout(Math.random() * 100 + 50);
+  const selectors = [
+    'input[name="username"]',
+    'input[aria-label="Phone number, username, or email"]'
+  ];
+  let foundSelector = false;
+  for (const selector of selectors) {
+    try {
+      await page.waitForSelector(selector, { timeout: 60000 });
+      await page.click(selector);
+      for (const char of username) {
+        await page.keyboard.press(char);
+        await page.waitForTimeout(Math.random() * 100 + 50);
+      }
+      foundSelector = true;
+      break;
+    } catch (_) {
+      console.warn(`⚠️ Selector no encontrado: ${selector}`);
+    }
   }
+  if (!foundSelector) throw new Error('No se encontró ningún campo de username.');
 
   await page.click('input[name="password"]');
   for (const char of password) {
@@ -85,17 +110,19 @@ async function smartLogin(page, username, password) {
 
   await Promise.all([
     page.click('button[type="submit"]'),
-    page.waitForNavigation({ waitUntil: 'networkidle0' })
+    page.waitForNavigation({ waitUntil: 'networkidle0', timeout: 60000 })
   ]);
 
-  const currentUrl = page.url();
-  if (currentUrl.includes('/challenge') || currentUrl.includes('/two_factor')) {
-    throw new Error('Desafío de seguridad o 2FA requerido.');
+  const url = page.url();
+  if (url.includes('challenge') || url.includes('captcha')) {
+    await notifyTelegram('⚠️ Instagram lanzó un desafío o captcha en el login de kraveaibot.');
+    return false;
   }
 
   cookiesCache = await page.cookies();
   await fs.writeFile(COOKIE_PATH, JSON.stringify(cookiesCache, null, 2));
   console.log('[Instagram] Login exitoso con comportamiento humano');
+  await notifyTelegram('✅ Sesión de kraveaibot iniciada correctamente');
   return true;
 }
 
@@ -104,7 +131,6 @@ async function ensureLoggedIn() {
   const password = process.env.ENCRYPTION_KEY ? decryptPassword() : process.env.INSTAGRAM_PASS;
 
   console.log("🧪 Username:", username || 'NO DEFINIDO');
-  console.log("🧪 Password (desencriptada):", password || 'NO DEFINIDO');
   console.log("🧪 Chrome path:", process.env.PUPPETEER_EXECUTABLE_PATH);
 
   if (!username) throw new Error('[Instagram] IG_USERNAME no está definido');
@@ -126,5 +152,6 @@ async function ensureLoggedIn() {
 
 module.exports = {
   ensureLoggedIn,
-  getCookies: () => cookiesCache
+  getCookies: () => cookiesCache,
+  notifyTelegram
 };
