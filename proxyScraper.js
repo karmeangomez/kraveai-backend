@@ -6,6 +6,7 @@ const fs = require('fs').promises;
 const path = require('path');
 const UserAgent = require('user-agents');
 const { Telegraf } = require('telegraf');
+const { setTimeout } = require('timers/promises');
 
 const PROXY_FILE = path.join(__dirname, 'proxies.json');
 const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID;
@@ -79,6 +80,9 @@ const proxySources = [
   },
 ];
 
+// Cache de proxies válidos
+let validProxiesCache = [];
+
 // Verificar proxy
 async function checkProxy(proxy) {
   try {
@@ -133,29 +137,30 @@ async function scrapeProxies() {
 
     // Eliminar duplicados
     allProxies = [...new Set(allProxies)];
-
     console.log(`🔥 Total proxies encontrados: ${allProxies.length}`);
 
-    // Verificar proxies
+    // Verificar proxies en paralelo
     console.log('🧪 Verificando proxies...');
-    const validProxies = [];
-    for (const proxy of allProxies) {
-      if (await checkProxy(proxy)) {
-        validProxies.push(proxy);
-        console.log(`✔️ Proxy válido: ${proxy}`);
-      }
+    const chunkSize = 50;
+    for (let i = 0; i < allProxies.length; i += chunkSize) {
+      const chunk = allProxies.slice(i, i + chunkSize);
+      const promises = chunk.map(proxy => checkProxy(proxy).then(isValid => isValid ? proxy : null));
+      const validChunk = (await Promise.all(promises)).filter(Boolean);
+      validProxiesCache.push(...validChunk);
+      console.log(`✔️ Proxies válidos en este chunk: ${validChunk.length}`);
+      await setTimeout(1000); // Pausa para evitar sobrecarga
     }
 
-    console.log(`✅ Total proxies válidos: ${validProxies.length}`);
-    await notifyTelegram(`✅ Extracción completada: ${validProxies.length} proxies válidos encontrados`);
+    console.log(`✅ Total proxies válidos: ${validProxiesCache.length}`);
+    await notifyTelegram(`✅ Extracción completada: ${validProxiesCache.length} proxies válidos encontrados`);
 
-    // Guardar proxies
-    await fs.writeFile(PROXY_FILE, JSON.stringify(validProxies, null, 2));
+    // Guardar proxies válidos
+    await fs.writeFile(PROXY_FILE, JSON.stringify(validProxiesCache, null, 2));
   } finally {
     await browser.close();
   }
 
-  return allProxies;
+  return validProxiesCache;
 }
 
 // Ejecutar periódicamente
