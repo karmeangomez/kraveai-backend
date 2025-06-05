@@ -50,18 +50,12 @@ RUN apt-get update && apt-get install -y \
     --no-install-recommends && \
     rm -rf /var/lib/apt/lists/* /var/cache/apt/archives/* /tmp/*
 
-# Instala Google Chrome de forma segura (última versión estable)
-RUN wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub | gpg --dearmor -o /usr/share/keyrings/google-chrome-archive-keyring.gpg && \
-    echo "deb [arch=amd64 signed-by=/usr/share/keyrings/google-chrome-archive-keyring.gpg] http://dl.google.com/linux/chrome/deb/ stable main" >> /etc/apt/sources.list.d/google-chrome.list && \
-    apt-get update && apt-get install -y google-chrome-stable --no-install-recommends && \
-    rm -rf /var/lib/apt/lists/* /var/cache/apt/archives/* /tmp/*
-
+# No instalamos Chrome directamente, usamos @sparticuz/chromium-min
 # Copia el código de la aplicación
 COPY . .
 
 # Variables de entorno para Puppeteer y Node.js
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
-ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/google-chrome
 ENV NODE_ENV=production
 
 # Crea un usuario no-root para mayor seguridad
