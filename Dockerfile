@@ -6,11 +6,13 @@ WORKDIR /app
 
 # Copia los archivos de paquetes primero para aprovechar el caché de Docker
 COPY package.json package-lock.json* ./
+
 # Instala solo dependencias de producción
 RUN npm install --omit=dev
 
-# Instala dependencias de Chrome en una sola capa para reducir el tamaño
+# Instala dependencias de Chrome y herramientas necesarias en una sola capa
 RUN apt-get update && apt-get install -y \
+    curl \
     wget \
     gnupg \
     ca-certificates \
@@ -46,27 +48,32 @@ RUN apt-get update && apt-get install -y \
     libxtst6 \
     xdg-utils \
     --no-install-recommends && \
-    rm -rf /var/lib/apt/lists/*
+    rm -rf /var/lib/apt/lists/* /var/cache/apt/archives/* /tmp/*
 
-# Instala Google Chrome de forma segura
+# Instala Google Chrome de forma segura (versión específica para compatibilidad)
 RUN wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub | gpg --dearmor -o /usr/share/keyrings/google-chrome-archive-keyring.gpg && \
     echo "deb [arch=amd64 signed-by=/usr/share/keyrings/google-chrome-archive-keyring.gpg] http://dl.google.com/linux/chrome/deb/ stable main" >> /etc/apt/sources.list.d/google-chrome.list && \
-    apt-get update && apt-get install -y google-chrome-stable --no-install-recommends && \
-    rm -rf /var/lib/apt/lists/*
+    apt-get update && apt-get install -y google-chrome-stable=125.0.6422.112-1 --no-install-recommends && \
+    rm -rf /var/lib/apt/lists/* /var/cache/apt/archives/* /tmp/*
 
 # Copia el código de la aplicación
 COPY . .
 
-# Variables de entorno para Puppeteer
+# Variables de entorno para Puppeteer y Node.js
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
 ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/google-chrome
+ENV NODE_ENV=production
+
+# Crea un usuario no-root para mayor seguridad
+RUN useradd -m appuser && chown -R appuser:appuser /app
+USER appuser
 
 # Expone el puerto
 EXPOSE 3000
 
 # Agrega un healthcheck para monitorear la aplicación
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-    CMD curl -f http://localhost:3000/ || exit 1
+    CMD curl -f http://localhost:3000/health || exit 1
 
 # Ejecuta la aplicación
 CMD ["npm", "start"]
