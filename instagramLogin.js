@@ -5,23 +5,25 @@ puppeteer.use(StealthPlugin());
 const fs = require('fs').promises;
 const path = require('path');
 const crypto = require('crypto');
+const UserAgent = require('user-agents');
 
 const COOKIE_PATH = path.join(__dirname, 'instagram_cookies.json');
 let cookiesCache = [];
 
 const CONFIG = {
   loginUrl: 'https://www.instagram.com/accounts/login/',
-  userAgents: [
-    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36'
-  ],
   browserOptions: {
     headless: 'new',
     args: [
       '--no-sandbox',
       '--disable-setuid-sandbox',
       '--disable-dev-shm-usage',
+      '--disable-gpu',
+      '--disable-blink-features=AutomationControlled',
       '--single-process'
-    ]
+    ],
+    executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || '/usr/bin/google-chrome',
+    ignoreHTTPSErrors: true
   }
 };
 
@@ -52,32 +54,49 @@ async function handleCookies() {
   return false;
 }
 
-async function performLogin(page, username, password) {
-  try {
-    const ua = CONFIG.userAgents[0];
-    await page.setUserAgent(ua);
-    await page.setExtraHTTPHeaders({ 'Accept-Language': 'en-US,en;q=0.9' });
-    await page.goto(CONFIG.loginUrl, { waitUntil: 'domcontentloaded', timeout: 20000 });
-    await page.waitForSelector('input[name="username"]');
-    await page.type('input[name="username"]', username, { delay: 20 });
-    await page.type('input[name="password"]', password, { delay: 20 });
-    const [response] = await Promise.all([
-      page.waitForNavigation({ waitUntil: 'networkidle0', timeout: 15000 }),
-      page.click('button[type="submit"]')
-    ]);
+async function smartLogin(page, username, password) {
+  const userAgent = new UserAgent();
+  await page.setUserAgent(userAgent.toString());
+  await page.setExtraHTTPHeaders({ 'Accept-Language': 'en-US,en;q=0.9' });
+  await page.setViewport({ width: 1280, height: 800 });
 
-    if (response.status() >= 400) throw new Error(`HTTP ${response.status()}`);
-    if (page.url().includes('/challenge')) throw new Error('Desafío de seguridad');
+  await page.goto(CONFIG.loginUrl, { waitUntil: 'networkidle0' });
+  await page.waitForSelector('input[name="username"]', { visible: true });
+  await page.waitForSelector('input[name="password"]', { visible: true });
+  await page.waitForSelector('button[type="submit"]', { visible: true });
 
-    await page.waitForSelector('nav[role="navigation"]', { timeout: 10000 });
-    cookiesCache = await page.cookies();
-    await fs.writeFile(COOKIE_PATH, JSON.stringify(cookiesCache, null, 2));
-    console.log('[Instagram] Login exitoso');
-    return true;
-  } catch (error) {
-    console.error('[Instagram] Error en login:', error.message);
-    return false;
+  await page.mouse.move(100, 150, { steps: 20 });
+  await page.mouse.move(120, 180, { steps: 15 });
+
+  await page.click('input[name="username"]');
+  for (const char of username) {
+    await page.keyboard.press(char);
+    await page.waitForTimeout(Math.random() * 100 + 50);
   }
+
+  await page.click('input[name="password"]');
+  for (const char of password) {
+    await page.keyboard.press(char);
+    await page.waitForTimeout(Math.random() * 100 + 50);
+  }
+
+  await page.waitForTimeout(300);
+  await page.evaluate(() => window.scrollBy(0, Math.floor(Math.random() * 100)));
+
+  await Promise.all([
+    page.click('button[type="submit"]'),
+    page.waitForNavigation({ waitUntil: 'networkidle0' })
+  ]);
+
+  const currentUrl = page.url();
+  if (currentUrl.includes('/challenge') || currentUrl.includes('/two_factor')) {
+    throw new Error('Desafío de seguridad o 2FA requerido.');
+  }
+
+  cookiesCache = await page.cookies();
+  await fs.writeFile(COOKIE_PATH, JSON.stringify(cookiesCache, null, 2));
+  console.log('[Instagram] Login exitoso con comportamiento humano');
+  return true;
 }
 
 async function ensureLoggedIn() {
@@ -86,6 +105,7 @@ async function ensureLoggedIn() {
 
   console.log("🧪 Username:", username || 'NO DEFINIDO');
   console.log("🧪 Password (desencriptada):", password || 'NO DEFINIDO');
+  console.log("🧪 Chrome path:", process.env.PUPPETEER_EXECUTABLE_PATH);
 
   if (!username) throw new Error('[Instagram] IG_USERNAME no está definido');
   if (!password) throw new Error('[Instagram] INSTAGRAM_PASS no pudo desencriptarse');
@@ -97,10 +117,9 @@ async function ensureLoggedIn() {
 
   try {
     await page.setViewport({ width: 1280, height: 800 });
-    const success = await performLogin(page, username, password);
+    const success = await smartLogin(page, username, password);
     if (!success) throw new Error('Login fallido');
   } finally {
-    await page.close();
     await browser.close();
   }
 }
