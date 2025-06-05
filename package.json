@@ -1,7 +1,7 @@
 {
   "name": "krave-ai-backend",
   "version": "1.0.0",
-  "description": "Backend de KraveAI con Instagram login humano y scraping",
+  "description": "Backend de KraveAI con login inteligente y scraping",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
@@ -11,8 +11,7 @@
     "cors": "^2.8.5",
     "dotenv": "^16.3.1",
     "express": "^4.19.2",
-    "puppeteer": "^21.3.8",
-    "puppeteer-core": "^21.3.8",
+    "puppeteer-core": "^22.8.2",
     "puppeteer-extra": "^3.3.6",
     "puppeteer-extra-plugin-stealth": "^2.11.2",
     "telegraf": "^4.16.3",
