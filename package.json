@@ -7,14 +7,15 @@
     "start": "node server.js"
   },
   "dependencies": {
-    "axios": "^1.6.8",
+    "axios": "^1.7.2", // Actualizado a la última versión estable
     "cors": "^2.8.5",
-    "dotenv": "^16.3.1",
+    "dotenv": "^16.4.5", // Actualizado
     "express": "^4.19.2",
-    "puppeteer-core": "^22.8.2",
+    "puppeteer": "^22.10.0", // Reemplaza puppeteer-core
     "puppeteer-extra": "^3.3.6",
     "puppeteer-extra-plugin-stealth": "^2.11.2",
     "telegraf": "^4.16.3",
-    "user-agents": "^1.1.0"
+    "user-agents": "^1.1.0",
+    "fs-extra": "^11.2.0" // Añadido para manejo de archivos robusto
   }
 }
