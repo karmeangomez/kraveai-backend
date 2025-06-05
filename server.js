@@ -5,12 +5,13 @@ const cors = require('cors');
 const path = require('path');
 const axios = require('axios');
 const { createMultipleAccounts } = require('./instagramAccountCreator'); // Asegúrate de que exista
-const puppeteer = require('puppeteer-extra');
+const puppeteer = require('puppeteer-core'); // Cambiado a puppeteer-core
 const StealthPlugin = require('puppeteer-extra-plugin-stealth');
 const { instagramLogin } = require('./instagramLogin'); // Asegúrate de que exista
 const fs = require('fs').promises;
 const UserAgent = require('user-agents');
 const { Telegraf } = require('telegraf');
+const chromium = require('@sparticuz/chromium-min'); // Añadido
 
 puppeteer.use(StealthPlugin());
 
@@ -73,7 +74,7 @@ async function checkProxy(proxy) {
         host: proxy.split(':')[0],
         port: parseInt(proxy.split(':')[1]),
       },
-      timeout: 10000, // Aumentamos el timeout a 10 segundos
+      timeout: 10000,
       headers: {
         'User-Agent': new UserAgent().toString(),
       },
@@ -90,9 +91,9 @@ async function checkProxy(proxy) {
 async function scrapeProxies() {
   await logAndNotify('Iniciando extracción de proxies...');
   const browser = await puppeteer.launch({
-    headless: 'new',
-    args: ['--no-sandbox', '--disable-setuid-sandbox'],
-    executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || '/usr/bin/google-chrome',
+    executablePath: await chromium.executablePath(),
+    args: [...chromium.args, '--no-sandbox', '--disable-setuid-sandbox'],
+    headless: chromium.headless,
   });
   const page = await browser.newPage();
   const userAgent = new UserAgent();
@@ -251,8 +252,9 @@ async function initBrowser() {
     }
 
     browserInstance = await puppeteer.launch({
-      headless: 'new',
+      executablePath: await chromium.executablePath(),
       args: [
+        ...chromium.args,
         '--no-sandbox',
         '--disable-setuid-sandbox',
         '--disable-dev-shm-usage',
@@ -262,7 +264,7 @@ async function initBrowser() {
         '--js-flags=--max-old-space-size=256',
         `--proxy-server=http://${proxy}`
       ],
-      executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || '/usr/bin/google-chrome',
+      headless: chromium.headless,
       ignoreHTTPSErrors: true
     });
 
