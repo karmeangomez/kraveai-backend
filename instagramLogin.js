@@ -84,7 +84,12 @@ async function ensureLoggedIn() {
   const username = process.env.IG_USERNAME || process.env.IG_USER;
   const password = process.env.ENCRYPTION_KEY ? decryptPassword() : process.env.INSTAGRAM_PASS;
 
-  if (!username || !password) throw new Error('[Instagram] Credenciales no configuradas correctamente');
+  console.log("🧪 Username:", username || 'NO DEFINIDO');
+  console.log("🧪 Password (desencriptada):", password || 'NO DEFINIDO');
+
+  if (!username) throw new Error('[Instagram] IG_USERNAME no está definido');
+  if (!password) throw new Error('[Instagram] INSTAGRAM_PASS no pudo desencriptarse');
+
   if (await handleCookies()) return;
 
   const browser = await puppeteer.launch(CONFIG.browserOptions);
