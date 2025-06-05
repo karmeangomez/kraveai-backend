@@ -1,7 +1,7 @@
 {
   "name": "krave-ai-backend",
   "version": "1.0.0",
-  "description": "Backend de KraveAI con login encriptado y scraping con Puppeteer",
+  "description": "Backend de KraveAI con Instagram login humano y scraping",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
@@ -9,13 +9,13 @@
   "dependencies": {
     "axios": "^1.6.8",
     "cors": "^2.8.5",
+    "dotenv": "^16.3.1",
     "express": "^4.19.2",
     "puppeteer": "^21.3.8",
     "puppeteer-core": "^21.3.8",
     "puppeteer-extra": "^3.3.6",
     "puppeteer-extra-plugin-stealth": "^2.11.2",
     "telegraf": "^4.16.3",
-    "user-agents": "^1.1.0",
-    "dotenv": "^16.3.1"
+    "user-agents": "^1.1.0"
   }
 }
