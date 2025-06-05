@@ -1,4 +1,4 @@
-// ✅ instagramLogin.js - Adaptado con notificaciones Telegram, login inteligente, y cookies
+// ✅ instagramLogin.js actualizado con log HTML si falla login
 const puppeteer = require('puppeteer-extra');
 const StealthPlugin = require('puppeteer-extra-plugin-stealth');
 puppeteer.use(StealthPlugin());
@@ -11,7 +11,6 @@ const { Telegraf } = require('telegraf');
 const COOKIE_PATH = path.join(__dirname, 'instagram_cookies.json');
 let cookiesCache = [];
 
-// Configurar Telegram
 const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID;
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 const telegramBot = TELEGRAM_BOT_TOKEN ? new Telegraf(TELEGRAM_BOT_TOKEN) : null;
@@ -80,8 +79,11 @@ async function smartLogin(page, username, password) {
 
   const selectors = [
     'input[name="username"]',
-    'input[aria-label="Phone number, username, or email"]'
+    'input[name="emailOrPhone"]',
+    'input[aria-label*="Phone number"]',
+    'input[type="text"]'
   ];
+
   let foundSelector = false;
   for (const selector of selectors) {
     try {
@@ -97,7 +99,13 @@ async function smartLogin(page, username, password) {
       console.warn(`⚠️ Selector no encontrado: ${selector}`);
     }
   }
-  if (!foundSelector) throw new Error('No se encontró ningún campo de username.');
+
+  if (!foundSelector) {
+    const html = await page.content();
+    console.log("📄 HTML de la página:", html.slice(0, 1000));
+    await notifyTelegram('❌ No se encontró ningún campo de username. Revisa si Instagram cambió la página de login.');
+    throw new Error('No se encontró ningún campo de username.');
+  }
 
   await page.click('input[name="password"]');
   for (const char of password) {
