@@ -65,6 +65,27 @@ async function loadProxies() {
   }
 }
 
+// 🔎 Verifica si un proxy es funcional
+async function checkProxy(proxy) {
+  try {
+    const response = await axios.head('https://www.google.com', {
+      proxy: {
+        host: proxy.split(':')[0],
+        port: parseInt(proxy.split(':')[1]),
+      },
+      timeout: 10000, // Aumentamos el timeout a 10 segundos
+      headers: {
+        'User-Agent': new UserAgent().toString(),
+      },
+    });
+    await logAndNotify(`Proxy ${proxy} es funcional`);
+    return response.status === 200;
+  } catch (error) {
+    await logAndNotify(`Proxy ${proxy} no es funcional`, 'warn', error);
+    return false;
+  }
+}
+
 // 🔍 Extrae proxies (con todas las fuentes)
 async function scrapeProxies() {
   await logAndNotify('Iniciando extracción de proxies...');
@@ -131,6 +152,37 @@ async function scrapeProxies() {
         });
       },
     },
+    {
+      name: 'SSLProxies',
+      url: 'https://www.sslproxies.org/',
+      type: 'html',
+      parse: async (page) => {
+        await page.goto('https://www.sslproxies.org/', { waitUntil: 'load', timeout: 30000 });
+        return await page.evaluate(() => {
+          const rows = document.querySelectorAll('#list table tbody tr');
+          return Array.from(rows).map(row => {
+            const ip = row.cells[0].textContent.trim();
+            const port = row.cells[1].textContent.trim();
+            return `${ip}:${port}`;
+          }).filter(line => line.match(/^\d+\.\d+\.\d+\.\d+:\d+$/));
+        });
+      },
+    },
+    {
+      name: 'ProxyDB',
+      url: 'http://proxydb.net/?protocol=https&anonlvl=4&sort=speed',
+      type: 'html',
+      parse: async (page) => {
+        await page.goto('http://proxydb.net/?protocol=https&anonlvl=4&sort=speed', { waitUntil: 'load', timeout: 30000 });
+        return await page.evaluate(() => {
+          const rows = document.querySelectorAll('table tbody tr');
+          return Array.from(rows).map(row => {
+            const ipPort = row.cells[0].textContent.trim();
+            return ipPort.match(/^\d+\.\d+\.\d+\.\d+:\d+$/) ? ipPort : '';
+          }).filter(line => line);
+        });
+      },
+    },
   ];
 
   try {
@@ -154,30 +206,24 @@ async function scrapeProxies() {
       })
     );
 
-    proxies = results
+    const allProxies = results
       .filter(result => result.status === 'fulfilled')
       .flatMap(result => result.value)
       .filter(proxy => proxy.match(/^\d+\.\d+\.\d+\.\d+:\d+$/));
 
-    await logAndNotify(`Total proxies encontrados: ${proxies.length}`);
+    // Verificar cada proxy y guardar solo los funcionales
+    const validProxies = [];
+    for (const proxy of allProxies) {
+      if (await checkProxy(proxy)) {
+        validProxies.push(proxy);
+      }
+    }
+
+    proxies = validProxies;
+    await logAndNotify(`Total proxies válidos encontrados: ${proxies.length}`);
     await fs.writeFile(path.join(__dirname, 'proxies.json'), JSON.stringify(proxies, null, 2));
   } finally {
     await browser.close();
-  }
-}
-
-// 🔎 Verifica si un proxy es funcional
-async function checkProxy(proxy) {
-  try {
-    const response = await axios.get('https://www.google.com', {
-      proxy: { host: proxy.split(':')[0], port: parseInt(proxy.split(':')[1]) },
-      timeout: 5000,
-    });
-    await logAndNotify(`Proxy ${proxy} es funcional`);
-    return response.status === 200;
-  } catch (error) {
-    await logAndNotify(`Proxy ${proxy} no es funcional`, 'warn', error);
-    return false;
   }
 }
 
