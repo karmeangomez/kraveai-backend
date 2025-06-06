@@ -1,6 +1,7 @@
+# Imagen base ligera
 FROM node:20-slim
 
-# 1. Instala Chromium y dependencias mínimas (y herramientas de compilación)
+# 1. Instala Chromium + herramientas de compilación necesarias para puppeteer y proxy-chain
 RUN apt-get update && apt-get install -y \
     chromium \
     fonts-liberation \
@@ -19,24 +20,25 @@ RUN apt-get update && apt-get install -y \
     python3 \
     && rm -rf /var/lib/apt/lists/*
 
-# 2. Configura Puppeteer (versión simplificada)
+# 2. Variables para Puppeteer (usamos Chromium ya instalado)
 ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium \
-    PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
+    PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true \
+    NODE_ENV=production
 
-# 3. Directorio de trabajo
+# 3. Establece el directorio de trabajo
 WORKDIR /app
 
-# 4. Copia primero solo dependencias
+# 4. Copia solo package.json y lock para instalar dependencias
 COPY package.json package-lock.json* ./
 
-# 5. Instala dependencias de producción
+# 5. Instala solo dependencias de producción
 RUN npm install --omit=dev && npm cache clean --force
 
-# 6. Copia el resto del proyecto
+# 6. Copia el resto del código
 COPY . .
 
-# 7. Expone el puerto
+# 7. Expone el puerto de la app
 EXPOSE 3000
 
-# 8. Comando de inicio
+# 8. Comando de arranque
 CMD ["npm", "start"]
