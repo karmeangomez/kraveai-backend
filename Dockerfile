@@ -1,6 +1,6 @@
 FROM node:20-slim
 
-# Instala dependencias mínimas para Chromium
+# 1. Instala dependencias del sistema para Chromium
 RUN apt-get update && apt-get install -y \
     ca-certificates \
     fonts-liberation \
@@ -42,24 +42,24 @@ RUN apt-get update && apt-get install -y \
     --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
-# Configura Chromium para Puppeteer
+# 2. Configura Puppeteer
 ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium \
     PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
 
-# Configura el directorio de trabajo
+# 3. Configura el directorio de trabajo
 WORKDIR /app
 
-# Copia archivos de dependencias
-COPY package.json package-lock.json ./
+# 4. Copia archivos de dependencias primero
+COPY package.json package-lock.json* ./
 
-# Instala dependencias
+# 5. Instala dependencias de producción
 RUN npm install --omit=dev
 
-# Copia el resto de la aplicación
+# 6. Copia el resto de la aplicación
 COPY . .
 
-# Expone el puerto
+# 7. Expone el puerto
 EXPOSE 3000
 
-# Inicia la aplicación
+# 8. Inicia la aplicación
 CMD ["npm", "start"]
