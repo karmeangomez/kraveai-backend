@@ -1,5 +1,5 @@
 require('dotenv').config();
-const express = require('express'); // NECESARIA
+const express = require('express');
 const cors = require('cors');
 const path = require('path');
 const axios = require('axios');
@@ -13,24 +13,24 @@ const PORT = process.env.PORT || 3000;
 let browserInstance = null;
 let sessionStatus = 'INITIALIZING';
 
+// Configuración de Express
 app.use(express.json());
 app.use(cors());
 app.use(express.static(path.join(__dirname, '.')));
 
-// 🧠 Middleware: mostrar uso de memoria
+// Middleware: mostrar uso de memoria
 app.use((req, res, next) => {
   const memory = process.memoryUsage();
   console.log(`🧠 Memoria: ${Math.round(memory.rss / 1024 / 1024)}MB RSS`);
   next();
 });
 
+// Inicialización del navegador para Instagram
 async function initBrowser() {
   try {
     console.log("🚀 Verificando sesión de Instagram...");
     const { browser, page, cookies } = await instagramLogin();
     browserInstance = browser;
-    global.browser = browser;
-    global.page = page;
     sessionStatus = 'ACTIVE';
     console.log("✅ Sesión de Instagram lista.");
     setInterval(checkSessionValidity, 60 * 60 * 1000);
@@ -41,6 +41,7 @@ async function initBrowser() {
   }
 }
 
+// Verificación periódica de la sesión de Instagram
 async function checkSessionValidity() {
   try {
     const cookies = getCookies();
@@ -48,13 +49,12 @@ async function checkSessionValidity() {
     const page = await browserInstance.newPage();
     await page.setCookie(...cookies);
     await page.goto('https://www.instagram.com/', { waitUntil: 'domcontentloaded', timeout: 15000 });
-    const isLoggedIn = await page.evaluate(() => {
-      return document.querySelector('a[href*="/accounts/activity/"]') !== null;
-    });
+    const isLoggedIn = await page.evaluate(() => document.querySelector('a[href*="/accounts/activity/"]') !== null);
     await page.close();
     if (!isLoggedIn) {
       console.warn("⚠️ Sesión expirada, reintentando login...");
-      await instagramLogin();
+      const { browser, page } = await instagramLogin();
+      browserInstance = browser;
       console.log("✅ Sesión renovada exitosamente");
     }
     sessionStatus = 'ACTIVE';
@@ -65,14 +65,12 @@ async function checkSessionValidity() {
   }
 }
 
-// 📥 API: crear cuentas desde frontend
+// API: crear cuentas
 app.post('/create-accounts', async (req, res) => {
   try {
     const count = req.body.count || 3;
-    if (!global.browser || !global.page) {
-      return res.status(500).json({ error: "Sesión de navegador no disponible" });
-    }
-    const page = await global.browser.newPage();
+    if (!browserInstance) return res.status(500).json({ error: "Sesión de navegador no disponible" });
+    const page = await browserInstance.newPage();
     const accounts = await createMultipleAccounts(count, page);
     await page.close();
     res.json({ success: true, accounts });
@@ -84,14 +82,16 @@ app.post('/create-accounts', async (req, res) => {
   }
 });
 
-// 🔍 API: scraping de Instagram
+// API: scraping de Instagram
 app.get('/api/scrape', async (req, res) => {
   const username = req.query.username;
   if (!username) return res.status(400).json({ error: "Falta ?username=" });
   if (sessionStatus !== 'ACTIVE') return res.status(503).json({ error: "Sesión no disponible", status: sessionStatus });
+
+  let page;
   try {
     const cookies = getCookies();
-    const page = await browserInstance.newPage();
+    page = await browserInstance.newPage();
     await page.setCookie(...cookies);
     await page.goto(`https://www.instagram.com/${username}/`, { waitUntil: 'domcontentloaded', timeout: 30000 });
     const profile = await page.evaluate(() => {
@@ -113,11 +113,12 @@ app.get('/api/scrape', async (req, res) => {
     res.json({ profile });
   } catch (err) {
     console.error("❌ Scraping fallido:", err.message);
+    if (page) await page.close();
     res.status(500).json({ error: "Scraping fallido", reason: err.message });
   }
 });
 
-// 🧠 API: chatbot IA (OpenAI)
+// API: chatbot IA
 app.post('/api/chat', async (req, res) => {
   try {
     const { message } = req.body;
@@ -138,7 +139,7 @@ app.post('/api/chat', async (req, res) => {
   }
 });
 
-// 🔊 API: voz con OpenAI TTS
+// API: voz con OpenAI TTS
 app.get('/voz-prueba', async (req, res) => {
   try {
     const text = req.query.text || "Hola, este es un ejemplo de voz generada.";
@@ -161,7 +162,7 @@ app.get('/voz-prueba', async (req, res) => {
   }
 });
 
-// 🔗 API: prueba de Bitly
+// API: prueba de Bitly
 app.get('/bitly-prueba', async (req, res) => {
   try {
     const longUrl = req.query.url || "https://instagram.com";
@@ -180,7 +181,7 @@ app.get('/bitly-prueba', async (req, res) => {
   }
 });
 
-// 🟢 Healthcheck
+// Healthcheck
 app.get('/health', (req, res) => {
   res.json({
     status: sessionStatus,
@@ -190,7 +191,7 @@ app.get('/health', (req, res) => {
   });
 });
 
-// 🚀 Iniciar servidor
+// Iniciar servidor
 initBrowser().then(() => {
   app.listen(PORT, () => {
     console.log(`🚀 Backend activo en puerto ${PORT}`);
