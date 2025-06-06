@@ -1,14 +1,23 @@
-# Ignorar dependencias instaladas localmente
+# Evita copiar dependencias de tu máquina local
 node_modules
 npm-debug.log
-yarn-error.log
+package-lock.json~
 
-# Archivos de sistema
+# Ignora archivos de sistema y editores
 .DS_Store
+.idea
+.vscode
+*.swp
+
+# Evita subir archivos de caché
+*.log
+.cache/
+dist/
+tmp/
 .env
 .env.local
-.vscode
+.env.*.local
 
-# Opcional: carpetas de sesión o caché local
-session_data/
-.cache/
+# Si tienes archivos de medios o capturas
+errors/
+screenshots/
