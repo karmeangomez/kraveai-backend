@@ -1,12 +1,13 @@
 const puppeteer = require('puppeteer-extra');
 const StealthPlugin = require('puppeteer-extra-plugin-stealth');
-puppeteer.use(StealthPlugin());
-
+const chromium = require('@sparticuz/chromium');
 const fs = require('fs').promises;
 const path = require('path');
 const crypto = require('crypto');
 const UserAgent = require('user-agents');
 const { Telegraf } = require('telegraf');
+
+puppeteer.use(StealthPlugin());
 
 const COOKIE_PATH = path.join(__dirname, 'instagram_cookies.json');
 let cookiesCache = [];
@@ -14,25 +15,6 @@ let cookiesCache = [];
 const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID;
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 const telegramBot = TELEGRAM_BOT_TOKEN ? new Telegraf(TELEGRAM_BOT_TOKEN) : null;
-
-const CONFIG = {
-  browserOptions: {
-    headless: 'new',
-    args: [
-      '--no-sandbox',
-      '--disable-setuid-sandbox',
-      '--disable-dev-shm-usage',
-      '--disable-gpu',
-      '--disable-blink-features=AutomationControlled',
-      '--single-process',
-      '--no-zygote',
-      '--window-size=1280,800',
-      '--js-flags=--max-old-space-size=256'
-    ],
-    executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || '/usr/bin/google-chrome',
-    ignoreHTTPSErrors: true
-  }
-};
 
 async function notifyTelegram(message) {
   if (!telegramBot || !TELEGRAM_CHAT_ID) return;
@@ -119,7 +101,14 @@ async function ensureLoggedIn() {
 
   let browser;
   try {
-    browser = await puppeteer.launch(CONFIG.browserOptions);
+    browser = await puppeteer.launch({
+      args: chromium.args,
+      defaultViewport: chromium.defaultViewport,
+      executablePath: await chromium.executablePath(),
+      headless: chromium.headless,
+      ignoreHTTPSErrors: true
+    });
+
     const page = await browser.newPage();
     const success = await smartLogin(page, username, password);
     if (!success) throw new Error('Login fallido');
