@@ -4,7 +4,8 @@
   "description": "Backend de KraveAI con login inteligente y scraping",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "postinstall": "npm install puppeteer-core @sparticuz/chromium-min" // Forzamos instalación
   },
   "dependencies": {
     "axios": "^1.7.2",
@@ -16,7 +17,7 @@
     "telegraf": "^4.16.3",
     "user-agents": "^1.1.0",
     "fs-extra": "^11.2.0",
-    "puppeteer-core": "^22.10.0", // Añadido
-    "@sparticuz/chromium-min": "^133.0.0" // Añadido para un binario ligero
+    "puppeteer-core": "^22.10.0",
+    "@sparticuz/chromium-min": "^133.0.0"
   }
 }
