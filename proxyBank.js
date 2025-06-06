@@ -1,51 +1,55 @@
-// ✅ proxyBank.js - Banco de proxies Webshare con validación y rotación inteligente
-const axios = require('axios');
-const { HttpsProxyAgent } = require('https-proxy-agent');
+// proxyBank.js - Módulo para gestionar una lista de proxies rotativos con sus estados de uso/fallo.
 
-let proxyPool = [];
-let lastUsed = new Map();
-let cooldown = 5 * 60 * 1000; // 5 minutos
+const proxies = [
+    // *** Rellenar con la lista de proxies de Webshare (o similar) con autenticación. ***
+    // Formato de ejemplo:
+    // { host: 'p.webshare.io', port: 80, username: 'USUARIO_PROXY', password: 'PASSWORD_PROXY', lastFail: null, failCount: 0, lastSuccess: null }
+];
 
-function loadProxyList() {
-  const rawList = process.env.PROXY_LIST;
-  if (!rawList) return [];
-  return rawList.split(';').map(p => p.trim()).filter(Boolean);
-}
+// Tiempo de cooldown tras un fallo (ms). Durante este periodo el proxy no se reutilizará.
+const FAIL_COOLDOWN = 5 * 60 * 1000; // 5 minutos
 
-function isCoolingDown(proxy) {
-  const last = lastUsed.get(proxy);
-  return last && (Date.now() - last < cooldown);
-}
+let lastIndex = 0; // Índice del último proxy usado, para rotar de forma circular.
 
-async function validateProxy(proxy) {
-  try {
-    const agent = new HttpsProxyAgent(`http://${proxy}`);
-    const res = await axios.get('https://www.instagram.com', {
-      httpsAgent: agent,
-      timeout: 5000
-    });
-    return res.status === 200;
-  } catch {
-    return false;
-  }
-}
-
-async function getNextProxy() {
-  if (proxyPool.length === 0) proxyPool = loadProxyList();
-  for (const proxy of proxyPool) {
-    if (isCoolingDown(proxy)) continue;
-    const isValid = await validateProxy(proxy);
-    if (isValid) {
-      lastUsed.set(proxy, Date.now());
-      return proxy;
-    } else {
-      console.warn(`❌ Proxy inválido: ${proxy}`);
-      lastUsed.set(proxy, Date.now());
+function getProxy() {
+    if (proxies.length === 0) {
+        console.error("proxyBank: No hay proxies configurados.");
+        return null;
     }
-  }
-  throw new Error('No hay proxies válidos disponibles');
+    const now = Date.now();
+    const n = proxies.length;
+    // Intentar encontrar un proxy no marcado como fallido recientemente
+    for (let i = 0; i < n; i++) {
+        const idx = (lastIndex + i) % n;
+        const proxy = proxies[idx];
+        // Si el proxy falló hace poco, saltarlo hasta que pase el cooldown
+        if (proxy.lastFail && (now - proxy.lastFail) < FAIL_COOLDOWN) {
+            continue;
+        }
+        // Seleccionar este proxy
+        lastIndex = idx + 1; // actualizar índice para la próxima rotación
+        return proxy;
+    }
+    // Si ninguno está disponible (todos en cooldown), devolver null
+    return null;
 }
 
-module.exports = {
-  getNextProxy
-};
+function reportFailure(proxy) {
+    // Marcar proxy como fallido temporalmente
+    proxy.lastFail = Date.now();
+    proxy.failCount = (proxy.failCount || 0) + 1;
+    console.log(`proxyBank: Proxy ${proxy.host}:${proxy.port} marcado como FAIL (failCount=${proxy.failCount}).`);
+}
+
+function reportSuccess(proxy) {
+    // Marcar proxy como exitoso recientemente
+    proxy.lastSuccess = Date.now();
+    proxy.failCount = 0;
+    console.log(`proxyBank: Proxy ${proxy.host}:${proxy.port} marcado como OK.`);
+}
+
+function count() {
+    return proxies.length;
+}
+
+module.exports = { getProxy, reportFailure, reportSuccess, count, proxies };
