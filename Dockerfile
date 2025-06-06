@@ -1,5 +1,5 @@
 # Usar una imagen base con Chromium preinstalado
-FROM puppeteer:20.7.2
+FROM puppeteer/puppeteer:latest
 
 # Configurar variables de entorno para Puppeteer
 ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium \
