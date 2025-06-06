@@ -1,7 +1,7 @@
-# Imagen base oficial de Node
+# Usa Node.js optimizado y liviano
 FROM node:20-slim
 
-# Instala Chromium y dependencias mínimas
+# Instala Chromium y dependencias necesarias para Puppeteer
 RUN apt-get update && apt-get install -y \
     chromium \
     fonts-liberation \
@@ -18,22 +18,22 @@ RUN apt-get update && apt-get install -y \
     --no-install-recommends && \
     rm -rf /var/lib/apt/lists/*
 
-# Configura Puppeteer
-ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
-ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
+# Variables para Puppeteer
+ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium \
+    PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
 
-# Crea directorio de trabajo
+# Define el directorio de trabajo
 WORKDIR /app
 
-# Copia dependencias y las instala
+# Copia y prepara las dependencias
 COPY package.json package-lock.json ./
 RUN npm install --omit=dev && npm cache clean --force
 
-# Copia todo el código fuente
+# Copia el resto del proyecto
 COPY . .
 
-# Expone el puerto de la app
+# Exponer el puerto
 EXPOSE 3000
 
-# Comando para iniciar
+# Comando de inicio
 CMD ["npm", "start"]
