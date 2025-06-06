@@ -1,4 +1,3 @@
-// ✅ instagramLogin.js con rotación de proxies y manejo HTTP 429
 const puppeteer = require('puppeteer-extra');
 const StealthPlugin = require('puppeteer-extra-plugin-stealth');
 puppeteer.use(StealthPlugin());
@@ -27,25 +26,23 @@ async function notifyTelegram(message) {
   }
 }
 
-async function getProxy() {
-  if (!process.env.PROXY_LIST) return null;
-  const proxies = process.env.PROXY_LIST.split(';');
-  const randomProxy = proxies[Math.floor(Math.random() * proxies.length)];
-  try {
-    const agent = new HttpsProxyAgent(`http://${randomProxy}`);
-    const test = await axios.get('https://www.instagram.com', {
-      httpsAgent: agent,
-      timeout: 5000
-    });
-    if (test.status === 200) {
-      console.log(`🔒 Proxy verificado: ${randomProxy}`);
-      return randomProxy;
-    }
-  } catch (_) {
-    console.warn('❌ Proxy fallido:', randomProxy);
+const CONFIG = {
+  browserOptions: {
+    headless: 'new',
+    args: [
+      '--no-sandbox',
+      '--disable-setuid-sandbox',
+      '--disable-dev-shm-usage',
+      '--disable-gpu',
+      '--single-process',
+      '--no-zygote',
+      '--js-flags=--max-old-space-size=256',
+      '--window-size=1280,800'
+    ],
+    executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || '/usr/bin/google-chrome',
+    ignoreHTTPSErrors: true
   }
-  return null;
-}
+};
 
 function decryptPassword() {
   try {
@@ -88,8 +85,7 @@ async function smartLogin(page, username, password) {
   });
 
   await page.mouse.move(Math.random() * 500, Math.random() * 500, { steps: 10 });
-  await page.waitForTimeout(1000);
-  await page.waitForTimeout(2000 + Math.random() * 3000);
+  await page.waitForTimeout(1000 + Math.random() * 1000);
 
   const response = await page.goto('https://www.instagram.com/accounts/login/', {
     waitUntil: 'domcontentloaded',
@@ -110,6 +106,7 @@ async function smartLogin(page, username, password) {
     await page.type('input[name="password"]', password, { delay: 50 });
     await page.click('button[type="submit"]');
     await page.waitForNavigation({ waitUntil: 'networkidle0', timeout: 30000 });
+
     cookiesCache = await page.cookies();
     await fs.writeFile(COOKIE_PATH, JSON.stringify(cookiesCache, null, 2));
     console.log('[Instagram] Login exitoso');
@@ -126,27 +123,14 @@ async function ensureLoggedIn() {
   if (!username || !password) throw new Error('[Instagram] Credenciales no válidas');
   if (await handleCookies()) return;
 
-  const maxAttempts = 3;
-  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-    const proxy = await getProxy();
-    const options = {
-      ...CONFIG.browserOptions,
-      args: [...CONFIG.browserOptions.args, ...(proxy ? [`--proxy-server=http://${proxy}`] : [])]
-    };
-    let browser;
-    try {
-      console.log(`🔁 Intento ${attempt} con ${proxy || 'IP directa'}`);
-      browser = await puppeteer.launch(options);
-      const page = await browser.newPage();
-      const result = await smartLogin(page, username, password);
-      if (result) return;
-    } catch (err) {
-      console.error(`❌ Error intento ${attempt}:`, err.message);
-      if (attempt === maxAttempts) throw new Error('Login fallido con todos los intentos');
-      if (err.message.includes('HTTP_429')) await new Promise(r => setTimeout(r, 10000));
-    } finally {
-      if (browser) await browser.close();
-    }
+  let browser;
+  try {
+    browser = await puppeteer.launch(CONFIG.browserOptions);
+    const page = await browser.newPage();
+    const result = await smartLogin(page, username, password);
+    if (!result) throw new Error('Login fallido');
+  } finally {
+    if (browser) await browser.close();
   }
 }
 
