@@ -1,23 +1,44 @@
-# Evita copiar dependencias de tu máquina local
-node_modules
+# Dependencias de Node.js
+node_modules/
 npm-debug.log
-package-lock.json~
+*.lock~  # Generaliza archivos temporales de package-lock.json
 
-# Ignora archivos de sistema y editores
+# Archivos de sistema y editores
 .DS_Store
-.idea
-.vscode
+.idea/
+.vscode/
 *.swp
+*.bak
+*.tmp
+.*~
 
-# Evita subir archivos de caché
+# Archivos de caché y builds
 *.log
 .cache/
 dist/
+build/
 tmp/
+*.tsbuildinfo  # Para proyectos con TypeScript, si aplica
+
+# Archivos de entorno
 .env
 .env.local
+.env.development
+.env.test
 .env.*.local
+*.env  # Cubre todos los archivos .env
 
-# Si tienes archivos de medios o capturas
+# Archivos de medios, capturas y datos generados
 errors/
 screenshots/
+*.pdf  # PDFs generados por Puppeteer
+.puppeteer-cache/  # Caché de Puppeteer
+instagram_cookies.json  # Cookies generadas por tu aplicación
+
+# Archivos de Docker (si no quieres subirlos al repositorio)
+.dockerignore
+*.tar  # Imágenes de Docker
+docker-compose.yml  # Si es solo para desarrollo local
+
+# Archivos específicos del proyecto
+coverage/  # Si usas herramientas de testing como Jest
