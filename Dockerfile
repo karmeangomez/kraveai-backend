@@ -1,37 +1,25 @@
-# ✅ Dockerfile para Railway con Puppeteer y proxy-chain
-FROM node:20-slim
-
-# 1. Instala Chromium y dependencias mínimas
-RUN apt-get update && apt-get install -y \
-    chromium \
-    fonts-liberation \
-    libgbm1 \
-    libglib2.0-0 \
-    libnss3 \
-    libx11-6 \
-    libxcomposite1 \
-    libxdamage1 \
-    libxext6 \
-    libxfixes3 \
-    libxrandr2 \
-    libxss1 \
-    --no-install-recommends && \
-    rm -rf /var/lib/apt/lists/*
-
-# 2. Variables Puppeteer
-ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium \
-    PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
-
-# 3. Directorio de trabajo
-WORKDIR /app
-
-# 4. Copia dependencias y las instala
-COPY package.json .
-RUN npm install --omit=dev && npm cache clean --force
-
-# 5. Copia el resto del proyecto
-COPY . .
-
-# 6. Exponer puerto y arrancar
-EXPOSE 3000
-CMD ["npm", "start"]
+{
+  "name": "kraveai-backend",
+  "version": "1.0.0",
+  "description": "Backend de KraveAI con scraping, login proxy, IA y Telegram",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "install-chromium": "echo 'Chromium se instala vía Docker'"
+  },
+  "dependencies": {
+    "axios": "^1.7.2",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "fs-extra": "^11.2.0",
+    "puppeteer-core": "^22.10.0",
+    "puppeteer-extra": "^3.3.6",
+    "puppeteer-extra-plugin-stealth": "^2.11.2",
+    "@sparticuz/chromium": "^133.0.0",
+    "telegraf": "^4.16.3",
+    "user-agents": "^1.1.0",
+    "proxy-chain": "^0.4.9",
+    "https-proxy-agent": "^7.0.2"
+  }
+}
