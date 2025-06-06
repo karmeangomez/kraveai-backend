@@ -1,23 +1,17 @@
-FROM node:20-slim
+# Usar una imagen base con Chromium preinstalado
+FROM puppeteer:20.7.2
 
 # Configurar variables de entorno para Puppeteer
 ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium \
     PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
 
-# Instalar dependencias en pasos separados para depuración
-RUN apt-get update -y
-RUN apt-get install -y --no-install-recommends \
-    chromium \
-    fonts-liberation \
-    libgbm1 \
-    libnss3
-RUN apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
-
 WORKDIR /app
 
+# Copiar archivos de dependencias para aprovechar el caché
 COPY package.json package-lock.json ./
 RUN npm install --omit=dev && npm cache clean --force
 
+# Copiar el resto del proyecto
 COPY . .
 
 EXPOSE 3000
