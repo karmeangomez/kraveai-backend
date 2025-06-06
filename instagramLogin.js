@@ -1,177 +1,36 @@
-// ✅ instagramLogin.js FINAL con validación de proxy, proxy-chain, rotación y cookies
-const puppeteer = require('puppeteer-extra');
-const StealthPlugin = require('puppeteer-extra-plugin-stealth');
-const chromium = require('@sparticuz/chromium');
-const proxyChain = require('proxy-chain');
-const { HttpsProxyAgent } = require('https-proxy-agent');
-const axios = require('axios');
-const fs = require('fs').promises;
-const path = require('path');
-const crypto = require('crypto');
-const UserAgent = require('user-agents');
-const { Telegraf } = require('telegraf');
-const { getNextProxy, reportFailure, reportSuccess } = require('./proxyBank');
-const cookies = require('./cookies');
+// ✅ instagramLogin.js - Login con cookies, proxy y Telegram const puppeteer = require('puppeteer-extra'); const StealthPlugin = require('puppeteer-extra-plugin-stealth'); const fs = require('fs').promises; const path = require('path'); const proxyChain = require('proxy-chain'); const { Telegraf } = require('telegraf');
 
 puppeteer.use(StealthPlugin());
 
-const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID;
-const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
-const telegramBot = TELEGRAM_BOT_TOKEN ? new Telegraf(TELEGRAM_BOT_TOKEN) : null;
+const COOKIE_PATH = path.join(__dirname, 'instagram_cookies.json'); let cookiesCache = [];
 
-async function notifyTelegram(message) {
-  if (!telegramBot || !TELEGRAM_CHAT_ID) return;
-  try {
-    await telegramBot.telegram.sendMessage(TELEGRAM_CHAT_ID, message);
-    console.log('📩 Telegram:', message);
-  } catch (err) {
-    console.error('❌ Telegram error:', err.message);
-  }
-}
+const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID; const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN; const bot = TELEGRAM_BOT_TOKEN ? new Telegraf(TELEGRAM_BOT_TOKEN) : null;
 
-function decryptPassword() {
-  try {
-    const key = Buffer.from(process.env.ENCRYPTION_KEY, 'hex');
-    const iv = Buffer.from(process.env.ENCRYPTION_IV, 'hex');
-    const decipher = crypto.createDecipheriv('aes-256-cbc', key, iv);
-    return decipher.update(process.env.INSTAGRAM_PASS, 'base64', 'utf8') + decipher.final('utf8');
-  } catch (err) {
-    console.error('❌ Desencriptación fallida:', err.message);
-    return process.env.INSTAGRAM_PASS;
-  }
-}
+const PROXY_LIST = process.env.PROXY_LIST ? process.env.PROXY_LIST.split(',').map(p => p.trim()) : [];
 
-async function validateProxy(proxyString) {
-  try {
-    const agent = new HttpsProxyAgent(`http://${proxyString}`);
-    const res = await axios.get('https://www.instagram.com', {
-      httpsAgent: agent,
-      timeout: 6000
-    });
-    return res.status === 200;
-  } catch (err) {
-    console.warn(`⛔ Proxy inválido (${proxyString}):`, err.message);
-    return false;
-  }
-}
+async function notifyTelegram(msg) { if (!bot || !TELEGRAM_CHAT_ID) return; try { await bot.telegram.sendMessage(TELEGRAM_CHAT_ID, msg); } catch (err) { console.error('❌ Telegram error:', err.message); } }
 
-async function smartLogin(page, username, password) {
-  const userAgent = new UserAgent({ deviceCategory: 'desktop' }).toString();
-  await page.setUserAgent(userAgent);
-  await page.setExtraHTTPHeaders({ 'Accept-Language': 'en-US,en;q=0.9' });
-  await page.setJavaScriptEnabled(true);
-  await page.setRequestInterception(true);
-  page.on('request', req => {
-    const block = ['image', 'stylesheet', 'font', 'media'];
-    block.includes(req.resourceType()) ? req.abort() : req.continue();
-  });
+function getCookies() { return cookiesCache; }
 
-  const response = await page.goto('https://www.instagram.com/accounts/login/', {
-    waitUntil: 'domcontentloaded', timeout: 30000
-  });
+function validateCookies(cookies) { const session = cookies.find(c => c.name === 'sessionid'); return session && (!session.expires || session.expires > Date.now() / 1000); }
 
-  if (!response) throw new Error('No se recibió respuesta de Instagram');
-  if (response.status() === 429) throw new Error('HTTP_429_IP_BLOCKED');
+async function saveCookies(cookies) { cookiesCache = cookies; await fs.writeFile(COOKIE_PATH, JSON.stringify(cookies, null, 2)); }
 
-  const html = await page.content();
-  if (html.includes('ERR_NO_SUPPORTED_PROXIES')) {
-    throw new Error('ERR_NO_SUPPORTED_PROXIES');
-  }
+async function loadCookies(page) { try { const data = await fs.readFile(COOKIE_PATH, 'utf8'); const cookies = JSON.parse(data); if (validateCookies(cookies)) { await page.setCookie(...cookies); cookiesCache = cookies; await page.goto('https://www.instagram.com/', { waitUntil: 'networkidle2', timeout: 20000 }); const valid = await page.evaluate(() => !!document.querySelector('nav')); return valid; } } catch {} return false; }
 
-  await page.waitForSelector('input[name="username"]', { timeout: 10000 });
-  await page.type('input[name="username"]', username, { delay: 50 });
-  await page.type('input[name="password"]', password, { delay: 50 });
-  await page.click('button[type="submit"]');
-  await page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 30000 });
+async function getProxy() { if (!PROXY_LIST.length) return null; for (const raw of PROXY_LIST) { try { const anon = await proxyChain.anonymizeProxy(http://${raw}); return anon; } catch (err) { console.warn('⚠️ Proxy inválido:', raw); } } return null; }
 
-  const cookiesData = await page.cookies();
-  await cookies.saveCookies(cookiesData);
-  console.log('✅ Login exitoso');
-  return true;
-}
+async function instagramLogin() { const username = process.env.IG_USERNAME; const password = process.env.INSTAGRAM_PASS;
 
-async function ensureLoggedIn() {
-  const username = process.env.IG_USERNAME;
-  const password = decryptPassword();
-  if (!username || !password) throw new Error('Credenciales inválidas');
+if (!username || !password) throw new Error('Credenciales IG faltantes');
 
-  const prev = await cookies.loadCookies();
-  if (cookies.validateCookies(prev)) {
-    global.cookiesCache = prev;
-    console.log('✅ Sesión activa con cookies');
-    return;
-  }
+const proxyUrl = await getProxy();
 
-  let attempt = 0;
-  const maxAttempts = 5;
-  let proxy;
+const browser = await puppeteer.launch({ headless: 'new', args: [ '--no-sandbox', '--disable-setuid-sandbox', ...(proxyUrl ? [--proxy-server=${proxyUrl}] : []) ], executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || '/usr/bin/google-chrome' });
 
-  while (attempt < maxAttempts) {
-    proxy = getNextProxy();
-    if (!proxy) throw new Error('Sin proxies disponibles');
+const page = await browser.newPage(); await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/122 Safari/537.36'); await page.setExtraHTTPHeaders({ 'Accept-Language': 'en-US,en;q=0.9' });
 
-    const isValid = await validateProxy(proxy);
-    if (!isValid) {
-      reportFailure(proxy);
-      attempt++;
-      continue;
-    }
+if (await loadCookies(page)) { console.log('✅ Cookies válidas reutilizadas'); return { browser, page, cookies: cookiesCache }; }
 
-    let anonymizedProxy;
-    try {
-      anonymizedProxy = await proxyChain.anonymizeProxy(`http://${proxy}`);
-      console.log(`🌐 Usando proxy: ${proxy}`);
-    } catch (err) {
-      console.warn(`❌ Error al anonimizar: ${proxy}`);
-      reportFailure(proxy);
-      attempt++;
-      continue;
-    }
+console.log('🔐 Iniciando login nuevo...'); await page.goto('https://www.instagram.com/accounts/login/', { waitUntil: 'domcontentloaded', timeout: 30000 }); await page.waitForSelector('input[name="username"]', { timeout: 10000
 
-    let browser;
-    try {
-      browser = await puppeteer.launch({
-        args: [
-          ...chromium.args,
-          `--proxy-server=${anonymizedProxy}`,
-          '--no-sandbox',
-          '--disable-setuid-sandbox',
-          '--disable-dev-shm-usage',
-          '--disable-gpu',
-          '--single-process',
-          '--no-zygote',
-          '--js-flags=--max-old-space-size=256'
-        ],
-        executablePath: await chromium.executablePath(),
-        headless: chromium.headless,
-        ignoreHTTPSErrors: true,
-        defaultViewport: chromium.defaultViewport
-      });
-
-      const page = await browser.newPage();
-      const success = await smartLogin(page, username, password);
-
-      if (success) {
-        global.browser = browser;
-        global.page = page;
-        reportSuccess(proxy);
-        return true;
-      }
-    } catch (error) {
-      console.error(`❌ Error con proxy ${proxy}:`, error.message);
-      reportFailure(proxy);
-      notifyTelegram(`❌ Proxy fallido: ${proxy} → ${error.message}`);
-      if (browser) await browser.close();
-      attempt++;
-      continue;
-    }
-  }
-
-  throw new Error('Todos los proxies fallaron');
-}
-
-module.exports = {
-  ensureLoggedIn,
-  getCookies: () => global.cookiesCache || [],
-  notifyTelegram
-};
