@@ -1,270 +1,157 @@
+// ✅ instagramLogin.js con rotación de proxies y manejo HTTP 429
+const puppeteer = require('puppeteer-extra');
+const StealthPlugin = require('puppeteer-extra-plugin-stealth');
+puppeteer.use(StealthPlugin());
 const fs = require('fs').promises;
 const path = require('path');
-const UserAgent = require('user-agents');
 const crypto = require('crypto');
+const UserAgent = require('user-agents');
+const { Telegraf } = require('telegraf');
+const { HttpsProxyAgent } = require('https-proxy-agent');
+const axios = require('axios');
 
-const accountsDir = path.join(__dirname, 'accounts');
-const sessionsDir = path.join(accountsDir, 'sessions');
-const accountsFile = path.join(accountsDir, 'accounts.json');
-const LOGIN_TIMEOUT = 120000; // 2 minutos
-const NAVIGATION_TIMEOUT = 60000; // 1 minuto
-const SESSION_CHECK_THRESHOLD = 86400000; // 24 horas
-const INACTIVITY_THRESHOLD = 172800000; // 48 horas
-const ENCRYPTION_KEY = process.env.ENCRYPTION_KEY || 'mi-clave-secreta-32-bytes-aqui1234';
+const COOKIE_PATH = path.join(__dirname, 'instagram_cookies.json');
+let cookiesCache = [];
 
-const humanBehavior = {
-  randomDelay: (min = 1000, max = 5000) => new Promise(resolve => setTimeout(resolve, min + Math.random() * (max - min))),
-  randomType: async (page, selector, text) => {
-    for (let char of text) {
-      await page.type(selector, char, { delay: 70 + Math.random() * 100 });
-      await humanBehavior.randomDelay(150, 400);
-    }
-  },
-  randomScroll: async (page) => {
-    const scrollHeight = await page.evaluate(() => document.body.scrollHeight);
-    for (let i = 0; i < 3; i++) {
-      await page.evaluate(h => window.scrollBy(0, h * Math.random()), scrollHeight);
-      await humanBehavior.randomDelay(1000, 3000);
-    }
-  }
-};
+const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID;
+const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
+const telegramBot = TELEGRAM_BOT_TOKEN ? new Telegraf(TELEGRAM_BOT_TOKEN) : null;
 
-let cachedSessions = new Map();
-
-function encrypt(data) {
-  const iv = crypto.randomBytes(16);
-  const cipher = crypto.createCipheriv('aes-256-cbc', Buffer.from(ENCRYPTION_KEY), iv);
-  let encrypted = cipher.update(JSON.stringify(data), 'utf8', 'hex');
-  encrypted += cipher.final('hex');
-  return { iv: iv.toString('hex'), encryptedData: encrypted };
-}
-
-function decrypt(encryptedObj) {
-  const decipher = crypto.createDecipheriv('aes-256-cbc', Buffer.from(ENCRYPTION_KEY), Buffer.from(encryptedObj.iv, 'hex'));
-  let decrypted = decipher.update(encryptedObj.encryptedData, 'hex', 'utf8');
-  decrypted += decipher.final('utf8');
-  return JSON.parse(decrypted);
-}
-
-async function loadAccounts() {
+async function notifyTelegram(message) {
+  if (!telegramBot || !TELEGRAM_CHAT_ID) return;
   try {
-    await fs.mkdir(accountsDir, { recursive: true });
-    await fs.mkdir(sessionsDir, { recursive: true });
-    if (await fs.access(accountsFile).then(() => true).catch(() => false)) {
-      return JSON.parse(await fs.readFile(accountsFile, 'utf8'));
+    await telegramBot.telegram.sendMessage(TELEGRAM_CHAT_ID, message);
+    console.log('📩 Notificación enviada a Telegram:', message);
+  } catch (err) {
+    console.error('❌ Error al enviar notificación Telegram:', err.message);
+  }
+}
+
+async function getProxy() {
+  if (!process.env.PROXY_LIST) return null;
+  const proxies = process.env.PROXY_LIST.split(';');
+  const randomProxy = proxies[Math.floor(Math.random() * proxies.length)];
+  try {
+    const agent = new HttpsProxyAgent(`http://${randomProxy}`);
+    const test = await axios.get('https://www.instagram.com', {
+      httpsAgent: agent,
+      timeout: 5000
+    });
+    if (test.status === 200) {
+      console.log(`🔒 Proxy verificado: ${randomProxy}`);
+      return randomProxy;
     }
-    return { accounts: [] };
+  } catch (_) {
+    console.warn('❌ Proxy fallido:', randomProxy);
+  }
+  return null;
+}
+
+function decryptPassword() {
+  try {
+    const key = Buffer.from(process.env.ENCRYPTION_KEY, 'hex');
+    const iv = Buffer.from(process.env.ENCRYPTION_IV, 'hex');
+    const decipher = crypto.createDecipheriv('aes-256-cbc', key, iv);
+    return decipher.update(process.env.INSTAGRAM_PASS, 'base64', 'utf8') + decipher.final('utf8');
   } catch (error) {
-    console.error('Error al cargar cuentas:', error);
-    return { accounts: [] };
+    console.error('[Instagram] Error de desencriptación:', error.message);
+    return process.env.INSTAGRAM_PASS;
   }
 }
 
-async function saveAccounts(accounts) {
-  await fs.writeFile(accountsFile, JSON.stringify(accounts, null, 2));
-}
-
-async function instagramLogin(page, username, password, cookiesFile = 'default') {
-  const sessionKey = `${username}_${cookiesFile}`;
-  const sessionPath = path.join(sessionsDir, `${sessionKey}.json`);
-  const backupPrefix = path.join(sessionsDir, `${sessionKey}_backup_`);
-
+async function handleCookies() {
   try {
-    console.log(`🔍 Revisando sesión para: ${username} (${sessionKey}) [${new Date().toISOString()}]`);
-    const accounts = await loadAccounts();
-    let account = accounts.accounts.find(a => a.username === username);
-
-    if (!account) {
-      const encrypted = encrypt(password);
-      account = {
-        username,
-        password: encrypted.encryptedData,
-        iv: encrypted.iv,
-        sessionFile: sessionPath,
-        lastLogin: new Date().toISOString(),
-        status: 'active',
-        failCount: 0
-      };
-      accounts.accounts.push(account);
-      await saveAccounts(accounts);
-    }
-
-    // Verificar sesión en caché (memoria)
-    let cachedSession = cachedSessions.get(sessionKey);
-    if (cachedSession && Date.now() - cachedSession.lastChecked < SESSION_CHECK_THRESHOLD) {
-      console.log("🟢 Usando sesión en caché (memoria)");
-      await page.setCookie(...cachedSession.cookies);
-      const sessionActive = await verifySession(page);
-      if (sessionActive) {
-        cachedSession.lastActivity = Date.now();
-        cachedSessions.set(sessionKey, cachedSession);
-        await saveSession(sessionPath, cachedSession.cookies);
-        return true;
-      }
-    }
-
-    // Verificar sesión desde archivo
-    let cookies = await loadValidCookies(sessionPath, backupPrefix);
-    if (cookies.length > 0) {
-      console.log("📂 Usando sesión desde archivo local");
-      await page.setCookie(...cookies);
-    }
-
-    const sessionActive = await verifySession(page);
-    if (sessionActive) {
-      cachedSession = { username, cookies, lastChecked: Date.now(), lastActivity: Date.now() };
-      cachedSessions.set(sessionKey, cachedSession);
-      await saveSession(sessionPath, cookies);
-      account.lastLogin = new Date().toISOString();
-      await saveAccounts(accounts);
+    const data = await fs.readFile(COOKIE_PATH, 'utf8');
+    cookiesCache = JSON.parse(data);
+    const sessionCookie = cookiesCache.find(c => c.name === 'sessionid');
+    if (sessionCookie?.expires > Date.now() / 1000) {
+      console.log('[Instagram] Sesión válida encontrada');
       return true;
     }
-
-    // Si no hay sesión válida, intentar login
-    console.warn(`⚠️ Sesión inválida para ${sessionKey}, intentando login`);
-    for (let attempt = 1; attempt <= 3; attempt++) {
-      console.log(`🔐 Iniciando login completo (intento ${attempt}/3)`);
-      await page.goto('https://www.instagram.com/accounts/login/', { waitUntil: 'domcontentloaded', timeout: NAVIGATION_TIMEOUT });
-
-      const isChallenge = await handleChallenge(page);
-      if (isChallenge && attempt < 3) {
-        console.warn("🚧 Desafío detectado, reintentando...");
-        await humanBehavior.randomDelay(30000, 60000);
-        continue;
-      }
-
-      await page.waitForSelector('input[name="username"]', { visible: true, timeout: 20000 }).catch(() => {
-        console.warn("⏳ Timeout esperando selector de username, reintentando...");
-      });
-
-      const ua = new UserAgent({ deviceCategory: 'mobile' }).toString();
-      await page.setUserAgent(ua);
-      console.log(`📱 User-Agent: ${ua}`);
-
-      await humanBehavior.randomType(page, 'input[name="username"]', username);
-      await humanBehavior.randomDelay(1500, 3000);
-      const decryptedPassword = decrypt({ encryptedData: account.password, iv: account.iv });
-      await humanBehavior.randomType(page, 'input[name="password"]', decryptedPassword);
-      await humanBehavior.randomDelay(1500, 3000);
-
-      await page.click('button[type="submit"]').catch(() => console.warn("⚠️ Botón de submit no encontrado"));
-
-      const loginSuccess = await Promise.race([
-        page.waitForNavigation({ waitUntil: 'networkidle2', timeout: LOGIN_TIMEOUT }),
-        humanBehavior.randomDelay(10000, 15000)
-      ]).then(() => true).catch(() => false);
-
-      if (loginSuccess) {
-        const error = await page.$('#slfErrorAlert');
-        if (error) {
-          const msg = await page.$eval('#slfErrorAlert', el => el.textContent);
-          console.error("❌ Error en login:", msg);
-          account.failCount++;
-          if (attempt === 3) {
-            account.status = 'inactive';
-            await saveAccounts(accounts);
-            return false;
-          }
-          await humanBehavior.randomDelay(30000, 60000);
-          continue;
-        }
-
-        await handlePostLoginModals(page);
-        const newCookies = await page.cookies();
-        cachedSession = { username, cookies: newCookies, lastChecked: Date.now(), lastActivity: Date.now() };
-        cachedSessions.set(sessionKey, cachedSession);
-        await saveSession(sessionPath, newCookies);
-        account.lastLogin = new Date().toISOString();
-        account.failCount = 0;
-        account.status = 'active';
-        await saveAccounts(accounts);
-        console.log("🔁 Login completo y cookies guardadas");
-        return true;
-      }
-    }
-
-    account.status = 'inactive';
-    await saveAccounts(accounts);
-    return false;
-  } catch (error) {
-    console.error(`❌ Fallo durante login para ${sessionKey}:`, error.message);
-    return false;
-  }
-}
-
-async function verifySession(page) {
-  try {
-    const response = await page.goto('https://www.instagram.com/', { waitUntil: 'networkidle0', timeout: NAVIGATION_TIMEOUT });
-    if (response.status() >= 400) return false;
-    const isActive = await page.evaluate(() => document.querySelector('svg[aria-label="Inicio"]') !== null);
-    return isActive;
-  } catch {
-    return false;
-  }
-}
-
-async function handleChallenge(page) {
-  const isChallenge = await page.waitForFunction(() => window.location.href.includes('challenge'), { timeout: 20000 })
-    .then(() => true).catch(() => false);
-  if (isChallenge) {
-    const challengeText = await page.evaluate(() => document.body.innerText.toLowerCase());
-    if (challengeText.includes('verifica') || challengeText.includes('sospechosa') || challengeText.includes('captcha')) {
-      await humanBehavior.randomDelay(60000, 120000);
-      return true;
-    }
+  } catch (_) {
+    console.warn('[Instagram] No se encontraron cookies válidas');
   }
   return false;
 }
 
-async function handlePostLoginModals(page) {
+async function smartLogin(page, username, password) {
+  const userAgent = new UserAgent({ deviceCategory: 'desktop' }).toString();
+  console.log("🧪 Usando User-Agent:", userAgent);
+  await page.setUserAgent(userAgent);
+  await page.setJavaScriptEnabled(true);
+  await page.setExtraHTTPHeaders({ 'Accept-Language': 'en-US,en;q=0.9' });
+  await page.setRequestInterception(true);
+  page.on('request', (req) => {
+    const block = ['image', 'stylesheet', 'font', 'media'];
+    if (block.includes(req.resourceType())) req.abort();
+    else req.continue();
+  });
+
+  await page.mouse.move(Math.random() * 500, Math.random() * 500, { steps: 10 });
+  await page.waitForTimeout(1000);
+  await page.waitForTimeout(2000 + Math.random() * 3000);
+
+  const response = await page.goto('https://www.instagram.com/accounts/login/', {
+    waitUntil: 'domcontentloaded',
+    timeout: 30000,
+    referer: 'https://www.google.com/'
+  });
+
+  console.log("🌐 Código de estado HTTP:", response.status());
+  if (response.status() === 429) {
+    await notifyTelegram('❌ Instagram bloqueó la IP (HTTP 429)');
+    throw new Error('HTTP_429_IP_BLOCKED');
+  }
+
+  const selector = 'input[name="username"]';
   try {
-    const modals = [
-      '//button[contains(., "Ahora no") or contains(., "Not Now")]',
-      '//button[contains(., "Denegar") or contains(., "Decline")]'
-    ];
-    for (const xpath of modals) {
-      const elements = await page.$x(xpath);
-      if (elements.length > 0) {
-        await elements[0].click();
-        await humanBehavior.randomDelay(1000, 2000);
-      }
-    }
-  } catch {}
+    await page.waitForSelector(selector, { timeout: 15000 });
+    await page.type(selector, username, { delay: 50 });
+    await page.type('input[name="password"]', password, { delay: 50 });
+    await page.click('button[type="submit"]');
+    await page.waitForNavigation({ waitUntil: 'networkidle0', timeout: 30000 });
+    cookiesCache = await page.cookies();
+    await fs.writeFile(COOKIE_PATH, JSON.stringify(cookiesCache, null, 2));
+    console.log('[Instagram] Login exitoso');
+    return true;
+  } catch (err) {
+    await notifyTelegram(`❌ Fallo al intentar login: ${err.message}`);
+    throw err;
+  }
 }
 
-async function saveSession(sessionPath, cookies) {
-  const encrypted = encrypt(cookies);
-  const backupPath = `${sessionPath}_backup_${Date.now()}.json`;
-  await fs.writeFile(sessionPath, JSON.stringify(encrypted, null, 2));
-  await fs.copyFile(sessionPath, backupPath).catch(() => {});
-}
+async function ensureLoggedIn() {
+  const username = process.env.IG_USERNAME || process.env.IG_USER;
+  const password = decryptPassword();
+  if (!username || !password) throw new Error('[Instagram] Credenciales no válidas');
+  if (await handleCookies()) return;
 
-async function loadValidCookies(sessionPath, backupPrefix) {
-  let cookies = [];
-  const files = await fs.readdir(sessionsDir).catch(() => []);
-
-  for (let file of files) {
-    if (file.startsWith(path.basename(sessionPath)) || file.startsWith(path.basename(backupPrefix))) {
-      try {
-        const filePath = path.join(sessionsDir, file);
-        const encrypted = JSON.parse(await fs.readFile(filePath, 'utf8'));
-        cookies = decrypt(encrypted);
-        if (await validateCookies(cookies)) return cookies;
-      } catch {}
+  const maxAttempts = 3;
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    const proxy = await getProxy();
+    const options = {
+      ...CONFIG.browserOptions,
+      args: [...CONFIG.browserOptions.args, ...(proxy ? [`--proxy-server=http://${proxy}`] : [])]
+    };
+    let browser;
+    try {
+      console.log(`🔁 Intento ${attempt} con ${proxy || 'IP directa'}`);
+      browser = await puppeteer.launch(options);
+      const page = await browser.newPage();
+      const result = await smartLogin(page, username, password);
+      if (result) return;
+    } catch (err) {
+      console.error(`❌ Error intento ${attempt}:`, err.message);
+      if (attempt === maxAttempts) throw new Error('Login fallido con todos los intentos');
+      if (err.message.includes('HTTP_429')) await new Promise(r => setTimeout(r, 10000));
+    } finally {
+      if (browser) await browser.close();
     }
   }
-  return [];
 }
 
-async function validateCookies(cookies) {
-  if (!Array.isArray(cookies) || cookies.length === 0) return false;
-  const sessionCookie = cookies.find(c => c.name === 'sessionid');
-  if (!sessionCookie) return false;
-  if (sessionCookie.expires && sessionCookie.expires * 1000 < Date.now()) {
-    console.log("⏰ Cookie sessionid expirada, rotando sesión...");
-    return false;
-  }
-  return true;
-}
-
-module.exports = { instagramLogin };
+module.exports = {
+  ensureLoggedIn,
+  getCookies: () => cookiesCache,
+  notifyTelegram
+};
