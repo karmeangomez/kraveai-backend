@@ -1,8 +1,10 @@
-// ✅ instagramLogin.js con proxy-chain, rotación inteligente y protección contra errores de proxy
+// ✅ instagramLogin.js FINAL con validación de proxy, proxy-chain, rotación y cookies
 const puppeteer = require('puppeteer-extra');
 const StealthPlugin = require('puppeteer-extra-plugin-stealth');
 const chromium = require('@sparticuz/chromium');
 const proxyChain = require('proxy-chain');
+const { HttpsProxyAgent } = require('https-proxy-agent');
+const axios = require('axios');
 const fs = require('fs').promises;
 const path = require('path');
 const crypto = require('crypto');
@@ -36,6 +38,20 @@ function decryptPassword() {
   } catch (err) {
     console.error('❌ Desencriptación fallida:', err.message);
     return process.env.INSTAGRAM_PASS;
+  }
+}
+
+async function validateProxy(proxyString) {
+  try {
+    const agent = new HttpsProxyAgent(`http://${proxyString}`);
+    const res = await axios.get('https://www.instagram.com', {
+      httpsAgent: agent,
+      timeout: 6000
+    });
+    return res.status === 200;
+  } catch (err) {
+    console.warn(`⛔ Proxy inválido (${proxyString}):`, err.message);
+    return false;
   }
 }
 
@@ -94,12 +110,19 @@ async function ensureLoggedIn() {
     proxy = getNextProxy();
     if (!proxy) throw new Error('Sin proxies disponibles');
 
+    const isValid = await validateProxy(proxy);
+    if (!isValid) {
+      reportFailure(proxy);
+      attempt++;
+      continue;
+    }
+
     let anonymizedProxy;
     try {
       anonymizedProxy = await proxyChain.anonymizeProxy(`http://${proxy}`);
       console.log(`🌐 Usando proxy: ${proxy}`);
     } catch (err) {
-      console.warn(`❌ Proxy inválido: ${proxy}`);
+      console.warn(`❌ Error al anonimizar: ${proxy}`);
       reportFailure(proxy);
       attempt++;
       continue;
