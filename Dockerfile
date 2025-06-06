@@ -4,18 +4,24 @@ FROM node:20-slim
 # Establece el directorio de trabajo
 WORKDIR /app
 
+# Instala herramientas necesarias para npm
+RUN apt-get update && apt-get install -y \
+    curl \
+    ca-certificates \
+    --no-install-recommends && \
+    rm -rf /var/lib/apt/lists/* /var/cache/apt/archives/* /tmp/*
+
 # Copia los archivos de paquetes primero para aprovechar el caché de Docker
 COPY package.json package-lock.json* ./
 
-# Instala solo dependencias de producción
-RUN npm install --omit=dev
+# Limpia el caché de npm y fuerza la instalación de dependencias
+RUN npm cache clean --force && \
+    npm install --omit=dev --verbose
 
 # Instala dependencias de Chrome y herramientas necesarias en una sola capa
 RUN apt-get update && apt-get install -y \
-    curl \
     wget \
     gnupg \
-    ca-certificates \
     fonts-liberation \
     libappindicator3-1 \
     libasound2 \
@@ -50,7 +56,6 @@ RUN apt-get update && apt-get install -y \
     --no-install-recommends && \
     rm -rf /var/lib/apt/lists/* /var/cache/apt/archives/* /tmp/*
 
-# No instalamos Chrome directamente, usamos @sparticuz/chromium-min
 # Copia el código de la aplicación
 COPY . .
 
