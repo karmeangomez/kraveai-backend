@@ -1,4 +1,4 @@
-// ✅ instagramLogin.js corregido para IG_USERNAME + INSTAGRAM_PASS
+// ✅ instagramLogin.js final optimizado con proxy dinámico y memoria controlada
 const puppeteer = require('puppeteer-extra');
 const StealthPlugin = require('puppeteer-extra-plugin-stealth');
 const chromium = require('@sparticuz/chromium');
@@ -98,8 +98,20 @@ async function ensureLoggedIn() {
   }
 
   const proxy = await getNextProxy();
+  console.log(`🌐 Usando proxy: ${proxy}`);
+
   const browser = await puppeteer.launch({
-    args: [...chromium.args, `--proxy-server=http://${proxy}`],
+    args: [
+      ...chromium.args,
+      `--proxy-server=http://${proxy}`,
+      '--no-sandbox',
+      '--disable-setuid-sandbox',
+      '--disable-dev-shm-usage',
+      '--disable-gpu',
+      '--single-process',
+      '--no-zygote',
+      '--js-flags=--max-old-space-size=256'
+    ],
     defaultViewport: chromium.defaultViewport,
     executablePath: await chromium.executablePath(),
     headless: chromium.headless,
