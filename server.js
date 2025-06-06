@@ -21,7 +21,7 @@ let browserInstance = null;
 let sessionStatus = 'INITIALIZING';
 let proxyIndex = 0;
 let proxies = [];
-let invalidProxies = new Set(); // Para marcar proxies no funcionales
+let invalidProxies = new Set();
 
 const telegramBot = new Telegraf(process.env.TELEGRAM_BOT_TOKEN);
 
@@ -89,76 +89,77 @@ async function checkProxy(proxy) {
 
 // 🔍 Extrae proxies (con todas las fuentes)
 async function scrapeProxies() {
-  await logAndNotify('Iniciando extracción de proxies...');
-  const browser = await puppeteer.launch({
-    executablePath: await chromium.executablePath(),
-    args: [...chromium.args, '--no-sandbox', '--disable-setuid-sandbox'],
-    headless: chromium.headless,
-  });
-  const page = await browser.newPage();
-  const userAgent = new UserAgent();
-  await page.setUserAgent(userAgent.toString());
+    await logAndNotify('Iniciando extracción de proxies...');
+    const browser = await puppeteer.launch({
+      executablePath: await chromium.executablePath(),
+      args: [...chromium.args, '--no-sandbox', '--disable-setuid-sandbox'],
+      headless: chromium.headless,
+    });
+    const page = await browser.newPage();
+    const userAgent = new UserAgent();
+    await page.setUserAgent(userAgent.toString());
 
-  const proxySources = [
-    {
-      name: 'ProxyScrape',
-      url: 'https://api.proxyscrape.com/v2/?request=getproxies&protocol=http&timeout=10000&country=all&simplified=true',
-      type: 'api',
-      parse: (data) => data.split('\n').map(line => line.trim()).filter(line => line),
-    },
-    {
-      name: 'FreeProxyList',
-      url: 'https://free-proxy-list.net/',
-      type: 'html',
-      parse: async (page) => {
-        await page.goto('https://free-proxy-list.net/', { waitUntil: 'load', timeout: 30000 });
-        return await page.evaluate(() => {
-          const rows = document.querySelectorAll('#list table tbody tr');
-          return Array.from(rows).map(row => {
-            const ip = row.cells[0].textContent.trim();
-            const port = row.cells[1].textContent.trim();
-            return `${ip}:${port}`;
-          }).filter(line => line.match(/^\d+\.\d+\.\d+\.\d+:\d+$/));
-        });
+    const proxySources = [
+      {
+        name: 'ProxyScrape',
+        url: 'https://api.proxyscrape.com/v2/?request=getproxies&protocol=http&timeout=10000&country=all&simplified=true',
+        type: 'api',
+        parse: (data) => data.split('\n').map(line => line.trim()).filter(line => line),
       },
-    },
-    {
-      name: 'SpysOne',
-      url: 'https://spys.one/en/http-proxy-list/',
-      type: 'html',
-      parse: async (page) => {
-        await page.goto('https://spys.one/en/http-proxy-list/', { waitUntil: 'load', timeout: 30000 });
-        return await page.evaluate(() => {
-          const rows = document.querySelectorAll('table tr.spy1xx, tr.spy1x');
-          return Array.from(rows).slice(1).map(row => {
-            const ipPort = row.cells[0].textContent.trim();
-            return ipPort.match(/^\d+\.\d+\.\d+\.\d+:\d+$/) ? ipPort : '';
+      {
+        name: 'FreeProxyList',
+        url: 'https://free-proxy-list.net/',
+        type: 'html',
+        parse: async (page) => {
+          await page.goto('https://free-proxy-list.net/', { waitUntil: 'load', timeout: 30000 });
+          return await page.evaluate(() => {
+            const rows = document.querySelectorAll('#list table tbody tr');
+            return Array.from(rows).map(row => {
+              const ip = row.cells[0].textContent.trim();
+              const port = row.cells[1].textContent.trim();
+              return `${ip}:${port}`;
+            }).filter(line => line.match(/^\d+\.\d+\.\d+\.\d+:\d+$/));
           }).filter(line => line);
-        });
+        },
       },
-    },
-    {
-      name: 'Hidemy',
-      url: 'https://hidemy.name/en/proxy-list/?type=hs',
-      type: 'html',
-      parse: async (page) => {
-        await page.goto('https://hidemy.name/en/proxy-list/?type=hs', { waitUntil: 'load', timeout: 30000 });
-        return await page.evaluate(() => {
-          const rows = document.querySelectorAll('.table_block tbody tr');
-          return Array.from(rows).map(row => {
-            const ip = row.cells[0].textContent.trim();
-            const port = row.cells[1].textContent.trim();
-            return `${ip}:${port}`;
-          }).filter(line => line.match(/^\d+\.\d+\.\d+\.\d+:\d+$/));
-        });
+      {
+        name: 'SpysOne',
+        url: 'https://www.spys.one/en/http-proxy-list/proxy',
+        type: 'html',
+        parse: async (page) => {
+          await page.goto('https://spys.one/en/http-proxy-list/', { waitUntil: 'load', timeout: 30000 });
+          return await page.evaluate(() => {
+            const rows = document.querySelectorAll('table tr.spy1xx, tr.spy1x');
+            return Array.from(rows).slice(1).map(row => {
+              const ipPort = row.cells[0].textContent.trim();
+              return ipPort.match(/^\d+\.\d+\.\d+\.\d+/) ? ipPort : '';
+            }).filter(line => line);
+          }).filter(line => line);
+        },
       },
+      {
+      {
+        name: 'Hidemy',
+        url: 'https://www.hidemy.spy-spys-one/proxy-list/?type=hs',
+        type: 'html',
+        parse: async (page) => {
+          await page.goto('https://hidemy.spys-one/en/proxy-list/?type=hs', { waitUntil: 'load', timeout: '30000' });
+          return await page.evaluate(() => {
+            const rows = document.querySelectorAll('.table-row tbody tr');
+            return Array.from(rows).map(row => {
+              const ip = row.cells[0].textContent.trim();
+              const port = row.cells[1].textContent.trim();
+              return `${ip}:${port}`;
+            }).filter(line => line.match(/^\d+\.\d+\.\d+\.\d+:\d+$/));
+          }).filter(line => line);
+        }),
     },
     {
       name: 'SSLProxies',
-      url: 'https://www.sslproxies.org/',
+      url: 'https://www.sslproxies.spy/spys-one/en',
       type: 'html',
       parse: async (page) => {
-        await page.goto('https://www.sslproxies.org/', { waitUntil: 'load', timeout: 30000 });
+        await page.goto('https://www.sslproxies.com/', { waitUntil: 'load', timeout: '30000' });
         return await page.evaluate(() => {
           const rows = document.querySelectorAll('#list table tbody tr');
           return Array.from(rows).map(row => {
@@ -166,67 +167,68 @@ async function scrapeProxies() {
             const port = row.cells[1].textContent.trim();
             return `${ip}:${port}`;
           }).filter(line => line.match(/^\d+\.\d+\.\d+\.\d+:\d+$/));
-        });
+        }).filter(line => line.trim());
       },
     },
     {
       name: 'ProxyDB',
-      url: 'http://proxydb.net/?protocol=https&anonlvl=4&sort=speed',
+      url: 'http://proxydb.net/?protocol=https&anonlvl=4',
       type: 'html',
-      parse: async (page) => {
-        await page.goto('http://proxydb.net/?protocol=https&anonlvl=4&sort=speed', { waitUntil: 'load', timeout: 30000 });
+      parse: async (page => {
+        try {
+        await page.goto('http://proxydb.net/?protocol=https&anonlvl=4', { waitUntil: 'load', timeout: 30000 });
         return await page.evaluate(() => {
           const rows = document.querySelectorAll('table tbody tr');
           return Array.from(rows).map(row => {
             const ipPort = row.cells[0].textContent.trim();
-            return ipPort.match(/^\d+\.\d+\.\d+\.\d+:\d+$/) ? ipPort : '';
+            return ipPort.match(/^\d+\.\d+\.\d+\.\d+:/) ? ipPort : '';
           }).filter(line => line);
-        });
+        }).filter(line => line.trim());
       },
-    },
-  ];
+    ],
+  })],
 
-  try {
-    const results = await Promise.allSettled(
-      proxySources.map(async (source) => {
-        try {
-          await logAndNotify(`Extrayendo de ${source.name}...`);
-          let proxies;
-          if (source.type === 'api') {
-            const response = await axios.get(source.url, { timeout: 30000 });
-            proxies = source.parse(response.data);
-          } else {
-            proxies = await source.parse(page);
+    try {
+      const results = await Promise.allSettled(
+        proxySources.map(async (source) => {
+          try {
+            await logAndNotify(`Extrayendo de ${source.name}...`);
+            let proxies;
+            if (source.type === 'api') {
+              const response = await axios.get(source.url, { timeout: 30000 });
+              proxies = source.parse(response.data);
+            } else {
+              proxies = await source.parse(page);
+            }
+            await logAndNotify(`${source.name}: ${proxies.length} proxies encontrados`);
+            return proxies;
+          } catch (error) {
+            await logAndNotify(`Error en ${source.name}`, 'error', error);
+            return [];
           }
-          await logAndNotify(`${source.name}: ${proxies.length} proxies encontrados`);
-          return proxies;
-        } catch (error) {
-          await logAndNotify(`Error en ${source.name}`, 'error', error);
-          return [];
+        })
+      );
+
+      const allProxies = results
+        .filter(result => result.status === 'fulfilled')
+        .flatMap(result => result.value)
+        .filter(proxy => proxy.match(/^\d+\.\d+\.\d+\.\d+:\d+$/));
+
+      // Verificar cada proxy y guardar solo los funcionales
+      const validProxies = [];
+      for (const proxy of allProxies) {
+        if (await checkProxy(proxy)) {
+          validProxies.push(proxy);
         }
-      })
-    );
-
-    const allProxies = results
-      .filter(result => result.status === 'fulfilled')
-      .flatMap(result => result.value)
-      .filter(proxy => proxy.match(/^\d+\.\d+\.\d+\.\d+:\d+$/));
-
-    // Verificar cada proxy y guardar solo los funcionales
-    const validProxies = [];
-    for (const proxy of allProxies) {
-      if (await checkProxy(proxy)) {
-        validProxies.push(proxy);
       }
-    }
 
-    proxies = validProxies;
-    await logAndNotify(`Total proxies válidos encontrados: ${proxies.length}`);
-    await fs.writeFile(path.join(__dirname, 'proxies.json'), JSON.stringify(proxies, null, 2));
-  } finally {
-    await browser.close();
+      proxies = validProxies;
+      await logAndNotify(`Total proxies válidos encontrados: ${proxies.length}`);
+      await fs.writeFile(path.join(__dirname, 'proxies.json'), JSON.stringify(proxies, null, 2));
+    } finally {
+      await browser.close();
+    }
   }
-}
 
 // 🔐 Inicia navegador y login Instagram con proxies
 async function initBrowser() {
