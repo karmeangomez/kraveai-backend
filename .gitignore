@@ -1,35 +1,44 @@
-# Archivos de entorno y sensibles
-.env
-.env.local
-.env*.local
-
-# Directorios de dependencias y builds
+# Dependencias de Node.js
 node_modules/
-chromium/
-dist/
-build/
-coverage/
+npm-debug.log
+*.lock~
 
-# Archivos del sistema y editor
+# Archivos de sistema y editores
 .DS_Store
 .idea/
 .vscode/
 *.swp
-*.swo
+*.bak
+*.tmp
+.*~
 
-# Logs y caché
+# Archivos de caché y builds
 *.log
-logs/
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-.pnpm-debug.log*
+.cache/
+dist/
+build/
+tmp/
+*.tsbuildinfo
 
-# Archivos de paquete no esenciales
-yarn.lock
-pnpm-lock.yaml
-package-lock.json    # Solo si usas npm ci en Docker
+# Archivos de entorno
+.env
+.env.local
+.env.development
+.env.test
+.env.*.local
+*.env
 
-# Documentación y misceláneos
-*.md
-LICENSE
+# Archivos de medios, capturas y datos generados
+errors/
+screenshots/
+*.pdf
+.puppeteer-cache/
+instagram_cookies.json
+
+# Archivos de Docker
+.dockerignore
+*.tar
+docker-compose.yml
+
+# Archivos específicos del proyecto
+coverage/
