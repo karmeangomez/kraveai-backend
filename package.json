@@ -1,11 +1,11 @@
 {
   "name": "kraveai-backend",
   "version": "1.0.0",
-  "description": "Backend de KraveAI con login inteligente y scraping",
+  "description": "Backend de KraveAI con login inteligente, scraping y compatibilidad con Railway",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "install-chromium": "echo 'Chromium se instala via Docker o Railway'"
+    "install-chromium": "echo 'Chromium se instala vía @sparticuz/chromium en entorno Railway'"
   },
   "dependencies": {
     "axios": "^1.7.2",
@@ -16,7 +16,7 @@
     "puppeteer-core": "^22.10.0",
     "puppeteer-extra": "^3.3.6",
     "puppeteer-extra-plugin-stealth": "^2.11.2",
-    "@sparticuz/chromium-min": "^133.0.0",
+    "@sparticuz/chromium": "^133.0.0",
     "telegraf": "^4.16.3",
     "user-agents": "^1.1.0"
   }
