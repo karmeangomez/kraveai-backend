@@ -1,6 +1,6 @@
 FROM node:20-slim
 
-# 1. Instala Chromium y dependencias mínimas (reducido a solo lo esencial)
+# 1. Instala Chromium y dependencias mínimas (y herramientas de compilación)
 RUN apt-get update && apt-get install -y \
     chromium \
     fonts-liberation \
@@ -15,28 +15,28 @@ RUN apt-get update && apt-get install -y \
     libxfixes3 \
     libxrandr2 \
     libxss1 \
-    --no-install-recommends \
+    build-essential \
+    python3 \
     && rm -rf /var/lib/apt/lists/*
 
 # 2. Configura Puppeteer (versión simplificada)
 ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium \
     PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
 
-# 3. Configura el directorio de trabajo
+# 3. Directorio de trabajo
 WORKDIR /app
 
-# 4. Copia solo package.json primero para mejor caché de Docker
-COPY package.json .
+# 4. Copia primero solo dependencias
+COPY package.json package-lock.json* ./
 
-# 5. Instala dependencias (con limpia automática de caché)
-RUN npm install --omit=dev \
-    && npm cache clean --force
+# 5. Instala dependencias de producción
+RUN npm install --omit=dev && npm cache clean --force
 
-# 6. Copia el resto de la aplicación (excluyendo node_modules)
+# 6. Copia el resto del proyecto
 COPY . .
 
 # 7. Expone el puerto
 EXPOSE 3000
 
-# 8. Inicia la aplicación
+# 8. Comando de inicio
 CMD ["npm", "start"]
