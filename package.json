@@ -5,7 +5,7 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "postinstall": "npm install puppeteer-core@22.10.0 @sparticuz/chromium-min@133.0.0"
+    "install-chromium": "echo 'Chromium se instala via Docker'"
   },
   "dependencies": {
     "axios": "^1.7.2",
@@ -15,8 +15,6 @@
     "fs-extra": "^11.2.0",
     "puppeteer-core": "^22.10.0",
     "@sparticuz/chromium-min": "^133.0.0",
-    "puppeteer-extra": "^3.3.6",
-    "puppeteer-extra-plugin-stealth": "^2.11.2",
     "telegraf": "^4.16.3",
     "user-agents": "^1.1.0"
   }
