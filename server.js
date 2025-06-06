@@ -1,6 +1,4 @@
-// ✅ server.js FINAL: IA + Scraping + Login con Proxy + Cookies + Telegram + Bitly + Voz + Creación de Cuentas require('dotenv').config(); const express = require('express'); const cors = require('cors'); const path = require('path'); const axios = require('axios'); const fs = require('fs'); const puppeteer = require('puppeteer-extra'); const StealthPlugin = require('puppeteer-extra-plugin-stealth'); const { instagramLogin, getCookies, notifyTelegram } = require('./instagramLogin'); const { createMultipleAccounts } = require('./instagramAccountCreator');
-
-puppeteer.use(StealthPlugin());
+// ✅ server.js FINAL corregido (sin duplicar puppeteer.use) require('dotenv').config(); const express = require('express'); const cors = require('cors'); const path = require('path'); const axios = require('axios'); const fs = require('fs'); const puppeteer = require('puppeteer-extra'); const { instagramLogin, getCookies, notifyTelegram } = require('./instagramLogin'); const { createMultipleAccounts } = require('./instagramAccountCreator');
 
 const app = express(); const PORT = process.env.PORT || 3000; let browserInstance = null; let sessionStatus = 'INITIALIZING';
 
