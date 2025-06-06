@@ -1,25 +1,39 @@
-{
-  "name": "kraveai-backend",
-  "version": "1.0.0",
-  "description": "Backend de KraveAI con scraping, login proxy, IA y Telegram",
-  "main": "server.js",
-  "scripts": {
-    "start": "node server.js",
-    "install-chromium": "echo 'Chromium se instala vía Docker'"
-  },
-  "dependencies": {
-    "axios": "^1.7.2",
-    "cors": "^2.8.5",
-    "dotenv": "^16.4.5",
-    "express": "^4.19.2",
-    "fs-extra": "^11.2.0",
-    "puppeteer-core": "^22.10.0",
-    "puppeteer-extra": "^3.3.6",
-    "puppeteer-extra-plugin-stealth": "^2.11.2",
-    "@sparticuz/chromium": "^133.0.0",
-    "telegraf": "^4.16.3",
-    "user-agents": "^1.1.0",
-    "proxy-chain": "^0.4.9",
-    "https-proxy-agent": "^7.0.2"
-  }
-}
+# Imagen base oficial de Node
+FROM node:20-slim
+
+# Instala Chromium y dependencias mínimas
+RUN apt-get update && apt-get install -y \
+    chromium \
+    fonts-liberation \
+    libgbm1 \
+    libglib2.0-0 \
+    libnss3 \
+    libx11-6 \
+    libxcomposite1 \
+    libxdamage1 \
+    libxext6 \
+    libxfixes3 \
+    libxrandr2 \
+    libxss1 \
+    --no-install-recommends && \
+    rm -rf /var/lib/apt/lists/*
+
+# Configura Puppeteer
+ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
+ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
+
+# Crea directorio de trabajo
+WORKDIR /app
+
+# Copia dependencias y las instala
+COPY package.json package-lock.json ./
+RUN npm install --omit=dev && npm cache clean --force
+
+# Copia todo el código fuente
+COPY . .
+
+# Expone el puerto de la app
+EXPOSE 3000
+
+# Comando para iniciar
+CMD ["npm", "start"]
