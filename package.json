@@ -12,12 +12,12 @@
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
     "express": "^4.19.2",
+    "fs-extra": "^11.2.0",
+    "puppeteer-core": "^22.10.0",
+    "@sparticuz/chromium-min": "^133.0.0",
     "puppeteer-extra": "^3.3.6",
     "puppeteer-extra-plugin-stealth": "^2.11.2",
     "telegraf": "^4.16.3",
-    "user-agents": "^1.1.0",
-    "fs-extra": "^11.2.0",
-    "puppeteer-core": "^22.10.0",
-    "@sparticuz/chromium-min": "^133.0.0"
+    "user-agents": "^1.1.0"
   }
 }
