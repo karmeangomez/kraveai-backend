@@ -1,16 +1,17 @@
 FROM node:20-slim
 
-RUN apt-get update && apt-get install -y \
+# Configurar variables de entorno para Puppeteer
+ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium \
+    PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
+
+# Instalar dependencias en pasos separados para depuración
+RUN apt-get update -y
+RUN apt-get install -y --no-install-recommends \
     chromium \
     fonts-liberation \
     libgbm1 \
-    libnss3 \
-    --no-install-recommends && \
-    apt-get clean && \
-    rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
-
-ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium \
-    PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
+    libnss3
+RUN apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
 WORKDIR /app
 
