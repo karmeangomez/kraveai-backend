@@ -1,7 +1,7 @@
-# Imagen base ligera
+# ✅ Dockerfile para Railway con Puppeteer y proxy-chain
 FROM node:20-slim
 
-# 1. Instala Chromium + herramientas de compilación necesarias para puppeteer y proxy-chain
+# 1. Instala Chromium y dependencias mínimas
 RUN apt-get update && apt-get install -y \
     chromium \
     fonts-liberation \
@@ -9,36 +9,29 @@ RUN apt-get update && apt-get install -y \
     libglib2.0-0 \
     libnss3 \
     libx11-6 \
-    libxcb1 \
     libxcomposite1 \
     libxdamage1 \
     libxext6 \
     libxfixes3 \
     libxrandr2 \
     libxss1 \
-    build-essential \
-    python3 \
-    && rm -rf /var/lib/apt/lists/*
+    --no-install-recommends && \
+    rm -rf /var/lib/apt/lists/*
 
-# 2. Variables para Puppeteer (usamos Chromium ya instalado)
+# 2. Variables Puppeteer
 ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium \
-    PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true \
-    NODE_ENV=production
+    PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
 
-# 3. Establece el directorio de trabajo
+# 3. Directorio de trabajo
 WORKDIR /app
 
-# 4. Copia solo package.json y lock para instalar dependencias
-COPY package.json package-lock.json* ./
-
-# 5. Instala solo dependencias de producción
+# 4. Copia dependencias y las instala
+COPY package.json .
 RUN npm install --omit=dev && npm cache clean --force
 
-# 6. Copia el resto del código
+# 5. Copia el resto del proyecto
 COPY . .
 
-# 7. Expone el puerto de la app
+# 6. Exponer puerto y arrancar
 EXPOSE 3000
-
-# 8. Comando de arranque
 CMD ["npm", "start"]
