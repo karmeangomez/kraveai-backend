@@ -1,12 +1,13 @@
-// ✅ server.js funcional, estable y listo para producción sin proxies
+// ✅ server.js funcional, estable y listo para producción con chromium de @sparticuz
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
 const axios = require('axios');
-const { createMultipleAccounts } = require('./instagramAccountCreator');
+const chromium = require('@sparticuz/chromium');
 const puppeteer = require('puppeteer-extra');
 const StealthPlugin = require('puppeteer-extra-plugin-stealth');
+const { createMultipleAccounts } = require('./instagramAccountCreator');
 const { ensureLoggedIn, getCookies, notifyTelegram } = require('./instagramLogin');
 
 puppeteer.use(StealthPlugin());
@@ -20,7 +21,6 @@ app.use(express.json());
 app.use(cors());
 app.use(express.static(path.join(__dirname, '.')));
 
-// Middleware para mostrar uso de memoria
 app.use((req, res, next) => {
   const memory = process.memoryUsage();
   console.log(`🧠 Memoria: ${Math.round(memory.rss / 1024 / 1024)}MB RSS`);
@@ -33,23 +33,7 @@ async function initBrowser() {
     await ensureLoggedIn();
     console.log("✅ Sesión de Instagram lista.");
 
-    browserInstance = await puppeteer.launch({
-      headless: 'new',
-      args: [
-        '--no-sandbox',
-        '--disable-setuid-sandbox',
-        '--disable-dev-shm-usage',
-        '--disable-gpu',
-        '--disable-blink-features=AutomationControlled',
-        '--single-process',
-        '--no-zygote',
-        '--disable-accelerated-2d-canvas',
-        '--js-flags=--max-old-space-size=256'
-      ],
-      executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || '/usr/bin/google-chrome',
-      ignoreHTTPSErrors: true
-    });
-
+    browserInstance = global.browser;
     sessionStatus = 'ACTIVE';
     setInterval(checkSessionValidity, 60 * 60 * 1000);
   } catch (err) {
