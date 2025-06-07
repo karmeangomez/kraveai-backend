@@ -3,12 +3,13 @@ FROM node:20-slim AS builder
 
 WORKDIR /app
 
-# Instalar dependencias para Chromium
+# Instalar dependencias necesarias
 RUN apt-get update && apt-get install -y \
-    wget \
+    ca-certificates \
+    curl \
     gnupg \
-    && wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub | gpg --dearmor -o /usr/share/keyrings/googlechrome-linux-keyring.gpg \
-    && echo "deb [arch=amd64 signed-by=/usr/share/keyrings/googlechrome-linux-keyring.gpg] http://dl.google.com/linux/chrome/deb/ stable main" > /etc/apt/sources.list.d/google.list \
+    && curl -sSL https://dl.google.com/linux/linux_signing_key.pub | apt-key add - \
+    && echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" > /etc/apt/sources.list.d/google-chrome.list \
     && apt-get update \
     && apt-get install -y \
     google-chrome-stable \
@@ -37,10 +38,12 @@ RUN apt-get update && apt-get install -y \
     xdg-utils \
     && rm -rf /var/lib/apt/lists/*
 
-# Copiar solo los archivos necesarios para instalar dependencias
-COPY package.json ./
+# Crear enlaces simbólicos
+RUN ln -s /usr/bin/google-chrome-stable /usr/bin/chromium && \
+    ln -s /usr/bin/google-chrome-stable /usr/bin/chrome && \
+    ln -s /usr/bin/google-chrome-stable /usr/bin/chromium-browser
 
-# Usar npm install en lugar de npm ci
+COPY package.json ./
 RUN npm install --omit=dev
 
 # Etapa de producción
@@ -50,12 +53,19 @@ WORKDIR /app
 
 # Copiar dependencias y Chromium
 COPY --from=builder /app/node_modules ./node_modules
-COPY --from=builder /usr/bin/google-chrome-stable /usr/bin/chromium
+COPY --from=builder /usr/bin/google-chrome-stable /usr/bin/
+COPY --from=builder /usr/bin/chromium* /usr/bin/
 COPY --from=builder /usr/lib/x86_64-linux-gnu/ /usr/lib/x86_64-linux-gnu/
 COPY --from=builder /usr/share/fonts/ /usr/share/fonts/
+COPY --from=builder /etc/alternatives/ /etc/alternatives/
+
+# Crear enlaces simbólicos en la etapa final
+RUN ln -s /usr/bin/google-chrome-stable /usr/bin/chromium && \
+    ln -s /usr/bin/google-chrome-stable /usr/bin/chrome && \
+    ln -s /usr/bin/google-chrome-stable /usr/bin/chromium-browser
 
 # Configurar entorno para Puppeteer
-ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium \
+ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/google-chrome-stable \
     PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true \
     NODE_ENV=production
 
@@ -69,7 +79,7 @@ USER appuser
 # Copiar aplicación
 COPY --chown=appuser:appuser . .
 
-# Configurar directorio de logs para Railway
+# Configurar directorio de logs
 RUN mkdir -p /app/logs && chown appuser:appuser /app/logs
 ENV LOG_DIR=/app/logs
 
