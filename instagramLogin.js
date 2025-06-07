@@ -15,7 +15,7 @@ const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID;
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 const bot = TELEGRAM_BOT_TOKEN ? new Telegraf(TELEGRAM_BOT_TOKEN) : null;
 const PROXY_LIST = process.env.PROXY_LIST ? 
-  process.env.PROXY_LIST.split(',').map(p => p.trim()).filter(Boolean) : [];
+  process.env.PROXY_LIST.split(/[,;]/).map(p => p.trim()).filter(Boolean) : [];
 
 // Validación de formato de proxy
 const isValidProxy = proxy => /^[^:@]+:[^:@]+@[^:]+:\d+$/.test(proxy);
@@ -167,6 +167,31 @@ async function instagramLogin() {
     proxyUrl = null;
   }
 
+  // Rutas alternativas para Chromium
+  const chromiumPaths = [
+    '/usr/bin/chromium-browser',
+    '/usr/bin/chromium',
+    '/usr/bin/google-chrome',
+    '/usr/bin/chrome'
+  ];
+  
+  let validChromiumPath = process.env.PUPPETEER_EXECUTABLE_PATH;
+  
+  if (!validChromiumPath) {
+    for (const path of chromiumPaths) {
+      try {
+        await fs.access(path);
+        validChromiumPath = path;
+        console.log(`✅ Encontrado Chromium en: ${path}`);
+        break;
+      } catch {}
+    }
+  }
+
+  if (!validChromiumPath) {
+    throw new Error('No se encontró ejecutable de Chromium');
+  }
+
   const launchOptions = {
     headless: 'new',
     args: [
@@ -176,19 +201,13 @@ async function instagramLogin() {
       '--disable-blink-features=AutomationControlled',
       ...(proxyUrl ? [`--proxy-server=${proxyUrl}`] : [])
     ],
-    executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || '/usr/bin/chromium',
+    executablePath: validChromiumPath,
     ignoreHTTPSErrors: true
   };
 
+  console.log(`🚀 Iniciando Chromium en: ${validChromiumPath}`);
   const browser = await puppeteer.launch(launchOptions);
   const page = await browser.newPage();
-
-  // Configuración de detección
-  await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/122 Safari/537.36');
-  await page.setExtraHTTPHeaders({ 
-    'Accept-Language': 'en-US,en;q=0.9',
-    'Accept-Encoding': 'gzip, deflate, br'
-  });
 
   // Intento 1: Usar cookies existentes
   if (await loadCookies(page)) {
