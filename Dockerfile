@@ -1,9 +1,18 @@
-# Usa imagen oficial de Node.js
-FROM node:20-slim
+# Etapa de construcción
+FROM node:20-slim AS builder
 
-# Instala Chromium y dependencias mínimas
+WORKDIR /app
+
+# Instalar dependencias de construcción y Chromium
 RUN apt-get update && apt-get install -y \
-    chromium \
+    ca-certificates \
+    curl \
+    gnupg \
+    && curl -sSL https://dl.google.com/linux/linux_signing_key.pub | apt-key add - \
+    && echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" > /etc/apt/sources.list.d/google-chrome.list \
+    && apt-get update \
+    && apt-get install -y \
+    google-chrome-stable \
     fonts-liberation \
     libappindicator3-1 \
     libasound2 \
@@ -13,7 +22,6 @@ RUN apt-get update && apt-get install -y \
     libcups2 \
     libdbus-1-3 \
     libdrm2 \
-    libexpat1 \
     libgbm1 \
     libglib2.0-0 \
     libgtk-3-0 \
@@ -26,30 +34,46 @@ RUN apt-get update && apt-get install -y \
     libxdamage1 \
     libxext6 \
     libxfixes3 \
-    libxkbcommon0 \
     libxrandr2 \
     xdg-utils \
-    --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
-# Configura Puppeteer para usar Chromium del sistema
-ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium \
-    PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
+COPY package*.json ./
+RUN npm ci --omit=dev
 
-# Configura directorio de trabajo
+# Etapa de producción
+FROM node:20-slim
+
 WORKDIR /app
 
-# Copia archivos de dependencias
-COPY package.json ./
+# Copiar dependencias de construcción
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /usr/bin/google-chrome-stable /usr/bin/chromium
+COPY --from=builder /usr/lib/x86_64-linux-gnu/ /usr/lib/x86_64-linux-gnu/
+COPY --from=builder /usr/share/fonts/ /usr/share/fonts/
+COPY --from=builder /etc/fonts/ /etc/fonts/
 
-# Instala dependencias de Node.js
-RUN npm install --omit=dev
+# Configurar entorno para Puppeteer
+ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium \
+    PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true \
+    NODE_ENV=production
 
-# Copia la aplicación
-COPY . .
+# Crear usuario no root
+RUN groupadd -r appuser && useradd -r -g appuser -G audio,video appuser \
+    && mkdir -p /app/logs \
+    && chown -R appuser:appuser /app
 
-# Expone el puerto
+USER appuser
+
+# Copiar aplicación
+COPY --chown=appuser:appuser . .
+
+# Configurar logs
+VOLUME ["/app/logs"]
+
 EXPOSE 3000
 
-# Inicia la aplicación
+HEALTHCHECK --interval=30s --timeout=3s \
+  CMD curl -f http://localhost:3000/health || exit 1
+
 CMD ["node", "server.js"]
