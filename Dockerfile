@@ -3,13 +3,12 @@ FROM node:20-slim AS builder
 
 WORKDIR /app
 
-# Instalar dependencias de construcción y Chromium
+# Instalar dependencias necesarias para Chromium
 RUN apt-get update && apt-get install -y \
-    ca-certificates \
-    curl \
+    wget \
     gnupg \
-    && curl -sSL https://dl.google.com/linux/linux_signing_key.pub | apt-key add - \
-    && echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" > /etc/apt/sources.list.d/google-chrome.list \
+    && wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub | gpg --dearmor -o /usr/share/keyrings/googlechrome-linux-keyring.gpg \
+    && echo "deb [arch=amd64 signed-by=/usr/share/keyrings/googlechrome-linux-keyring.gpg] http://dl.google.com/linux/chrome/deb/ stable main" >> /etc/apt/sources.list.d/google.list \
     && apt-get update \
     && apt-get install -y \
     google-chrome-stable \
@@ -46,12 +45,11 @@ FROM node:20-slim
 
 WORKDIR /app
 
-# Copiar dependencias de construcción
+# Copiar dependencias y Chromium desde la etapa de construcción
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /usr/bin/google-chrome-stable /usr/bin/chromium
 COPY --from=builder /usr/lib/x86_64-linux-gnu/ /usr/lib/x86_64-linux-gnu/
 COPY --from=builder /usr/share/fonts/ /usr/share/fonts/
-COPY --from=builder /etc/fonts/ /etc/fonts/
 
 # Configurar entorno para Puppeteer
 ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium \
@@ -68,8 +66,11 @@ USER appuser
 # Copiar aplicación
 COPY --chown=appuser:appuser . .
 
-# Configurar logs
-VOLUME ["/app/logs"]
+# Configurar logs para Railway
+RUN mkdir -p /app/logs \
+    && chown appuser:appuser /app/logs
+
+ENV LOG_DIR=/app/logs
 
 EXPOSE 3000
 
