@@ -3,12 +3,12 @@ FROM node:20-slim AS builder
 
 WORKDIR /app
 
-# Instalar dependencias necesarias para Chromium
+# Instalar dependencias para Chromium
 RUN apt-get update && apt-get install -y \
     wget \
     gnupg \
     && wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub | gpg --dearmor -o /usr/share/keyrings/googlechrome-linux-keyring.gpg \
-    && echo "deb [arch=amd64 signed-by=/usr/share/keyrings/googlechrome-linux-keyring.gpg] http://dl.google.com/linux/chrome/deb/ stable main" >> /etc/apt/sources.list.d/google.list \
+    && echo "deb [arch=amd64 signed-by=/usr/share/keyrings/googlechrome-linux-keyring.gpg] http://dl.google.com/linux/chrome/deb/ stable main" > /etc/apt/sources.list.d/google.list \
     && apt-get update \
     && apt-get install -y \
     google-chrome-stable \
@@ -45,7 +45,7 @@ FROM node:20-slim
 
 WORKDIR /app
 
-# Copiar dependencias y Chromium desde la etapa de construcción
+# Copiar dependencias y Chromium
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /usr/bin/google-chrome-stable /usr/bin/chromium
 COPY --from=builder /usr/lib/x86_64-linux-gnu/ /usr/lib/x86_64-linux-gnu/
@@ -66,10 +66,8 @@ USER appuser
 # Copiar aplicación
 COPY --chown=appuser:appuser . .
 
-# Configurar logs para Railway
-RUN mkdir -p /app/logs \
-    && chown appuser:appuser /app/logs
-
+# Configurar directorio de logs para Railway
+RUN mkdir -p /app/logs && chown appuser:appuser /app/logs
 ENV LOG_DIR=/app/logs
 
 EXPOSE 3000
