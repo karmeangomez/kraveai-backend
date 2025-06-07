@@ -38,10 +38,10 @@ RUN apt-get update && apt-get install -y \
     xdg-utils \
     && rm -rf /var/lib/apt/lists/*
 
-# Crear enlaces simbólicos
-RUN ln -s /usr/bin/google-chrome-stable /usr/bin/chromium && \
-    ln -s /usr/bin/google-chrome-stable /usr/bin/chrome && \
-    ln -s /usr/bin/google-chrome-stable /usr/bin/chromium-browser
+# Crear enlaces simbólicos en etapa de construcción
+RUN if [ ! -f /usr/bin/chromium ]; then ln -s /usr/bin/google-chrome-stable /usr/bin/chromium; fi && \
+    if [ ! -f /usr/bin/chrome ]; then ln -s /usr/bin/google-chrome-stable /usr/bin/chrome; fi && \
+    if [ ! -f /usr/bin/chromium-browser ]; then ln -s /usr/bin/google-chrome-stable /usr/bin/chromium-browser; fi
 
 COPY package.json ./
 RUN npm install --omit=dev
@@ -54,15 +54,17 @@ WORKDIR /app
 # Copiar dependencias y Chromium
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /usr/bin/google-chrome-stable /usr/bin/
-COPY --from=builder /usr/bin/chromium* /usr/bin/
+COPY --from=builder /usr/bin/chromium /usr/bin/ || true
+COPY --from=builder /usr/bin/chrome /usr/bin/ || true
+COPY --from=builder /usr/bin/chromium-browser /usr/bin/ || true
 COPY --from=builder /usr/lib/x86_64-linux-gnu/ /usr/lib/x86_64-linux-gnu/
 COPY --from=builder /usr/share/fonts/ /usr/share/fonts/
 COPY --from=builder /etc/alternatives/ /etc/alternatives/
 
-# Crear enlaces simbólicos en la etapa final
-RUN ln -s /usr/bin/google-chrome-stable /usr/bin/chromium && \
-    ln -s /usr/bin/google-chrome-stable /usr/bin/chrome && \
-    ln -s /usr/bin/google-chrome-stable /usr/bin/chromium-browser
+# Crear enlaces simbólicos solo si no existen
+RUN if [ ! -f /usr/bin/chromium ]; then ln -s /usr/bin/google-chrome-stable /usr/bin/chromium; fi && \
+    if [ ! -f /usr/bin/chrome ]; then ln -s /usr/bin/google-chrome-stable /usr/bin/chrome; fi && \
+    if [ ! -f /usr/bin/chromium-browser ]; then ln -s /usr/bin/google-chrome-stable /usr/bin/chromium-browser; fi
 
 # Configurar entorno para Puppeteer
 ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/google-chrome-stable \
