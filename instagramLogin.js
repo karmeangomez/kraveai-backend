@@ -1,6 +1,7 @@
 const puppeteer = require('puppeteer-extra');
 const StealthPlugin = require('puppeteer-extra-plugin-stealth');
 const { loadCookies, saveCookies } = require('./cookies');
+require('dotenv').config();
 
 puppeteer.use(StealthPlugin());
 
@@ -29,7 +30,7 @@ async function instagramLogin() {
 
     await page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 30000 });
     await saveCookies(page);
-    console.log('✅ Login y cookies guardadas');
+    console.log('✅ Login exitoso y cookies guardadas');
   } else {
     console.log('✅ Sesión restaurada con cookies');
   }
