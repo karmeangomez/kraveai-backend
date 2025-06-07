@@ -37,8 +37,11 @@ RUN apt-get update && apt-get install -y \
     xdg-utils \
     && rm -rf /var/lib/apt/lists/*
 
-COPY package*.json ./
-RUN npm ci --omit=dev
+# Copiar solo los archivos necesarios para instalar dependencias
+COPY package.json ./
+
+# Usar npm install en lugar de npm ci
+RUN npm install --omit=dev
 
 # Etapa de producción
 FROM node:20-slim
