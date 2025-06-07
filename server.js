@@ -3,7 +3,6 @@ const express = require('express');
 const cors = require('cors');
 const path = require('path');
 const axios = require('axios');
-const fs = require('fs');
 const winston = require('winston');
 const rateLimit = require('express-rate-limit');
 const { instagramLogin, getCookies, notifyTelegram } = require('./instagramLogin');
@@ -19,12 +18,12 @@ const logger = winston.createLogger({
   ),
   transports: [
     new winston.transports.File({ 
-      filename: 'logs/error.log', 
+      filename: path.join(process.env.LOG_DIR || 'logs', 'error.log'),
       level: 'error',
       maxsize: 5 * 1024 * 1024 // 5MB
     }),
     new winston.transports.File({ 
-      filename: 'logs/combined.log',
+      filename: path.join(process.env.LOG_DIR || 'logs', 'combined.log'),
       maxsize: 10 * 1024 * 1024 // 10MB
     }),
     new winston.transports.Console({
@@ -36,7 +35,7 @@ const logger = winston.createLogger({
   ]
 });
 
-// Validación mejorada de variables de entorno
+// Validar variables de entorno
 const requiredEnvVars = [
   'PORT', 
   'IG_USERNAME', 
@@ -60,7 +59,7 @@ let browserInstance = null;
 let sessionStatus = 'INITIALIZING';
 
 // Configuración avanzada de proxy y rate limiting
-app.set('trust proxy', process.env.TRUST_PROXY_LEVEL || 1); // Nivel de confianza para proxies
+app.set('trust proxy', process.env.TRUST_PROXY_LEVEL || 1);
 
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutos
@@ -151,7 +150,7 @@ async function initBrowser() {
 
 // Verificación de sesión optimizada
 async function checkSessionValidity() {
-  if (!browserInstance || browserInstance.isConnected() === false) {
+  if (!browserInstance || !browserInstance.isConnected()) {
     sessionStatus = 'DISCONNECTED';
     return initBrowser();
   }
@@ -507,7 +506,7 @@ app.get('/health', (req, res) => {
     status: 'OK',
     services: {
       instagram: sessionStatus,
-      browser: browserInstance ? 'connected' : 'disconnected',
+      browser: browserInstance && browserInstance.isConnected() ? 'connected' : 'disconnected',
       memory: {
         rss: `${Math.round(memory.rss / 1024 / 1024)}MB`,
         heapTotal: `${Math.round(memory.heapTotal / 1024 / 1024)}MB`,
@@ -519,13 +518,13 @@ app.get('/health', (req, res) => {
   });
 });
 
-// Manejo de cierre mejorado
+// Cierre controlado
 function gracefulShutdown() {
   logger.info('Iniciando apagado controlado...');
   
   const shutdownPromises = [];
   
-  if (browserInstance) {
+  if (browserInstance && browserInstance.isConnected()) {
     shutdownPromises.push(
       browserInstance.close()
         .then(() => logger.info('Navegador cerrado correctamente'))
