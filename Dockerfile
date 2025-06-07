@@ -8,8 +8,8 @@ RUN apt-get update && apt-get install -y \
     ca-certificates \
     curl \
     gnupg \
-    && curl -sSL https://dl.google.com/linux/linux_signing_key.pub | apt-key add - \
-    && echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" > /etc/apt/sources.list.d/google-chrome.list \
+    && curl -sSL https://dl.google.com/linux/linux_signing_key.pub | gpg --dearmor -o /usr/share/keyrings/googlechrome-linux-keyring.gpg \
+    && echo "deb [arch=amd64 signed-by=/usr/share/keyrings/googlechrome-linux-keyring.gpg] http://dl.google.com/linux/chrome/deb/ stable main" > /etc/apt/sources.list.d/google-chrome.list \
     && apt-get update \
     && apt-get install -y \
     google-chrome-stable \
@@ -38,11 +38,6 @@ RUN apt-get update && apt-get install -y \
     xdg-utils \
     && rm -rf /var/lib/apt/lists/*
 
-# Crear enlaces simbólicos en etapa de construcción
-RUN if [ ! -f /usr/bin/chromium ]; then ln -s /usr/bin/google-chrome-stable /usr/bin/chromium; fi && \
-    if [ ! -f /usr/bin/chrome ]; then ln -s /usr/bin/google-chrome-stable /usr/bin/chrome; fi && \
-    if [ ! -f /usr/bin/chromium-browser ]; then ln -s /usr/bin/google-chrome-stable /usr/bin/chromium-browser; fi
-
 COPY package.json ./
 RUN npm install --omit=dev
 
@@ -51,20 +46,19 @@ FROM node:20-slim
 
 WORKDIR /app
 
-# Copiar dependencias y Chromium
+# Copiar dependencias
 COPY --from=builder /app/node_modules ./node_modules
+
+# Copiar solo el binario principal y dependencias
 COPY --from=builder /usr/bin/google-chrome-stable /usr/bin/
-COPY --from=builder /usr/bin/chromium /usr/bin/ || true
-COPY --from=builder /usr/bin/chrome /usr/bin/ || true
-COPY --from=builder /usr/bin/chromium-browser /usr/bin/ || true
 COPY --from=builder /usr/lib/x86_64-linux-gnu/ /usr/lib/x86_64-linux-gnu/
 COPY --from=builder /usr/share/fonts/ /usr/share/fonts/
 COPY --from=builder /etc/alternatives/ /etc/alternatives/
 
-# Crear enlaces simbólicos solo si no existen
-RUN if [ ! -f /usr/bin/chromium ]; then ln -s /usr/bin/google-chrome-stable /usr/bin/chromium; fi && \
-    if [ ! -f /usr/bin/chrome ]; then ln -s /usr/bin/google-chrome-stable /usr/bin/chrome; fi && \
-    if [ ! -f /usr/bin/chromium-browser ]; then ln -s /usr/bin/google-chrome-stable /usr/bin/chromium-browser; fi
+# Crear todos los enlaces simbólicos necesarios
+RUN ln -sf /usr/bin/google-chrome-stable /usr/bin/chromium && \
+    ln -sf /usr/bin/google-chrome-stable /usr/bin/chrome && \
+    ln -sf /usr/bin/google-chrome-stable /usr/bin/chromium-browser
 
 # Configurar entorno para Puppeteer
 ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/google-chrome-stable \
@@ -73,7 +67,6 @@ ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/google-chrome-stable \
 
 # Crear usuario no root
 RUN groupadd -r appuser && useradd -r -g appuser -G audio,video appuser \
-    && mkdir -p /app/logs \
     && chown -R appuser:appuser /app
 
 USER appuser
