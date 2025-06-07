@@ -1,11 +1,10 @@
 {
   "name": "kraveai-backend",
   "version": "1.0.0",
-  "description": "Backend de KraveAI con scraping, login proxy, IA y Telegram",
+  "description": "Backend de KraveAI con scraping, login, voz, IA y proxies inteligentes",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js",
-    "install-chromium": "echo 'Chromium ya está instalado vía Docker'"
+    "start": "node server.js"
   },
   "dependencies": {
     "axios": "^1.7.2",
