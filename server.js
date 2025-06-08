@@ -14,8 +14,13 @@ const PORT = process.env.PORT || 3000;
 let browserInstance = null;
 let sessionStatus = 'INITIALIZING';
 
+// Cola para limitar páginas concurrentes
+const pageQueue = [];
+let activePages = 0;
+const maxConcurrentPages = parseInt(process.env.PUPPETEER_MAX_CONCURRENT_PAGES) || 2;
+
 const logger = winston.createLogger({
-  level: 'debug',
+  level: process.env.LOG_LEVEL || 'debug',
   format: winston.format.combine(
     winston.format.timestamp(),
     winston.format.printf(info => `${info.timestamp} [${info.level.toUpperCase()}]: ${info.message}`)
@@ -45,10 +50,37 @@ app.use((req, res, next) => {
   next();
 });
 
+// Función para adquirir una página
+async function acquirePage(browser) {
+  return new Promise((resolve) => {
+    const tryAcquire = async () => {
+      if (activePages < maxConcurrentPages) {
+        activePages++;
+        const page = await browser.newPage();
+        resolve(page);
+      } else {
+        pageQueue.push(tryAcquire);
+        setTimeout(tryAcquire, 100);
+      }
+    };
+    tryAcquire();
+  });
+}
+
+// Función para liberar una página
+async function releasePage(page) {
+  if (page && !page.isClosed()) {
+    await page.close().catch(() => {});
+  }
+  activePages--;
+  const next = pageQueue.shift();
+  if (next) next();
+}
+
 async function initBrowser() {
   try {
     logger.info('Verificando sesión de Instagram...');
-    await ensureLoggedIn(); // Verifica o realiza login
+    await ensureLoggedIn();
     const username = process.env.IG_USERNAME;
     const password = process.env.INSTAGRAM_PASS;
     const sessionPath = path.join(__dirname, 'sessions', 'kraveaibot.json');
@@ -60,11 +92,11 @@ async function initBrowser() {
     sessionStatus = 'ACTIVE';
     logger.info('✅ Sesión de Instagram lista.');
     notifyTelegram('✅ Sesión de Instagram iniciada correctamente');
-    await page.close(); // Cerrar página para liberar recursos
+    await page.close();
   } catch (err) {
     sessionStatus = 'ERROR';
     logger.error(`❌ Error de login: ${err.message}`);
-    notifyTelegram('❌ Error al iniciar sesión: ${err.message}`);
+    notifyTelegram(`❌ Error al iniciar sesión: ${err.message}`);
     if (browserInstance) await browserInstance.close();
   }
 }
@@ -72,15 +104,18 @@ async function initBrowser() {
 setInterval(async () => {
   try {
     if (!browserInstance) return;
-    const page = await browserInstance.newPage();
-    const cookies = getCookies();
-    await page.setCookie(...cookies);
-    await page.goto('https://www.instagram.com/', { waitUntil: 'domcontentloaded', timeout: 15000 });
-    const loggedIn = await page.evaluate(() => !!document.querySelector('a[href*="/accounts/activity/"]'));
-    await page.close();
-    if (!loggedIn) {
-      logger.warn('⚠️ Sesión expirada. Reintentando login...');
-      await initBrowser();
+    const page = await acquirePage(browserInstance);
+    try {
+      const cookies = getCookies();
+      await page.setCookie(...cookies);
+      await page.goto('https://www.instagram.com/', { waitUntil: 'domcontentloaded', timeout: 15000 });
+      const loggedIn = await page.evaluate(() => !!document.querySelector('a[href*="/accounts/activity/"]'));
+      if (!loggedIn) {
+        logger.warn('⚠️ Sesión expirada. Reintentando login...');
+        await initBrowser();
+      }
+    } finally {
+      await releasePage(page);
     }
   } catch (err) {
     sessionStatus = 'EXPIRED';
@@ -92,14 +127,17 @@ app.post('/create-accounts', async (req, res) => {
   try {
     const count = req.body.count || 3;
     if (!browserInstance) throw new Error('Navegador no iniciado');
-    const page = await browserInstance.newPage();
-    const accounts = await createMultipleAccounts(count, page);
-    await page.close();
-    notifyTelegram(`✅ ${accounts.length} cuentas creadas exitosamente`);
-    res.json({ success: true, accounts });
+    const page = await acquirePage(browserInstance);
+    try {
+      const accounts = await createMultipleAccounts(count, page);
+      notifyTelegram(`✅ ${accounts.length} cuentas creadas exitosamente`);
+      res.json({ success: true, accounts });
+    } finally {
+      await releasePage(page);
+    }
   } catch (err) {
     logger.error('❌ Error creando cuentas:', err.message);
-    notifyTelegram('❌ Error creando cuentas: ${err.message}`);
+    notifyTelegram(`❌ Error creando cuentas: ${err.message}`);
     res.status(500).json({ error: 'Error creando cuentas', details: err.message });
   }
 });
@@ -110,29 +148,32 @@ app.get('/api/scrape', async (req, res) => {
     if (!username) return res.status(400).json({ error: "Falta ?username=" });
     if (sessionStatus !== 'ACTIVE') return res.status(503).json({ error: "Sesión no disponible", status: sessionStatus });
 
-    const page = await browserInstance.newPage();
-    const cookies = getCookies();
-    await page.setCookie(...cookies);
-    await page.goto(`https://www.instagram.com/${username}/`, { waitUntil: 'domcontentloaded', timeout: 30000 });
+    const page = await acquirePage(browserInstance);
+    try {
+      const cookies = getCookies();
+      await page.setCookie(...cookies);
+      await page.goto(`https://www.instagram.com/${username}/`, { waitUntil: 'domcontentloaded', timeout: 30000 });
 
-    const profile = await page.evaluate(() => {
-      const avatar = document.querySelector('header img');
-      const usernameElem = document.querySelector('header section h2');
-      const verified = !!document.querySelector('svg[aria-label="Verified"]');
-      const fullName = document.querySelector('header section h1')?.textContent;
-      const meta = document.querySelector('meta[name="description"]')?.content;
-      const match = meta?.match(/([\d,.KM]+)\s+Followers/);
-      return {
-        username: usernameElem?.textContent || 'N/A',
-        fullName: fullName || 'N/A',
-        verified,
-        followers: match ? match[1] : 'N/A',
-        profilePic: avatar?.src || 'N/A'
-      };
-    });
+      const profile = await page.evaluate(() => {
+        const avatar = document.querySelector('header img');
+        const usernameElem = document.querySelector('header section h2');
+        const verified = !!document.querySelector('svg[aria-label="Verified"]');
+        const fullName = document.querySelector('header section h1')?.textContent;
+        const meta = document.querySelector('meta[name="description"]')?.content;
+        const match = meta?.match(/([\d,.KM]+)\s+Followers/);
+        return {
+          username: usernameElem?.textContent || 'N/A',
+          fullName: fullName || 'N/A',
+          verified,
+          followers: match ? match[1] : 'N/A',
+          profilePic: avatar?.src || 'N/A'
+        };
+      });
 
-    await page.close();
-    res.json({ profile });
+      res.json({ profile });
+    } finally {
+      await releasePage(page);
+    }
   } catch (err) {
     logger.error('❌ Scraping fallido:', err.message);
     res.status(500).json({ error: "Scraping fallido", reason: err.message });
@@ -208,14 +249,12 @@ app.get('/health', (req, res) => {
   });
 });
 
-// Manejo de SIGTERM
 process.on('SIGTERM', async () => {
   logger.info('SIGTERM recibido. Cerrando navegador...');
   if (browserInstance) await browserInstance.close();
   process.exit(0);
 });
 
-// Manejo de errores no capturados
 process.on('unhandledRejection', (reason) => {
   logger.error('Unhandled Rejection:', reason);
 });
