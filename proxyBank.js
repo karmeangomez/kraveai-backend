@@ -1,46 +1,30 @@
-// ✅ proxyBank.js compatible con proxy-chain y rotación inteligente
-const proxies = [
-  'pdsmombq-rotate:terqdq67j6mp@p.webshare.io:80',
-  'pdsmombq-rotate:terqdq67j6mp@p.webshare.io:80',
-  'pdsmombq-rotate:terqdq67j6mp@p.webshare.io:80'
-];
+// proxyBank.js
+require('dotenv').config();
+const fs = require('fs');
 
-const FAIL_COOLDOWN = 5 * 60 * 1000;
-let lastIndex = 0;
-const state = new Map();
+let proxies = [];
+let index = 0;
 
-function getNextProxy() {
-  const now = Date.now();
-  const n = proxies.length;
-  for (let i = 0; i < n; i++) {
-    const idx = (lastIndex + i) % n;
-    const proxy = proxies[idx];
-    const failInfo = state.get(proxy);
-    if (failInfo && (now - failInfo.lastFail < FAIL_COOLDOWN)) continue;
-    lastIndex = idx + 1;
-    return proxy;
+// Carga los proxies desde el .env una sola vez
+function loadProxies() {
+  if (process.env.PROXY_LIST) {
+    proxies = process.env.PROXY_LIST.split(';')
+      .map(p => p.trim())
+      .filter(p => p.includes('@') && p.includes(':'));
+    console.log(`🌐 ${proxies.length} proxies cargados desde PROXY_LIST`);
+  } else {
+    console.warn('⚠️ No se encontró PROXY_LIST en el entorno');
   }
-  return null;
 }
 
-function reportFailure(proxy) {
-  const now = Date.now();
-  state.set(proxy, { lastFail: now, failCount: (state.get(proxy)?.failCount || 0) + 1 });
-  console.warn(`⛔ Proxy FAIL: ${proxy}`);
+// Devuelve el siguiente proxy disponible, en forma de URL completa
+function getNextProxy() {
+  if (proxies.length === 0) loadProxies();
+  if (proxies.length === 0) throw new Error('❌ No hay proxies válidos en PROXY_LIST');
+
+  const proxy = proxies[index];
+  index = (index + 1) % proxies.length;
+  return `http://${proxy}`;
 }
 
-function reportSuccess(proxy) {
-  state.set(proxy, { lastFail: 0, failCount: 0 });
-  console.log(`✅ Proxy OK: ${proxy}`);
-}
-
-function count() {
-  return proxies.length;
-}
-
-module.exports = {
-  getNextProxy,
-  reportFailure,
-  reportSuccess,
-  count
-};
+module.exports = { getNextProxy };
