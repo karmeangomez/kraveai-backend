@@ -1,146 +1,129 @@
-const puppeteer = require('puppeteer-extra');
-const StealthPlugin = require('puppeteer-extra-plugin-stealth');
-const proxyChain = require('proxy-chain');
 const fs = require('fs').promises;
 const path = require('path');
+const proxyChain = require('proxy-chain');
+const puppeteer = require('puppeteer-extra');
+const StealthPlugin = require('puppeteer-extra-plugin-stealth');
+const { loadCookies, saveCookies } = require('./cookies');
+const { getNextProxy } = require('./proxyBank');
 const UserAgent = require('user-agents');
-const { Telegraf } = require('telegraf');
-const { loadCookies, saveCookies, validateCookies } = require('./cookies');
 
 puppeteer.use(StealthPlugin());
 
-const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
-const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID;
-const telegramBot = TELEGRAM_BOT_TOKEN ? new Telegraf(TELEGRAM_BOT_TOKEN) : null;
-const COOKIE_PATH = path.join(__dirname, 'instagram_cookies.json');
-let proxyIndex = 0;
+const COOKIE_PATH = path.join(__dirname, 'sessions', 'kraveaibot.json');
 
-function getNextProxy() {
-  const list = process.env.PROXY_LIST;
-  if (!list) return null;
-  const proxies = list.split(';').map(p => p.trim()).filter(Boolean);
-  if (!proxies.length) return null;
-  const proxy = proxies[proxyIndex % proxies.length];
-  proxyIndex++;
-  return proxy;
-}
+async function smartLogin(username, password, sessionPath) {
+  const proxyUrlRaw = getNextProxy();
+  let proxyUrl = null;
 
-async function notifyTelegram(message) {
-  if (!telegramBot || !TELEGRAM_CHAT_ID) return;
-  try {
-    await telegramBot.telegram.sendMessage(TELEGRAM_CHAT_ID, message);
-    console.log(`[Telegram] ${message}`);
-  } catch (err) {
-    console.warn('❌ Telegram error:', err.message);
+  if (proxyUrlRaw) {
+    try {
+      proxyUrl = await proxyChain.anonymizeProxy(`http://${proxyUrlRaw}`);
+      console.log('✅ Proxy válido:', proxyUrl);
+    } catch (err) {
+      console.warn('⚠️ Proxy inválido:', proxyUrlRaw);
+    }
   }
-}
 
-async function launchBrowserWithProxy(proxyUrl) {
-  const anonymizedProxy = await proxyChain.anonymizeProxy(`http://${proxyUrl}`);
-  const args = [
-    `--proxy-server=${anonymizedProxy}`,
-    '--no-sandbox',
-    '--disable-setuid-sandbox',
-    '--disable-dev-shm-usage',
-    '--disable-gpu',
-    '--disable-blink-features=AutomationControlled',
-    '--single-process',
-    '--window-size=1280,800'
-  ];
-  return puppeteer.launch({
-    headless: true,
-    args,
-    executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || '/usr/bin/google-chrome-stable',
+  const browser = await puppeteer.launch({
+    headless: 'new',
+    args: [
+      '--no-sandbox',
+      '--disable-setuid-sandbox',
+      '--disable-dev-shm-usage',
+      '--disable-gpu',
+      '--single-process',
+      '--no-zygote',
+      ...(proxyUrl ? [`--proxy-server=${proxyUrl}`] : [])
+    ],
+    executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || '/usr/bin/google-chrome',
     ignoreHTTPSErrors: true
   });
-}
 
-async function instagramLogin(page, username, password) {
-  if (!page) throw new Error('Página de Puppeteer no inicializada');
+  const page = await browser.newPage();
 
-  const userAgent = new UserAgent().toString();
-  await page.setUserAgent(userAgent);
-  await page.setRequestInterception(true);
-  page.on('request', req => {
-    const block = ['image', 'media', 'stylesheet', 'font'];
-    block.includes(req.resourceType()) ? req.abort() : req.continue();
-  });
+  try {
+    await page.setUserAgent(new UserAgent().toString());
+    await page.setExtraHTTPHeaders({ 'Accept-Language': 'en-US,en;q=0.9' });
+    await page.setRequestInterception(true);
+    page.on('request', req => {
+      const type = req.resourceType();
+      if (['image', 'media', 'font', 'stylesheet'].includes(type)) {
+        req.abort();
+      } else {
+        req.continue();
+      }
+    });
 
-  await page.goto('https://www.instagram.com/accounts/login/', {
-    waitUntil: 'domcontentloaded',
-    timeout: 30000
-  });
+    await page.goto('https://www.instagram.com/accounts/login/', {
+      waitUntil: 'domcontentloaded',
+      timeout: 30000
+    });
 
-  const usernameInput = await page.waitForSelector('input[name="username"]', { timeout: 10000 });
-  await usernameInput.type(username, { delay: 80 });
+    // Esperar campos
+    await page.waitForSelector('input[name="username"]', { timeout: 10000 });
+    await page.type('input[name="username"]', username, { delay: 50 });
+    await page.type('input[name="password"]', password, { delay: 50 });
 
-  const passwordInput = await page.waitForSelector('input[name="password"]', { timeout: 10000 });
-  await passwordInput.type(password, { delay: 80 });
+    await page.click('button[type="submit"]');
+    await page.waitForTimeout(2000);
 
-  await Promise.all([
-    page.click('button[type="submit"]'),
-    page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 30000 }).catch(() => {})
-  ]);
+    await page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 60000 });
 
-  const url = page.url();
-  if (url.includes('/challenge') || url.includes('two_factor')) {
-    throw new Error('Challenge o 2FA detectado');
+    const url = page.url();
+    if (url.includes('/challenge') || url.includes('/error')) {
+      throw new Error('Instagram rechazó el login (posible challenge o IP bloqueada)');
+    }
+
+    const cookies = await page.cookies();
+    await saveCookies(cookies, sessionPath);
+    console.log('🔐 Login exitoso y cookies guardadas');
+    return { success: true, browser, page };
+  } catch (err) {
+    console.error('❌ Error en smartLogin:', err.message);
+    await browser.close();
+    return { success: false };
   }
-
-  const cookies = await page.cookies();
-  await saveCookies(cookies);
-  return true;
 }
 
 async function ensureLoggedIn() {
   const username = process.env.IG_USERNAME;
   const password = process.env.INSTAGRAM_PASS;
-  if (!username || !password) throw new Error('❌ IG_USERNAME o INSTAGRAM_PASS no están definidos');
+  const sessionPath = COOKIE_PATH;
 
-  const cookies = await loadCookies();
-  if (validateCookies(cookies)) {
-    console.log('✅ Cookies válidas cargadas');
+  if (!username || !password) {
+    throw new Error('Faltan IG_USERNAME o INSTAGRAM_PASS en .env');
+  }
+
+  const cookies = await loadCookies(sessionPath);
+  if (cookies && cookies.length > 0) {
+    console.log('[Cookies] Sesión válida encontrada');
     return true;
-  } else {
-    console.log('🟠 No hay cookies válidas. Iniciando login...');
   }
 
-  for (let attempt = 1; attempt <= 5; attempt++) {
-    const proxyUrl = getNextProxy();
-    if (!proxyUrl) throw new Error('No hay proxies disponibles en PROXY_LIST');
-
-    let browser;
-    let page;
-
-    try {
-      console.log(`🔁 Intento de login #${attempt} con proxy ${proxyUrl}`);
-      browser = await launchBrowserWithProxy(proxyUrl);
-
-      if (!browser || !browser.isConnected()) throw new Error('El navegador no se inició correctamente');
-
-      try {
-        page = await browser.newPage();
-      } catch (err) {
-        throw new Error(`No se pudo abrir la página: ${err.message}`);
-      }
-
-      const success = await instagramLogin(page, username, password);
-      await browser.close();
-      if (success) {
-        await notifyTelegram('✅ Sesión de Instagram iniciada correctamente');
-        return true;
-      }
-    } catch (error) {
-      console.warn(`❌ Error en intento ${attempt}: ${error.message}`);
-      await notifyTelegram(`❌ Error en login IG: ${error.message}`);
-      if (browser) await browser.close().catch(() => {});
-    }
+  const result = await smartLogin(username, password, sessionPath);
+  if (!result.success) {
+    throw new Error('Login fallido');
   }
 
-  throw new Error('❌ Todos los intentos de login fallaron');
+  return true;
+}
+
+function getCookies() {
+  try {
+    const cookies = require(sessionPath);
+    return cookies;
+  } catch {
+    return [];
+  }
+}
+
+function notifyTelegram(msg) {
+  // puedes personalizar esto si tienes lógica ya hecha en otro archivo
+  console.log('[Telegram]', msg);
 }
 
 module.exports = {
   ensureLoggedIn,
+  getCookies,
   notifyTelegram
 };
