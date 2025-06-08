@@ -1,10 +1,11 @@
+// ✅ server.js completo y actualizado (KraveAI Backend)
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
 const axios = require('axios');
-const winston = require('winston');
 const rateLimit = require('express-rate-limit');
+const winston = require('winston');
 const { instagramLogin, getCookies, notifyTelegram } = require('./instagramLogin');
 const { createMultipleAccounts } = require('./instagramAccountCreator');
 
@@ -13,77 +14,79 @@ const PORT = process.env.PORT || 3000;
 let browserInstance = null;
 let sessionStatus = 'INITIALIZING';
 
-// Logger setup
+// Logging avanzado
 const logger = winston.createLogger({
   level: 'info',
   format: winston.format.combine(
     winston.format.timestamp(),
-    winston.format.printf(({ timestamp, level, message }) => `[${timestamp}] ${level.toUpperCase()}: ${message}`)
+    winston.format.printf(({ level, message, timestamp }) => `${timestamp} [${level.toUpperCase()}]: ${message}`)
   ),
-  transports: [new winston.transports.Console()]
+  transports: [
+    new winston.transports.Console(),
+    new winston.transports.File({ filename: 'logs/combined.log' })
+  ]
 });
 
-// Middleware
-app.set('trust proxy', 1);
+// Express config
+app.set('trust proxy', true);
 app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 100
+  max: 100,
+  message: 'Rate limit exceeded'
 }));
 
-// Init Instagram Login
+// Middleware memoria
+app.use((req, res, next) => {
+  const mem = process.memoryUsage().rss / 1024 / 1024;
+  logger.info(`🧠 Memoria: ${Math.round(mem)}MB RSS`);
+  next();
+});
+
+// Iniciar navegador + login
 async function initBrowser() {
   try {
     logger.info('Verificando sesión de Instagram...');
-    const result = await instagramLogin();
-    browserInstance = result.browser;
+    const { browser } = await instagramLogin();
+    browserInstance = browser;
     sessionStatus = 'ACTIVE';
-    logger.info('Sesión de Instagram lista');
-    notifyTelegram('✅ Sesión de Instagram iniciada');
+    logger.info('✅ Login correcto');
+    notifyTelegram('✅ Sesión iniciada');
   } catch (err) {
+    logger.error(`❌ Error de login: ${err.message}`);
     sessionStatus = 'ERROR';
-    logger.error('❌ Error de login: ' + err.message);
-    notifyTelegram('❌ Error al iniciar sesión: ' + err.message);
+    notifyTelegram(`❌ Error al iniciar sesión: ${err.message}`);
   }
 }
 
-// Health
-app.get('/health', (req, res) => {
-  const memory = process.memoryUsage();
-  res.json({
-    status: sessionStatus,
-    memory: `${Math.round(memory.rss / 1024 / 1024)}MB RSS`,
-    uptime: `${Math.floor(process.uptime())}s`
-  });
-});
-
-// Crear cuentas
+// Ruta crear cuentas
 app.post('/create-accounts', async (req, res) => {
   try {
-    const { count = 1 } = req.body;
+    const count = req.body.count || 1;
     if (!browserInstance) return res.status(500).json({ error: 'Navegador no iniciado' });
     const page = await browserInstance.newPage();
     const accounts = await createMultipleAccounts(count, page);
     await page.close();
     res.json({ success: true, accounts });
-    notifyTelegram(`✅ ${accounts.length} cuentas creadas exitosamente.`);
+    notifyTelegram(`✅ ${accounts.length} cuentas creadas`);
   } catch (err) {
     logger.error('❌ Error creando cuentas:', err);
-    res.status(500).json({ error: 'Error creando cuentas', details: err.message });
+    res.status(500).json({ error: 'Fallo al crear cuentas' });
   }
 });
 
-// Scraping
+// Ruta scraping
 app.get('/api/scrape', async (req, res) => {
+  const username = req.query.username;
+  if (!username) return res.status(400).json({ error: 'Falta username' });
   try {
-    const { username } = req.query;
-    if (!username) return res.status(400).json({ error: 'Falta username' });
     const cookies = getCookies();
     const page = await browserInstance.newPage();
     await page.setCookie(...cookies);
     await page.goto(`https://www.instagram.com/${username}/`, { waitUntil: 'domcontentloaded', timeout: 30000 });
+
     const profile = await page.evaluate(() => {
       const avatar = document.querySelector('header img');
       const usernameElem = document.querySelector('header section h2');
@@ -99,6 +102,7 @@ app.get('/api/scrape', async (req, res) => {
         profilePic: avatar?.src || 'N/A'
       };
     });
+
     await page.close();
     res.json({ profile });
   } catch (err) {
@@ -107,7 +111,7 @@ app.get('/api/scrape', async (req, res) => {
   }
 });
 
-// Chat IA
+// Chatbot IA
 app.post('/api/chat', async (req, res) => {
   try {
     const { message } = req.body;
@@ -131,7 +135,7 @@ app.post('/api/chat', async (req, res) => {
 // Voz
 app.get('/voz-prueba', async (req, res) => {
   try {
-    const text = req.query.text || 'Hola, este es un ejemplo de voz generada.';
+    const text = req.query.text || 'Hola, esta es una prueba de voz.';
     const response = await axios.post('https://api.openai.com/v1/audio/speech', {
       model: 'tts-1',
       voice: 'onyx',
@@ -170,8 +174,19 @@ app.get('/bitly-prueba', async (req, res) => {
   }
 });
 
-// Start server
+// Health
+app.get('/health', (req, res) => {
+  res.json({
+    status: sessionStatus,
+    browser: browserInstance ? 'ACTIVE' : 'INACTIVE',
+    memory: process.memoryUsage().rss,
+    uptime: process.uptime()
+  });
+});
+
+// Lanzar
 app.listen(PORT, () => {
-  logger.info(`🚀 Backend activo en puerto ${PORT}`);
+  logger.info(`🚀 Servidor activo en puerto ${PORT}`);
+  notifyTelegram(`🚀 Servidor backend activo en puerto ${PORT}`);
   initBrowser();
 });
