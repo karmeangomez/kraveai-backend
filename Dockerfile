@@ -10,21 +10,18 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libasound2 \
     libatk-bridge2.0-0 \
     libatk1.0-0 \
-    libc6 \
     libcairo2 \
     libcups2 \
     libdbus-1-3 \
     libexpat1 \
     libfontconfig1 \
     libgbm1 \
-    libgcc1 \
     libglib2.0-0 \
     libgtk-3-0 \
     libnspr4 \
     libnss3 \
     libpango-1.0-0 \
     libpangocairo-1.0-0 \
-    libstdc++6 \
     libx11-6 \
     libx11-xcb1 \
     libxcb1 \
@@ -38,10 +35,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libxrender1 \
     libxss1 \
     libxtst6 \
-    lsb-release \
-    wget \
     xdg-utils \
     gnupg \
+    wget \
     && rm -rf /var/lib/apt/lists/*
 
 # Instala Google Chrome
@@ -109,9 +105,11 @@ COPY --from=builder /app/node_modules ./node_modules
 COPY . .
 
 # Configura usuario no privilegiado
-RUN groupadd -r pptruser && useradd -r -g pptruser -G audio,video pptruser \
+RUN groupadd -r pptruser && groupadd -r audio && groupadd -r video \
+    && useradd -r -g pptruser -G audio,video pptruser \
     && mkdir -p /home/pptruser/Downloads /app/sessions /app/logs \
-    && chown -R pptruser:pptruser /home/pptruser /app/sessions /app/logs /app/node_modules /app/package.json /app/package-lock.json* \
+    && chown -R pptruser:pptruser /home/pptruser /app/sessions /app/logs /app/node_modules /app/package.json \
+    && [ -f /app/package-lock.json ] && chown -R pptruser:pptruser /app/package-lock.json || true \
     && chmod -R 777 /app/sessions /app/logs
 
 # Configura entorno
