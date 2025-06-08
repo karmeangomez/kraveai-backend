@@ -5,7 +5,7 @@ const axios = require('axios');
 const fs = require('fs-extra');
 const path = require('path');
 const rateLimit = require('express-rate-limit');
-const { ensureLoggedIn, getCookies, notifyTelegram } = require('./instagramLogin');
+const { ensureLoggedIn, getCookies, notifyTelegram } = require('./instagramLogin'); // CORREGIDO
 const { createMultipleAccounts } = require('./instagramAccountCreator');
 const winston = require('winston');
 
@@ -14,7 +14,6 @@ const PORT = process.env.PORT || 3000;
 let browserInstance = null;
 let sessionStatus = 'INITIALIZING';
 
-// Logger robusto
 const logger = winston.createLogger({
   level: 'debug',
   format: winston.format.combine(
@@ -24,12 +23,12 @@ const logger = winston.createLogger({
   transports: [new winston.transports.Console()]
 });
 
-// Seguridad IP y limitador de velocidad
 app.set('trust proxy', false);
+
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   limit: 100,
-  message: 'Demasiadas solicitudes. Intenta más tarde.',
+  message: 'Demasiadas solicitudes. Intenta de nuevo más tarde.',
   standardHeaders: true,
   legacyHeaders: false,
   keyGenerator: req => req.ip
@@ -40,18 +39,17 @@ app.use(express.json());
 app.use(cors());
 app.use(express.static(path.join(__dirname, '.')));
 
-// Middleware de memoria
 app.use((req, res, next) => {
   const memory = process.memoryUsage().rss;
   logger.info(`🧠 Memoria: ${Math.round(memory / 1024 / 1024)}MB RSS`);
   next();
 });
 
-// Inicio y login
 async function initBrowser() {
   try {
     logger.info('Verificando sesión de Instagram...');
-    await ensureLoggedIn(); // <<--- CORREGIDO
+    const browser = await ensureLoggedIn(); // CORREGIDO
+    browserInstance = browser;
     sessionStatus = 'ACTIVE';
     logger.info('✅ Sesión de Instagram lista.');
     notifyTelegram('✅ Sesión de Instagram iniciada correctamente');
@@ -62,7 +60,6 @@ async function initBrowser() {
   }
 }
 
-// Verifica sesión cada hora
 setInterval(async () => {
   try {
     if (!browserInstance) return;
@@ -70,11 +67,9 @@ setInterval(async () => {
     const cookies = getCookies();
     await page.setCookie(...cookies);
     await page.goto('https://www.instagram.com/', { waitUntil: 'domcontentloaded', timeout: 15000 });
-
     const loggedIn = await page.evaluate(() => {
       return !!document.querySelector('a[href*="/accounts/activity/"]');
     });
-
     await page.close();
     if (!loggedIn) {
       logger.warn('⚠️ Sesión expirada. Reintentando login...');
@@ -86,16 +81,13 @@ setInterval(async () => {
   }
 }, 60 * 60 * 1000);
 
-// Crear cuentas
 app.post('/create-accounts', async (req, res) => {
   try {
     const count = req.body.count || 3;
     if (!browserInstance) throw new Error('Navegador no iniciado');
-
     const page = await browserInstance.newPage();
     const accounts = await createMultipleAccounts(count, page);
     await page.close();
-
     notifyTelegram(`✅ ${accounts.length} cuentas creadas exitosamente`);
     res.json({ success: true, accounts });
   } catch (err) {
@@ -105,7 +97,6 @@ app.post('/create-accounts', async (req, res) => {
   }
 });
 
-// Scraping de Instagram
 app.get('/api/scrape', async (req, res) => {
   try {
     const username = req.query.username;
@@ -141,7 +132,6 @@ app.get('/api/scrape', async (req, res) => {
   }
 });
 
-// Chat IA con OpenAI
 app.post('/api/chat', async (req, res) => {
   try {
     const { message } = req.body;
@@ -162,7 +152,6 @@ app.post('/api/chat', async (req, res) => {
   }
 });
 
-// Voz con TTS
 app.get('/voz-prueba', async (req, res) => {
   try {
     const text = req.query.text || "Hola, este es un ejemplo de voz generada.";
@@ -185,7 +174,6 @@ app.get('/voz-prueba', async (req, res) => {
   }
 });
 
-// Bitly
 app.get('/bitly-prueba', async (req, res) => {
   try {
     const longUrl = req.query.url || "https://instagram.com";
@@ -204,7 +192,6 @@ app.get('/bitly-prueba', async (req, res) => {
   }
 });
 
-// Healthcheck
 app.get('/health', (req, res) => {
   res.json({
     status: sessionStatus,
@@ -214,7 +201,6 @@ app.get('/health', (req, res) => {
   });
 });
 
-// Arranque
 app.listen(PORT, () => {
   logger.info(`🚀 Backend activo en puerto ${PORT}`);
   notifyTelegram(`🚀 Servidor backend activo en puerto ${PORT}`);
