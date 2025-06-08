@@ -9,7 +9,6 @@ async function loadCookies(filePath) {
       console.warn('[Cookies] Formato de cookies inválido en:', filePath);
       return [];
     }
-    // Verifica si hay cookies críticas (sessionid, csrftoken, mid)
     const hasSession = cookies.some(c => ['sessionid', 'csrftoken', 'mid'].includes(c.name) && 
       (!c.expires || c.expires * 1000 > Date.now()));
     if (hasSession) {
