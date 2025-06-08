@@ -1,44 +1,41 @@
 # Dependencias de Node.js
 node_modules/
 npm-debug.log
-*.lock~  # Generaliza archivos temporales de package-lock.json
+
+# Archivos temporales de editores (más específico)
+*~
+*.swp
+*.bak
+*.tmp
 
 # Archivos de sistema y editores
 .DS_Store
 .idea/
 .vscode/
-*.swp
-*.bak
-*.tmp
-.*~
 
 # Archivos de caché y builds
-*.log
 .cache/
 dist/
 build/
 tmp/
-*.tsbuildinfo  # Para proyectos con TypeScript, si aplica
+*.tsbuildinfo
 
 # Archivos de entorno
 .env
-.env.local
-.env.development
-.env.test
-.env.*.local
-*.env  # Cubre todos los archivos .env
+.env.*
+*.env
 
 # Archivos de medios, capturas y datos generados
 errors/
 screenshots/
-*.pdf  # PDFs generados por Puppeteer
-.puppeteer-cache/  # Caché de Puppeteer
-instagram_cookies.json  # Cookies generadas por tu aplicación
+*.pdf
+.puppeteer-cache/
+sessions/  # Excluye la carpeta de cookies generada
 
-# Archivos de Docker (si no quieres subirlos al repositorio)
+# Archivos de Docker
 .dockerignore
-*.tar  # Imágenes de Docker
-docker-compose.yml  # Si es solo para desarrollo local
+*.tar
+docker-compose.yml
 
 # Archivos específicos del proyecto
-coverage/  # Si usas herramientas de testing como Jest
+coverage/
