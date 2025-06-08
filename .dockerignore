@@ -21,6 +21,7 @@ screenshots/
 .puppeteer-cache/
 sessions/
 .dockerignore
+.gitignore
 *.tar
 docker-compose.yml
 coverage/
