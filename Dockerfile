@@ -104,13 +104,16 @@ COPY --from=builder /usr/share/fonts /usr/share/fonts
 COPY --from=builder /app/node_modules ./node_modules
 COPY . .
 
+# Crea directorios necesarios con permisos iniciales
+RUN mkdir -p /app/sessions /app/logs /home/pptruser/Downloads \
+    && chmod -R 770 /app/sessions /app/logs \
+    && chmod -R 755 /home/pptruser/Downloads
+
 # Configura usuario no privilegiado
 RUN groupadd -r pptruser && groupadd -r audio && groupadd -r video \
     && useradd -r -g pptruser -G audio,video pptruser \
-    && mkdir -p /home/pptruser/Downloads /app/sessions /app/logs \
-    && chown -R pptruser:pptruser /home/pptruser /app/sessions /app/logs /app/node_modules /app/package.json \
-    && [ -f /app/package-lock.json ] && chown -R pptruser:pptruser /app/package-lock.json || true \
-    && chmod -R 777 /app/sessions /app/logs
+    && chown -R pptruser:pptruser /home/pptruser /app \
+    && [ -f /app/package-lock.json ] && chown pptruser:pptruser /app/package-lock.json || true
 
 # Configura entorno
 ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/google-chrome-stable
