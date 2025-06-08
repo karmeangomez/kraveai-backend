@@ -58,6 +58,7 @@ async function launchBrowserWithProxy(proxyUrl) {
 }
 
 async function instagramLogin(page, username, password) {
+  if (!page) throw new Error('Página de Puppeteer no inicializada');
   const userAgent = new UserAgent();
   await page.setUserAgent(userAgent.toString());
   await page.setRequestInterception(true);
@@ -115,6 +116,7 @@ async function ensureLoggedIn() {
     try {
       browser = await launchBrowserWithProxy(proxyUrl);
       const page = await browser.newPage();
+      if (!page) throw new Error('No se pudo abrir una nueva página');
       const success = await instagramLogin(page, username, password);
       await browser.close();
       if (success) {
