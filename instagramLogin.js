@@ -59,7 +59,6 @@ async function smartLogin(username, password, sessionPath) {
       timeout: 30000
     });
 
-    // Esperar campos
     await page.waitForSelector('input[name="username"]', { timeout: 10000 });
     await page.type('input[name="username"]', username, { delay: 50 });
     await page.type('input[name="password"]', password, { delay: 50 });
@@ -118,11 +117,12 @@ function getCookies() {
 }
 
 function notifyTelegram(msg) {
-  // Puedes reemplazar esto por tu integración real de Telegram si ya existe
   console.log('[Telegram]', msg);
 }
 
+// ✅ Exportación correcta
 module.exports = {
+  instagramLogin: smartLogin,
   ensureLoggedIn,
   getCookies,
   notifyTelegram
