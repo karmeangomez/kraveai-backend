@@ -1,36 +1,21 @@
-const fs = require('fs');
-const path = require('path');
+// proxyBank.js - Manejo inteligente de proxies desde PROXY_LIST
+const proxies = process.env.PROXY_LIST?.split(';').map(p => p.trim()).filter(Boolean) || [];
 
-const PROXY_FILE = path.join(__dirname, 'proxies.txt');
-let proxies = [];
 let index = 0;
 
-// Cargar proxies desde el archivo
-function loadProxyList() {
-  try {
-    const data = fs.readFileSync(PROXY_FILE, 'utf8');
-    proxies = data
-      .split('\n')
-      .map(p => p.trim())
-      .filter(p => p && !p.startsWith('#'));
-    console.log(`🌀 ${proxies.length} proxies cargados desde proxies.txt`);
-  } catch (err) {
-    console.error('⚠️ No se pudo cargar proxies.txt:', err.message);
-  }
-}
-
-// Obtener el siguiente proxy disponible (rotativo)
 function getNextProxy() {
-  if (proxies.length === 0) return null;
+  if (proxies.length === 0) {
+    console.warn('⚠️ No hay proxies definidos en PROXY_LIST');
+    return null;
+  }
+
   const proxy = proxies[index % proxies.length];
   index++;
+  console.log(`🔁 Usando proxy [${index}/${proxies.length}]: ${proxy}`);
   return proxy;
 }
 
-// Cargar automáticamente al inicio
-loadProxyList();
-
 module.exports = {
   getNextProxy,
-  loadProxyList
+  proxyCount: proxies.length
 };
