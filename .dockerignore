@@ -2,7 +2,7 @@
 node_modules/
 npm-debug.log
 
-# Archivos temporales de editores (más específico)
+# Archivos temporales de editores
 *~
 *.swp
 *.bak
@@ -30,7 +30,7 @@ errors/
 screenshots/
 *.pdf
 .puppeteer-cache/
-sessions/  # Excluye la carpeta de cookies generada
+sessions/
 
 # Archivos de Docker
 .dockerignore
