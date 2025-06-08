@@ -2,19 +2,19 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const axios = require('axios');
-const fs = require('fs-extra');
 const path = require('path');
 const rateLimit = require('express-rate-limit');
-const { instagramLogin, ensureLoggedIn, getCookies, notifyTelegram } = require('./instagramLogin');
-const { createMultipleAccounts } = require('./instagramAccountCreator');
+const fs = require('fs-extra');
 const winston = require('winston');
 
+const { instagramLogin, ensureLoggedIn, getCookies, notifyTelegram } = require('./instagramLogin');
+const { createMultipleAccounts } = require('./instagramAccountCreator');
+const { crearCuentaInstagram } = require('./crearCuentas'); // ✅ nuevo
 const app = express();
 const PORT = process.env.PORT || 3000;
+
 let browserInstance = null;
 let sessionStatus = 'INITIALIZING';
-
-// Cola para limitar páginas concurrentes
 const pageQueue = [];
 let activePages = 0;
 const maxConcurrentPages = parseInt(process.env.PUPPETEER_MAX_CONCURRENT_PAGES) || 2;
@@ -28,29 +28,26 @@ const logger = winston.createLogger({
   transports: [new winston.transports.Console()]
 });
 
+// Middlewares
+app.use(cors());
+app.use(express.json());
+app.use(express.static(path.join(__dirname, 'public'))); // ✅ Frontend visual
 app.set('trust proxy', false);
 
-const limiter = rateLimit({
+app.use(rateLimit({
   windowMs: 15 * 60 * 1000,
   limit: 100,
   message: 'Demasiadas solicitudes. Intenta de nuevo más tarde.',
-  standardHeaders: true,
-  legacyHeaders: false,
   keyGenerator: req => req.ip
-});
-
-app.use(limiter);
-app.use(express.json());
-app.use(cors());
-app.use(express.static(path.join(__dirname, '.')));
+}));
 
 app.use((req, res, next) => {
   const memory = process.memoryUsage().rss;
-  logger.info(`🧠 Memoria: ${Math.round(memory / 1024 / 1024)}MB RSS`);
+  logger.info(`🧠 Memoria usada: ${Math.round(memory / 1024 / 1024)}MB`);
   next();
 });
 
-// Función para adquirir una página
+// Gestión de páginas
 async function acquirePage(browser) {
   return new Promise((resolve) => {
     const tryAcquire = async () => {
@@ -67,176 +64,82 @@ async function acquirePage(browser) {
   });
 }
 
-// Función para liberar una página
 async function releasePage(page) {
-  if (page && !page.isClosed()) {
-    await page.close().catch(() => {});
-  }
+  if (page && !page.isClosed()) await page.close().catch(() => {});
   activePages--;
   const next = pageQueue.shift();
   if (next) next();
 }
 
+// Login automático
 async function initBrowser() {
   try {
-    logger.info('Verificando sesión de Instagram...');
+    logger.info('🔐 Verificando sesión de Instagram...');
     await ensureLoggedIn();
     const username = process.env.IG_USERNAME;
     const password = process.env.INSTAGRAM_PASS;
     const sessionPath = path.join(__dirname, 'sessions', 'kraveaibot.json');
     const { success, browser, page } = await instagramLogin(username, password, sessionPath);
-    if (!success) {
-      throw new Error('Fallo al iniciar sesión en Instagram');
-    }
+    if (!success) throw new Error('Fallo al iniciar sesión');
     browserInstance = browser;
     sessionStatus = 'ACTIVE';
-    logger.info('✅ Sesión de Instagram lista.');
     notifyTelegram('✅ Sesión de Instagram iniciada correctamente');
+    logger.info('✅ Login exitoso');
     await page.close();
   } catch (err) {
     sessionStatus = 'ERROR';
-    logger.error(`❌ Error de login: ${err.message}`);
-    notifyTelegram(`❌ Error al iniciar sesión: ${err.message}`);
+    logger.error(`❌ Login fallido: ${err.message}`);
+    notifyTelegram(`❌ Error en login: ${err.message}`);
     if (browserInstance) await browserInstance.close();
   }
 }
 
+// Verificar sesión activa cada hora
 setInterval(async () => {
+  if (!browserInstance) return;
   try {
-    if (!browserInstance) return;
     const page = await acquirePage(browserInstance);
-    try {
-      const cookies = getCookies();
-      await page.setCookie(...cookies);
-      await page.goto('https://www.instagram.com/', { waitUntil: 'domcontentloaded', timeout: 15000 });
-      const loggedIn = await page.evaluate(() => !!document.querySelector('a[href*="/accounts/activity/"]'));
-      if (!loggedIn) {
-        logger.warn('⚠️ Sesión expirada. Reintentando login...');
-        await initBrowser();
-      }
-    } finally {
-      await releasePage(page);
+    const cookies = getCookies();
+    await page.setCookie(...cookies);
+    await page.goto('https://www.instagram.com/', { waitUntil: 'domcontentloaded' });
+    const loggedIn = await page.evaluate(() => !!document.querySelector('a[href*="/accounts/activity/"]'));
+    if (!loggedIn) {
+      logger.warn('⚠️ Sesión expirada, reiniciando...');
+      await initBrowser();
     }
+    await releasePage(page);
   } catch (err) {
     sessionStatus = 'EXPIRED';
-    logger.error(`❌ Error verificando sesión: ${err.message}`);
+    logger.error(`❌ Error sesión: ${err.message}`);
   }
 }, 60 * 60 * 1000);
+
+app.post('/crear-cuenta', async (req, res) => {
+  try {
+    const proxyList = process.env.PROXY_LIST.split(',');
+    const proxy = proxyList[Math.floor(Math.random() * proxyList.length)];
+    const cuenta = await crearCuentaInstagram(proxy);
+    if (!cuenta) return res.status(500).json({ error: 'Falló creación de cuenta' });
+    res.json({ success: true, cuenta });
+  } catch (err) {
+    logger.error('❌ Error /crear-cuenta:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
 
 app.post('/create-accounts', async (req, res) => {
   try {
     const count = req.body.count || 3;
     if (!browserInstance) throw new Error('Navegador no iniciado');
     const page = await acquirePage(browserInstance);
-    try {
-      const accounts = await createMultipleAccounts(count, page);
-      notifyTelegram(`✅ ${accounts.length} cuentas creadas exitosamente`);
-      res.json({ success: true, accounts });
-    } finally {
-      await releasePage(page);
-    }
+    const accounts = await createMultipleAccounts(count, page);
+    notifyTelegram(`✅ ${accounts.length} cuentas creadas`);
+    res.json({ success: true, accounts });
+    await releasePage(page);
   } catch (err) {
-    logger.error('❌ Error creando cuentas:', err.message);
-    notifyTelegram(`❌ Error creando cuentas: ${err.message}`);
-    res.status(500).json({ error: 'Error creando cuentas', details: err.message });
-  }
-});
-
-app.get('/api/scrape', async (req, res) => {
-  try {
-    const username = req.query.username;
-    if (!username) return res.status(400).json({ error: "Falta ?username=" });
-    if (sessionStatus !== 'ACTIVE') return res.status(503).json({ error: "Sesión no disponible", status: sessionStatus });
-
-    const page = await acquirePage(browserInstance);
-    try {
-      const cookies = getCookies();
-      await page.setCookie(...cookies);
-      await page.goto(`https://www.instagram.com/${username}/`, { waitUntil: 'domcontentloaded', timeout: 30000 });
-
-      const profile = await page.evaluate(() => {
-        const avatar = document.querySelector('header img');
-        const usernameElem = document.querySelector('header section h2');
-        const verified = !!document.querySelector('svg[aria-label="Verified"]');
-        const fullName = document.querySelector('header section h1')?.textContent;
-        const meta = document.querySelector('meta[name="description"]')?.content;
-        const match = meta?.match(/([\d,.KM]+)\s+Followers/);
-        return {
-          username: usernameElem?.textContent || 'N/A',
-          fullName: fullName || 'N/A',
-          verified,
-          followers: match ? match[1] : 'N/A',
-          profilePic: avatar?.src || 'N/A'
-        };
-      });
-
-      res.json({ profile });
-    } finally {
-      await releasePage(page);
-    }
-  } catch (err) {
-    logger.error('❌ Scraping fallido:', err.message);
-    res.status(500).json({ error: "Scraping fallido", reason: err.message });
-  }
-});
-
-app.post('/api/chat', async (req, res) => {
-  try {
-    const { message } = req.body;
-    const resp = await axios.post('https://api.openai.com/v1/chat/completions', {
-      model: 'gpt-4o',
-      messages: [{ role: 'user', content: message }],
-      max_tokens: 500
-    }, {
-      headers: {
-        Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
-        'Content-Type': 'application/json'
-      },
-      timeout: 30000
-    });
-    res.json({ message: resp.data.choices[0].message.content });
-  } catch (err) {
-    res.status(500).json({ error: "Error IA", details: err.message });
-  }
-});
-
-app.get('/voz-prueba', async (req, res) => {
-  try {
-    const text = req.query.text || "Hola, este es un ejemplo de voz generada.";
-    const response = await axios.post("https://api.openai.com/v1/audio/speech", {
-      model: 'tts-1',
-      voice: 'onyx',
-      input: text
-    }, {
-      headers: {
-        Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
-        'Content-Type': 'application/json'
-      },
-      responseType: 'arraybuffer',
-      timeout: 30000
-    });
-    res.set('Content-Type', 'audio/mpeg');
-    res.send(response.data);
-  } catch (err) {
-    res.status(500).send("Error generando voz");
-  }
-});
-
-app.get('/bitly-prueba', async (req, res) => {
-  try {
-    const longUrl = req.query.url || "https://instagram.com";
-    const response = await axios.post("https://api-ssl.bitly.com/v4/shorten", {
-      long_url: longUrl
-    }, {
-      headers: {
-        Authorization: `Bearer ${process.env.BITLY_TOKEN}`,
-        'Content-Type': 'application/json'
-      },
-      timeout: 10000
-    });
-    res.json({ shortUrl: response.data.link });
-  } catch (err) {
-    res.status(500).json({ error: "Error Bitly", details: err.message });
+    logger.error('❌ Error creando múltiples cuentas:', err.message);
+    notifyTelegram(`❌ Error en creación múltiple: ${err.message}`);
+    res.status(500).json({ error: err.message });
   }
 });
 
@@ -249,8 +152,9 @@ app.get('/health', (req, res) => {
   });
 });
 
+// Manejo de errores
 process.on('SIGTERM', async () => {
-  logger.info('SIGTERM recibido. Cerrando navegador...');
+  logger.info('🛑 SIGTERM recibido. Cerrando navegador...');
   if (browserInstance) await browserInstance.close();
   process.exit(0);
 });
@@ -259,6 +163,7 @@ process.on('unhandledRejection', (reason) => {
   logger.error('Unhandled Rejection:', reason);
 });
 
+// Lanzar servidor
 app.listen(PORT, () => {
   logger.info(`🚀 Backend activo en puerto ${PORT}`);
   notifyTelegram(`🚀 Servidor backend activo en puerto ${PORT}`);
