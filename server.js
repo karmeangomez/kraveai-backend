@@ -1,4 +1,4 @@
-// 📦 server.js - Backend completo con Telegram y logs para Railway
+// 📦 server.js - Backend completo con Telegram y logs para Railway (corrigido)
 
 require('dotenv').config();
 const express = require('express');
@@ -9,7 +9,7 @@ const path = require('path');
 const rateLimit = require('express-rate-limit');
 const winston = require('winston');
 
-const { instagramLogin, ensureLoggedIn, getCookies } = require('./instagramLogin');
+const { smartLogin, ensureLoggedIn, getCookies } = require('./instagramLogin');
 const { createMultipleAccounts } = require('./instagramAccountCreator');
 const { crearCuentaInstagram } = require('./crearCuentas');
 const { notifyTelegram } = require('./utils/telegram');
@@ -80,11 +80,14 @@ async function releasePage(page) {
 async function initBrowser() {
   try {
     logger.info('🔐 Verificando sesión de Instagram...');
-    await ensureLoggedIn();
+    const sessionValida = await ensureLoggedIn();
     const username = process.env.IG_USERNAME;
     const password = process.env.INSTAGRAM_PASS;
-    const sessionPath = path.join(__dirname, 'sessions', 'kraveaibot.json');
-    const { success, browser, page } = await instagramLogin(username, password, sessionPath);
+    const { success, browser, page } = await smartLogin({
+      username,
+      password,
+      options: { proxyList: process.env.PROXY_LIST.split(',') }
+    });
     if (!success) throw new Error('Fallo al iniciar sesión');
     browserInstance = browser;
     sessionStatus = 'ACTIVE';
