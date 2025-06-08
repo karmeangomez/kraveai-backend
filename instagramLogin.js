@@ -1,26 +1,27 @@
-// instagramLogin.js - Login inteligente con cookies y proxies rotativos
+// instagramLogin.js
 
 const puppeteer = require('puppeteer-extra');
 const StealthPlugin = require('puppeteer-extra-plugin-stealth');
 const UserAgent = require('user-agents');
 const proxyChain = require('proxy-chain');
 const chromium = require('@sparticuz/chromium');
+const logger = require('./logger.js');
 const fs = require('fs');
-const logger = require('./logger');
-const { saveCookies, loadCookies } = require('./cookies');
+const path = require('path');
+const { saveCookies, loadCookies } = require('./cookies.js');
 
 puppeteer.use(StealthPlugin());
 
 function getCookies() {
-  const path = './sessions/kraveaibot.json';
-  if (fs.existsSync(path)) return JSON.parse(fs.readFileSync(path));
+  const cookiePath = path.join(__dirname, 'sessions', 'kraveaibot.json');
+  if (fs.existsSync(cookiePath)) {
+    try {
+      return JSON.parse(fs.readFileSync(cookiePath));
+    } catch (err) {
+      logger.warn('⚠️ Error leyendo cookies:', err.message);
+    }
+  }
   return [];
-}
-
-function getNextProxy() {
-  const proxies = process.env.PROXY_LIST?.split(',') || [];
-  const random = Math.floor(Math.random() * proxies.length);
-  return proxies[random];
 }
 
 async function isSessionValid(page) {
@@ -34,23 +35,29 @@ async function isSessionValid(page) {
 }
 
 async function ensureLoggedIn() {
-  const proxy = getNextProxy();
+  const proxies = process.env.PROXY_LIST?.split(',') || [];
+  const proxy = proxies[Math.floor(Math.random() * proxies.length)];
   const proxyUrl = await proxyChain.anonymizeProxy(proxy);
+
   const browser = await puppeteer.launch({
     args: [...chromium.args, `--proxy-server=${proxyUrl}`],
     executablePath: chromium.executablePath,
-    headless: chromium.headless,
+    headless: chromium.headless
   });
 
   const page = await browser.newPage();
+
   try {
     const cookies = getCookies();
-    if (cookies.length) await page.setCookie(...cookies);
+    if (cookies.length > 0) await page.setCookie(...cookies);
 
-    await page.goto('https://www.instagram.com/', { waitUntil: 'networkidle2' });
-    const valid = await isSessionValid(page);
-    logger.info(`🔐 Verificación de sesión: ${valid ? 'ACTIVA' : 'EXPIRADA'}`);
-    return valid;
+    await page.goto('https://www.instagram.com/', { waitUntil: 'domcontentloaded' });
+    const loggedIn = await page.evaluate(() =>
+      !!document.querySelector('nav[role="navigation"]')
+    );
+
+    logger.info(`🔐 Sesión actual: ${loggedIn ? 'ACTIVA' : 'NO ACTIVA'}`);
+    return loggedIn;
   } catch (err) {
     logger.error('❌ Error en ensureLoggedIn:', err.message);
     return false;
@@ -67,9 +74,11 @@ async function smartLogin({ username, password, options = {} }) {
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
       const userAgent = new UserAgent({ deviceCategory: 'desktop' }).toString();
+
       let proxyUrl = null;
       const proxy = proxyList[(attempt - 1) % proxyList.length];
-      logger.info(`🔁 Usando proxy [${attempt}/${maxRetries}]: ${proxy}`);
+      logger.info(`🔁 Proxy [${attempt}/${maxRetries}]: ${proxy}`);
+
       try {
         proxyUrl = await proxyChain.anonymizeProxy(proxy);
       } catch {
@@ -81,6 +90,7 @@ async function smartLogin({ username, password, options = {} }) {
         args: [...chromium.args, `--proxy-server=${proxyUrl}`],
         executablePath: chromium.executablePath,
         headless: chromium.headless,
+        defaultViewport: null
       });
 
       const page = await browser.newPage();
@@ -88,7 +98,7 @@ async function smartLogin({ username, password, options = {} }) {
 
       const cookies = await loadCookies(page, username);
       if (cookies) {
-        logger.info('🍪 Cookies cargadas exitosamente');
+        logger.info('🍪 Cookies cargadas');
         await page.goto('https://www.instagram.com/', { waitUntil: 'networkidle2' });
         if (await isSessionValid(page)) {
           logger.info('✅ Sesión válida con cookies');
@@ -96,10 +106,11 @@ async function smartLogin({ username, password, options = {} }) {
         }
       }
 
-      logger.info('🔐 Intentando login manual...');
+      logger.info('🔐 Login manual iniciado');
       await page.goto('https://www.instagram.com/accounts/login/', { waitUntil: 'networkidle2' });
       await page.type('input[name="username"]', username, { delay: 100 });
-      await page.type('input[name="password"]', password, { delay: 100 });
+      await page.type('input[name="password"]', password, { delay: 120 });
+
       await Promise.all([
         page.click('button[type="submit"]'),
         page.waitForNavigation({ waitUntil: 'networkidle2' }),
@@ -112,15 +123,17 @@ async function smartLogin({ username, password, options = {} }) {
       } else {
         throw new Error('Login fallido');
       }
+
     } catch (err) {
-      logger.error(`❌ Error de login (intento ${attempt}): ${err.message}`);
+      logger.error(`❌ Error en intento ${attempt}: ${err.message}`);
       if (browser) await browser.close().catch(() => {});
       if (proxyUrl) await proxyChain.closeAnonymizedProxy(proxyUrl).catch(() => {});
     }
   }
 
-  logger.error('❌ Login fallido después de múltiples intentos');
-  throw new Error('Login fallido después de múltiples intentos');
+  const error = new Error('❌ Login fallido tras múltiples intentos');
+  logger.error(error.message);
+  throw error;
 }
 
 module.exports = {
