@@ -9,12 +9,10 @@ const { loadCookies, saveCookies, validateCookies } = require('./cookies');
 
 puppeteer.use(StealthPlugin());
 
-const COOKIE_PATH = path.join(__dirname, 'instagram_cookies.json');
-
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID;
 const telegramBot = TELEGRAM_BOT_TOKEN ? new Telegraf(TELEGRAM_BOT_TOKEN) : null;
-
+const COOKIE_PATH = path.join(__dirname, 'instagram_cookies.json');
 let proxyIndex = 0;
 
 function getNextProxy() {
@@ -33,14 +31,14 @@ async function notifyTelegram(message) {
     await telegramBot.telegram.sendMessage(TELEGRAM_CHAT_ID, message);
     console.log(`[Telegram] ${message}`);
   } catch (err) {
-    console.warn('❌ Error al enviar notificación Telegram:', err.message);
+    console.warn('❌ Telegram error:', err.message);
   }
 }
 
 async function launchBrowserWithProxy(proxyUrl) {
-  const proxy = await proxyChain.anonymizeProxy(`http://${proxyUrl}`);
+  const anonymizedProxy = await proxyChain.anonymizeProxy(`http://${proxyUrl}`);
   const args = [
-    `--proxy-server=${proxy}`,
+    `--proxy-server=${anonymizedProxy}`,
     '--no-sandbox',
     '--disable-setuid-sandbox',
     '--disable-dev-shm-usage',
@@ -50,17 +48,18 @@ async function launchBrowserWithProxy(proxyUrl) {
     '--window-size=1280,800'
   ];
   return puppeteer.launch({
-    headless: 'new',
+    headless: true,
     args,
-    executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || '/usr/bin/google-chrome',
+    executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || '/usr/bin/google-chrome-stable',
     ignoreHTTPSErrors: true
   });
 }
 
 async function instagramLogin(page, username, password) {
   if (!page) throw new Error('Página de Puppeteer no inicializada');
-  const userAgent = new UserAgent();
-  await page.setUserAgent(userAgent.toString());
+
+  const userAgent = new UserAgent().toString();
+  await page.setUserAgent(userAgent);
   await page.setRequestInterception(true);
   page.on('request', req => {
     const block = ['image', 'media', 'stylesheet', 'font'];
@@ -72,20 +71,20 @@ async function instagramLogin(page, username, password) {
     timeout: 30000
   });
 
-  const usernameInput = await page.waitForSelector('input[name="username"]', { timeout: 15000 });
-  await usernameInput.type(username, { delay: 75 });
+  const usernameInput = await page.waitForSelector('input[name="username"]', { timeout: 10000 });
+  await usernameInput.type(username, { delay: 80 });
 
-  const passwordInput = await page.waitForSelector('input[name="password"]', { timeout: 15000 });
-  await passwordInput.type(password, { delay: 75 });
+  const passwordInput = await page.waitForSelector('input[name="password"]', { timeout: 10000 });
+  await passwordInput.type(password, { delay: 80 });
 
   await Promise.all([
     page.click('button[type="submit"]'),
-    page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 60000 }).catch(() => {})
+    page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 30000 }).catch(() => {})
   ]);
 
   const url = page.url();
   if (url.includes('/challenge') || url.includes('two_factor')) {
-    throw new Error('Challenge o verificación de dos pasos detectado');
+    throw new Error('Challenge o 2FA detectado');
   }
 
   const cookies = await page.cookies();
@@ -96,46 +95,52 @@ async function instagramLogin(page, username, password) {
 async function ensureLoggedIn() {
   const username = process.env.IG_USERNAME;
   const password = process.env.INSTAGRAM_PASS;
-  if (!username || !password) throw new Error('[Instagram] Credenciales no configuradas en variables de entorno');
+  if (!username || !password) throw new Error('❌ IG_USERNAME o INSTAGRAM_PASS no están definidos');
 
   const cookies = await loadCookies();
   if (validateCookies(cookies)) {
-    console.log('[Instagram] Sesión activa desde cookies');
+    console.log('✅ Cookies válidas cargadas');
     return true;
   } else {
-    console.log('[Instagram] No se encontraron cookies válidas');
+    console.log('🟠 No hay cookies válidas. Iniciando login...');
   }
 
   for (let attempt = 1; attempt <= 5; attempt++) {
     const proxyUrl = getNextProxy();
-    if (!proxyUrl) throw new Error('[Proxy] No hay proxies disponibles');
+    if (!proxyUrl) throw new Error('No hay proxies disponibles en PROXY_LIST');
 
-    console.log(`🔁 Intento de login #${attempt} con proxy: ${proxyUrl}`);
-    let browser = null;
+    let browser;
+    let page;
 
     try {
+      console.log(`🔁 Intento de login #${attempt} con proxy ${proxyUrl}`);
       browser = await launchBrowserWithProxy(proxyUrl);
-      const page = await browser.newPage();
-      if (!page) throw new Error('No se pudo abrir una nueva página');
+
+      if (!browser || !browser.isConnected()) throw new Error('El navegador no se inició correctamente');
+
+      try {
+        page = await browser.newPage();
+      } catch (err) {
+        throw new Error(`No se pudo abrir la página: ${err.message}`);
+      }
+
       const success = await instagramLogin(page, username, password);
       await browser.close();
       if (success) {
-        console.log('✅ Login exitoso');
-        await notifyTelegram('✅ Sesión de kraveaibot iniciada correctamente');
+        await notifyTelegram('✅ Sesión de Instagram iniciada correctamente');
         return true;
       }
-    } catch (err) {
-      console.warn(`⚠️ Proxy inválido: ${proxyUrl}`);
-      await notifyTelegram(`❌ Error de login: ${err.message}`);
-      if (browser) await browser.close();
+    } catch (error) {
+      console.warn(`❌ Error en intento ${attempt}: ${error.message}`);
+      await notifyTelegram(`❌ Error en login IG: ${error.message}`);
+      if (browser) await browser.close().catch(() => {});
     }
   }
 
-  throw new Error('[Instagram] Todos los intentos de login fallaron');
+  throw new Error('❌ Todos los intentos de login fallaron');
 }
 
 module.exports = {
   ensureLoggedIn,
-  instagramLogin,
   notifyTelegram
 };
