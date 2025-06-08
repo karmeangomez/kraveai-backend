@@ -1,129 +1,113 @@
+const puppeteer = require('puppeteer-extra');
+const StealthPlugin = require('puppeteer-extra-plugin-stealth');
 const fs = require('fs').promises;
 const path = require('path');
 const proxyChain = require('proxy-chain');
-const puppeteer = require('puppeteer-extra');
-const StealthPlugin = require('puppeteer-extra-plugin-stealth');
-const { loadCookies, saveCookies } = require('./cookies');
-const { getNextProxy } = require('./proxyBank');
+const { loadCookies, saveCookies, validateCookies } = require('./cookies');
 const UserAgent = require('user-agents');
-
 puppeteer.use(StealthPlugin());
 
-const COOKIE_PATH = path.join(__dirname, 'sessions', 'kraveaibot.json');
+const COOKIE_PATH = path.join(__dirname, 'instagram_cookies.json');
 
-async function smartLogin(username, password, sessionPath) {
-  const proxyUrlRaw = getNextProxy();
-  let proxyUrl = null;
+let proxyIndex = 0;
 
-  if (proxyUrlRaw) {
-    try {
-      proxyUrl = await proxyChain.anonymizeProxy(`http://${proxyUrlRaw}`);
-      console.log('✅ Proxy válido:', proxyUrl);
-    } catch (err) {
-      console.warn('⚠️ Proxy inválido:', proxyUrlRaw);
-    }
-  }
+function getNextProxy() {
+  const rawList = process.env.PROXY_LIST;
+  if (!rawList) return null;
+  const proxies = rawList.split(';').map(p => p.trim()).filter(Boolean);
+  if (proxies.length === 0) return null;
+  const proxy = proxies[proxyIndex % proxies.length];
+  proxyIndex++;
+  return proxy;
+}
 
-  const browser = await puppeteer.launch({
+async function launchBrowserWithProxy(proxyUrl) {
+  const proxy = await proxyChain.anonymizeProxy(`http://${proxyUrl}`);
+  const args = [
+    `--proxy-server=${proxy}`,
+    '--no-sandbox',
+    '--disable-setuid-sandbox',
+    '--disable-dev-shm-usage',
+    '--disable-blink-features=AutomationControlled',
+    '--disable-gpu',
+    '--window-size=1280,800'
+  ];
+  return puppeteer.launch({
     headless: 'new',
-    args: [
-      '--no-sandbox',
-      '--disable-setuid-sandbox',
-      '--disable-dev-shm-usage',
-      '--disable-gpu',
-      '--single-process',
-      '--no-zygote',
-      ...(proxyUrl ? [`--proxy-server=${proxyUrl}`] : [])
-    ],
+    args,
     executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || '/usr/bin/google-chrome',
     ignoreHTTPSErrors: true
   });
+}
 
-  const page = await browser.newPage();
+async function instagramLogin(page, username, password) {
+  await page.setUserAgent(new UserAgent().toString());
+  await page.setRequestInterception(true);
+  page.on('request', req => {
+    const blocked = ['image', 'stylesheet', 'font', 'media'];
+    blocked.includes(req.resourceType()) ? req.abort() : req.continue();
+  });
 
-  try {
-    await page.setUserAgent(new UserAgent().toString());
-    await page.setExtraHTTPHeaders({ 'Accept-Language': 'en-US,en;q=0.9' });
-    await page.setRequestInterception(true);
-    page.on('request', req => {
-      const type = req.resourceType();
-      if (['image', 'media', 'font', 'stylesheet'].includes(type)) {
-        req.abort();
-      } else {
-        req.continue();
-      }
-    });
+  await page.goto('https://www.instagram.com/accounts/login/', { waitUntil: 'domcontentloaded', timeout: 30000 });
 
-    await page.goto('https://www.instagram.com/accounts/login/', {
-      waitUntil: 'domcontentloaded',
-      timeout: 30000
-    });
+  const usernameInput = await page.waitForSelector('input[name="username"]', { timeout: 15000 });
+  await usernameInput.type(username, { delay: 100 });
 
-    // Esperar campos
-    await page.waitForSelector('input[name="username"]', { timeout: 10000 });
-    await page.type('input[name="username"]', username, { delay: 50 });
-    await page.type('input[name="password"]', password, { delay: 50 });
+  const passwordInput = await page.waitForSelector('input[name="password"]', { timeout: 15000 });
+  await passwordInput.type(password, { delay: 100 });
 
-    await page.click('button[type="submit"]');
-    await page.waitForTimeout(2000);
+  await Promise.all([
+    page.click('button[type="submit"]'),
+    page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 60000 }).catch(() => {})
+  ]);
 
-    await page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 60000 });
-
-    const url = page.url();
-    if (url.includes('/challenge') || url.includes('/error')) {
-      throw new Error('Instagram rechazó el login (posible challenge o IP bloqueada)');
-    }
-
-    const cookies = await page.cookies();
-    await saveCookies(cookies, sessionPath);
-    console.log('🔐 Login exitoso y cookies guardadas');
-    return { success: true, browser, page };
-  } catch (err) {
-    console.error('❌ Error en smartLogin:', err.message);
-    await browser.close();
-    return { success: false };
+  const currentUrl = page.url();
+  if (currentUrl.includes('/challenge') || currentUrl.includes('/two_factor')) {
+    throw new Error('Challenge o verificación detectada');
   }
+
+  const cookies = await page.cookies();
+  await saveCookies(cookies);
+  return true;
 }
 
 async function ensureLoggedIn() {
   const username = process.env.IG_USERNAME;
   const password = process.env.INSTAGRAM_PASS;
-  const sessionPath = COOKIE_PATH;
+  const cookies = await loadCookies();
 
-  if (!username || !password) {
-    throw new Error('Faltan IG_USERNAME o INSTAGRAM_PASS en .env');
-  }
-
-  const cookies = await loadCookies(sessionPath);
-  if (cookies && cookies.length > 0) {
+  if (validateCookies(cookies)) {
     console.log('[Cookies] Sesión válida encontrada');
     return true;
+  } else {
+    console.log('[Instagram] No se encontraron cookies válidas');
   }
 
-  const result = await smartLogin(username, password, sessionPath);
-  if (!result.success) {
-    throw new Error('Login fallido');
+  for (let i = 0; i < 5; i++) {
+    const proxyUrl = getNextProxy();
+    if (!proxyUrl) {
+      throw new Error('No hay proxies disponibles');
+    }
+
+    console.log(`🔁 Intentando login con proxy: ${proxyUrl}`);
+    let browser;
+
+    try {
+      browser = await launchBrowserWithProxy(proxyUrl);
+      const page = await browser.newPage();
+      const success = await instagramLogin(page, username, password);
+      await browser.close();
+      if (success) return true;
+    } catch (err) {
+      console.error(`⚠️ Proxy inválido: ${proxyUrl}`);
+      if (browser) await browser.close();
+    }
   }
 
-  return true;
-}
-
-function getCookies() {
-  try {
-    const cookies = require(sessionPath);
-    return cookies;
-  } catch {
-    return [];
-  }
-}
-
-function notifyTelegram(msg) {
-  // puedes personalizar esto si tienes lógica ya hecha en otro archivo
-  console.log('[Telegram]', msg);
+  throw new Error('Todos los intentos de login fallaron');
 }
 
 module.exports = {
   ensureLoggedIn,
-  getCookies,
-  notifyTelegram
+  instagramLogin
 };
