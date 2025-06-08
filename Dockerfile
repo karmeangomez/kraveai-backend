@@ -24,11 +24,14 @@ RUN curl -fsSL https://dl.google.com/linux/linux_signing_key.pub | gpg --dearmor
 ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/google-chrome-stable
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
 
-# Copia package.json y package-lock.json
-COPY package.json package-lock.json ./
+# Copia package.json primero
+COPY package.json ./
 
-# Instala dependencias sin las de desarrollo
-RUN npm ci --omit=dev
+# Copia package-lock.json condicionalmente
+COPY package-lock.json* ./
+
+# Instala dependencias condicionalmente
+RUN if [ -f package-lock.json ]; then npm ci --omit=dev; else npm install --omit=dev; fi
 
 # Etapa 2: Producción final
 FROM node:20-slim
