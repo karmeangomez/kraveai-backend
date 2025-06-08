@@ -1,7 +1,6 @@
-# Dependencias de Node.js
+# Dependencias
 node_modules/
 npm-debug.log
-*.lock~
 
 # Archivos de sistema y editores
 .DS_Store
@@ -10,35 +9,26 @@ npm-debug.log
 *.swp
 *.bak
 *.tmp
-.*~
-
-# Archivos de caché y builds
-*.log
-.cache/
-dist/
-build/
-tmp/
-*.tsbuildinfo
+*~
 
 # Archivos de entorno
 .env
-.env.local
-.env.development
-.env.test
-.env.*.local
+.env.*
 *.env
 
-# Archivos de medios, capturas y datos generados
+# Archivos de build y caché
+dist/
+build/
+.cache/
+tmp/
+*.tsbuildinfo
+
+# Archivos de testing
+coverage/
+
+# Archivos generados
 errors/
 screenshots/
 *.pdf
 .puppeteer-cache/
-instagram_cookies.json
-
-# Archivos de Docker
-.dockerignore
-*.tar
-docker-compose.yml
-
-# Archivos específicos del proyecto
-coverage/
+sessions/
