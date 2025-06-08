@@ -3,7 +3,7 @@ FROM node:20-slim AS builder
 
 WORKDIR /app
 
-# Instala dependencias mínimas para Chrome
+# Instala dependencias mínimas para Chrome y compilación
 RUN apt-get update && apt-get install -y \
     wget gnupg curl ca-certificates fonts-liberation libasound2 libatk-bridge2.0-0 \
     libatk1.0-0 libcups2 libdbus-1-3 libexpat1 libfontconfig1 libgbm1 libglib2.0-0 \
@@ -24,8 +24,10 @@ RUN curl -fsSL https://dl.google.com/linux/linux_signing_key.pub | gpg --dearmor
 ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/google-chrome-stable
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
 
-# Copia package.json y package-lock.json (si existe)
-COPY package.json package-lock.json* ./
+# Copia package.json y package-lock.json
+COPY package.json package-lock.json ./
+
+# Instala dependencias sin las de desarrollo
 RUN npm ci --omit=dev
 
 # Etapa 2: Producción final
@@ -45,11 +47,11 @@ COPY . .
 # Configura entorno
 ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/google-chrome-stable
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
-ENV NODE_ENV=production
+ENV NODE_ENV=DEBUG
 ENV LOG_DIR=/app/logs
 
 # Asegura permisos para logs y sesiones
-RUN mkdir -p /app/logs /app/sessions && chmod 777 /app/logs /app/sessions
+RUN mkdir -p /app/logs /app/sessions && chmod 666 /app/logs /app/sessions
 
 EXPOSE 3000
 
