@@ -1,48 +1,31 @@
 const fs = require('fs').promises;
-const path = require('path');
 
-const COOKIE_PATH = path.join(__dirname, 'instagram_cookies.json');
-let cookiesCache = [];
-
-async function loadCookies(page) {
+async function loadCookies(filePath) {
   try {
-    const data = await fs.readFile(COOKIE_PATH, 'utf8');
-    cookiesCache = JSON.parse(data);
-    const sessionCookie = cookiesCache.find(c => c.name === 'sessionid');
-    if (sessionCookie?.expires > Date.now() / 1000) {
-      console.log('[Cookies] Sesión válida encontrada');
-      await page.setCookie(...cookiesCache);
-      return true;
+    const data = await fs.readFile(filePath, 'utf8');
+    const cookies = JSON.parse(data);
+    const session = cookies.find(c => c.name === 'sessionid');
+    const valid = session && (!session.expires || session.expires * 1000 > Date.now());
+    if (valid) {
+      return cookies;
     }
   } catch (_) {
-    console.warn('[Cookies] No se encontraron cookies válidas');
+    // no hay cookies válidas
   }
-  return false;
+  return [];
 }
 
-async function saveCookies(page) {
+async function saveCookies(cookies, filePath) {
   try {
-    cookiesCache = await page.cookies();
-    await fs.writeFile(COOKIE_PATH, JSON.stringify(cookiesCache, null, 2));
+    await fs.mkdir(require('path').dirname(filePath), { recursive: true });
+    await fs.writeFile(filePath, JSON.stringify(cookies, null, 2));
     console.log('[Cookies] Cookies guardadas correctamente');
   } catch (err) {
-    console.error('[Cookies] Error al guardar cookies:', err.message);
+    console.error('❌ Error guardando cookies:', err.message);
   }
-}
-
-function getCookies() {
-  return cookiesCache;
-}
-
-function validateCookies(cookies) {
-  if (!Array.isArray(cookies) || cookies.length === 0) return false;
-  const sessionCookie = cookies.find(c => c.name === 'sessionid');
-  return sessionCookie && sessionCookie.expires > Date.now() / 1000;
 }
 
 module.exports = {
   loadCookies,
-  saveCookies,
-  getCookies,
-  validateCookies
+  saveCookies
 };
