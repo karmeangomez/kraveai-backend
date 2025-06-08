@@ -1,45 +1,30 @@
-// tools/proxyValidator.js - Validador inteligente de proxies Webshare
+// tools/proxyValidator.js - Valida todos los proxies de PROXY_LIST
 require('dotenv').config();
-const fs = require('fs');
 const axios = require('axios');
 const { HttpsProxyAgent } = require('https-proxy-agent');
-const path = require('path');
 
-const rawList = process.env.PROXY_LIST_A || '';
-const proxies = rawList.split(';').map(p => p.trim()).filter(p => p);
+const list = process.env.PROXY_LIST?.split(';') || [];
+const TIMEOUT = 8000;
+const TARGET = 'https://www.instagram.com/';
 
-const TIMEOUT = 7000;
-const TEST_URL = 'https://www.instagram.com';
-const valid = [];
-const failed = [];
-
-async function validate(proxy) {
-  const agent = new HttpsProxyAgent(`http://${proxy}`);
+async function testProxy(proxy) {
+  const full = proxy.startsWith('http') ? proxy : `http://${proxy}`;
+  const agent = new HttpsProxyAgent(full);
   try {
-    const res = await axios.get(TEST_URL, {
+    const res = await axios.get(TARGET, {
       httpsAgent: agent,
       timeout: TIMEOUT
     });
-    if (res.status === 200) {
-      console.log(`✅ FUNCIONAL: ${proxy}`);
-      valid.push(proxy);
-    } else {
-      console.log(`❌ RECHAZADO: ${proxy} → HTTP ${res.status}`);
-      failed.push(proxy);
-    }
+    console.log(`✅ FUNCIONAL: ${full} (Status ${res.status})`);
   } catch (err) {
-    console.log(`❌ FALLÓ: ${proxy} → ${err.message}`);
-    failed.push(proxy);
+    console.log(`❌ FALLÓ: ${full} → ${err.message}`);
   }
 }
 
 (async () => {
-  console.log(`🔎 Validando ${proxies.length} proxies...");
-  for (const proxy of proxies) {
-    await validate(proxy);
+  if (!list.length) return console.log('⚠️ No hay proxies en PROXY_LIST');
+  console.log(`🔎 Verificando ${list.length} proxies en PROXY_LIST\n`);
+  for (const proxy of list) {
+    await testProxy(proxy.trim());
   }
-  const resultPath = path.join(__dirname, 'proxies_validos.txt');
-  fs.writeFileSync(resultPath, valid.join('\n'));
-  console.log(`\n✅ Completado. Proxies válidos: ${valid.length}`);
-  console.log(`📁 Guardados en: ${resultPath}`);
 })();
