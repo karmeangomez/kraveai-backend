@@ -5,7 +5,7 @@ const axios = require('axios');
 const fs = require('fs-extra');
 const path = require('path');
 const rateLimit = require('express-rate-limit');
-const { ensureLoggedIn, getCookies, notifyTelegram } = require('./instagramLogin'); // CORREGIDO
+const { instagramLogin, ensureLoggedIn, getCookies, notifyTelegram } = require('./instagramLogin');
 const { createMultipleAccounts } = require('./instagramAccountCreator');
 const winston = require('winston');
 
@@ -48,15 +48,24 @@ app.use((req, res, next) => {
 async function initBrowser() {
   try {
     logger.info('Verificando sesión de Instagram...');
-    const browser = await ensureLoggedIn(); // CORREGIDO
+    await ensureLoggedIn(); // Verifica o realiza login
+    const username = process.env.IG_USERNAME;
+    const password = process.env.INSTAGRAM_PASS;
+    const sessionPath = path.join(__dirname, 'sessions', 'kraveaibot.json');
+    const { success, browser, page } = await instagramLogin(username, password, sessionPath);
+    if (!success) {
+      throw new Error('Fallo al iniciar sesión en Instagram');
+    }
     browserInstance = browser;
     sessionStatus = 'ACTIVE';
     logger.info('✅ Sesión de Instagram lista.');
     notifyTelegram('✅ Sesión de Instagram iniciada correctamente');
+    await page.close(); // Cerrar página para liberar recursos
   } catch (err) {
     sessionStatus = 'ERROR';
     logger.error(`❌ Error de login: ${err.message}`);
-    notifyTelegram('❌ Error al iniciar sesión: ' + err.message);
+    notifyTelegram('❌ Error al iniciar sesión: ${err.message}`);
+    if (browserInstance) await browserInstance.close();
   }
 }
 
@@ -67,9 +76,7 @@ setInterval(async () => {
     const cookies = getCookies();
     await page.setCookie(...cookies);
     await page.goto('https://www.instagram.com/', { waitUntil: 'domcontentloaded', timeout: 15000 });
-    const loggedIn = await page.evaluate(() => {
-      return !!document.querySelector('a[href*="/accounts/activity/"]');
-    });
+    const loggedIn = await page.evaluate(() => !!document.querySelector('a[href*="/accounts/activity/"]'));
     await page.close();
     if (!loggedIn) {
       logger.warn('⚠️ Sesión expirada. Reintentando login...');
@@ -92,7 +99,7 @@ app.post('/create-accounts', async (req, res) => {
     res.json({ success: true, accounts });
   } catch (err) {
     logger.error('❌ Error creando cuentas:', err.message);
-    notifyTelegram('❌ Error creando cuentas: ' + err.message);
+    notifyTelegram('❌ Error creando cuentas: ${err.message}`);
     res.status(500).json({ error: 'Error creando cuentas', details: err.message });
   }
 });
@@ -199,6 +206,18 @@ app.get('/health', (req, res) => {
     memory: process.memoryUsage().rss,
     uptime: process.uptime()
   });
+});
+
+// Manejo de SIGTERM
+process.on('SIGTERM', async () => {
+  logger.info('SIGTERM recibido. Cerrando navegador...');
+  if (browserInstance) await browserInstance.close();
+  process.exit(0);
+});
+
+// Manejo de errores no capturados
+process.on('unhandledRejection', (reason) => {
+  logger.error('Unhandled Rejection:', reason);
 });
 
 app.listen(PORT, () => {
