@@ -3,24 +3,38 @@ const path = require('path');
 const proxyChain = require('proxy-chain');
 const puppeteer = require('puppeteer-extra');
 const StealthPlugin = require('puppeteer-extra-plugin-stealth');
-const { loadCookies, saveCookies } = require('./cookies');
-const { getNextProxy } = require('./proxyBank');
 const UserAgent = require('user-agents');
+const { loadCookies, saveCookies, validateCookies } = require('./cookies');
 
 puppeteer.use(StealthPlugin());
 
 const COOKIE_PATH = path.join(__dirname, 'sessions', 'kraveaibot.json');
 
+// Banco de proxies desde .env
+function getProxyListFromEnv() {
+  const raw = process.env.PROXY_LIST || '';
+  return raw.split(';').map(p => p.trim()).filter(Boolean);
+}
+
+let proxyIndex = 0;
+function getNextProxy() {
+  const proxies = getProxyListFromEnv();
+  if (!proxies.length) return null;
+  const proxy = proxies[proxyIndex % proxies.length];
+  proxyIndex++;
+  return proxy;
+}
+
 async function smartLogin(username, password, sessionPath) {
-  const proxyUrlRaw = getNextProxy();
+  const rawProxy = getNextProxy();
   let proxyUrl = null;
 
-  if (proxyUrlRaw) {
+  if (rawProxy) {
     try {
-      proxyUrl = await proxyChain.anonymizeProxy(`http://${proxyUrlRaw}`);
+      proxyUrl = await proxyChain.anonymizeProxy(`http://${rawProxy}`);
       console.log('✅ Proxy válido:', proxyUrl);
     } catch (err) {
-      console.warn('⚠️ Proxy inválido:', proxyUrlRaw);
+      console.warn('⚠️ Proxy inválido:', rawProxy);
     }
   }
 
@@ -31,8 +45,8 @@ async function smartLogin(username, password, sessionPath) {
       '--disable-setuid-sandbox',
       '--disable-dev-shm-usage',
       '--disable-gpu',
-      '--single-process',
       '--no-zygote',
+      '--window-size=1280,800',
       ...(proxyUrl ? [`--proxy-server=${proxyUrl}`] : [])
     ],
     executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || '/usr/bin/google-chrome',
@@ -64,19 +78,19 @@ async function smartLogin(username, password, sessionPath) {
     await page.type('input[name="password"]', password, { delay: 50 });
 
     await page.click('button[type="submit"]');
-    await page.waitForTimeout(2000);
-
+    await page.waitForTimeout(3000);
     await page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 60000 });
 
     const url = page.url();
     if (url.includes('/challenge') || url.includes('/error')) {
-      throw new Error('Instagram rechazó el login (posible challenge o IP bloqueada)');
+      throw new Error('Instagram bloqueó el login (challenge/IP detectada)');
     }
 
     const cookies = await page.cookies();
     await saveCookies(cookies, sessionPath);
+
     console.log('🔐 Login exitoso y cookies guardadas');
-    return { success: true, browser, page };
+    return { success: true, browser };
   } catch (err) {
     console.error('❌ Error en smartLogin:', err.message);
     await browser.close();
@@ -94,9 +108,9 @@ async function ensureLoggedIn() {
   }
 
   const cookies = await loadCookies(sessionPath);
-  if (cookies && cookies.length > 0) {
+  if (validateCookies(cookies)) {
     console.log('[Cookies] Sesión válida encontrada');
-    return true;
+    return { browser: null };
   }
 
   const result = await smartLogin(username, password, sessionPath);
@@ -104,7 +118,7 @@ async function ensureLoggedIn() {
     throw new Error('Login fallido');
   }
 
-  return true;
+  return { browser: result.browser };
 }
 
 function getCookies() {
@@ -116,13 +130,21 @@ function getCookies() {
   }
 }
 
-function notifyTelegram(msg) {
-  console.log('[Telegram]', msg);
+function notifyTelegram(message) {
+  const chatId = process.env.TELEGRAM_CHAT_ID;
+  const token = process.env.TELEGRAM_BOT_TOKEN;
+  if (!chatId || !token) return;
+
+  const url = `https://api.telegram.org/bot${token}/sendMessage`;
+  const body = {
+    chat_id: chatId,
+    text: message
+  };
+
+  require('axios').post(url, body).catch(() => {});
 }
 
-// ✅ Exportación correcta
 module.exports = {
-  instagramLogin: smartLogin,
   ensureLoggedIn,
   getCookies,
   notifyTelegram
