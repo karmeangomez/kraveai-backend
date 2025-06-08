@@ -1,8 +1,5 @@
-# Dependencias
 node_modules/
 npm-debug.log
-
-# Archivos de sistema y editores
 .DS_Store
 .idea/
 .vscode/
@@ -10,23 +7,15 @@ npm-debug.log
 *.bak
 *.tmp
 *~
-
-# Archivos de entorno
 .env
 .env.*
 *.env
-
-# Archivos de build y caché
 dist/
 build/
 .cache/
 tmp/
 *.tsbuildinfo
-
-# Archivos de testing
 coverage/
-
-# Archivos generados
 errors/
 screenshots/
 *.pdf
