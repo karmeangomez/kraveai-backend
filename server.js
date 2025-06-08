@@ -5,7 +5,7 @@ const axios = require('axios');
 const fs = require('fs-extra');
 const path = require('path');
 const rateLimit = require('express-rate-limit');
-const { instagramLogin, getCookies, notifyTelegram } = require('./instagramLogin');
+const { ensureLoggedIn, getCookies, notifyTelegram } = require('./instagramLogin');
 const { createMultipleAccounts } = require('./instagramAccountCreator');
 const winston = require('winston');
 
@@ -14,26 +14,22 @@ const PORT = process.env.PORT || 3000;
 let browserInstance = null;
 let sessionStatus = 'INITIALIZING';
 
-// Logging robusto
+// Logger robusto
 const logger = winston.createLogger({
   level: 'debug',
   format: winston.format.combine(
     winston.format.timestamp(),
     winston.format.printf(info => `${info.timestamp} [${info.level.toUpperCase()}]: ${info.message}`)
   ),
-  transports: [
-    new winston.transports.Console()
-  ]
+  transports: [new winston.transports.Console()]
 });
 
-// Seguridad de IP (sin confiar en proxies externos)
+// Seguridad IP y limitador de velocidad
 app.set('trust proxy', false);
-
-// Rate limiting sin depender de encabezados falsificados
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   limit: 100,
-  message: 'Demasiadas solicitudes. Intenta de nuevo más tarde.',
+  message: 'Demasiadas solicitudes. Intenta más tarde.',
   standardHeaders: true,
   legacyHeaders: false,
   keyGenerator: req => req.ip
@@ -44,19 +40,18 @@ app.use(express.json());
 app.use(cors());
 app.use(express.static(path.join(__dirname, '.')));
 
-// Log de memoria
+// Middleware de memoria
 app.use((req, res, next) => {
   const memory = process.memoryUsage().rss;
   logger.info(`🧠 Memoria: ${Math.round(memory / 1024 / 1024)}MB RSS`);
   next();
 });
 
-// Login y sesión
+// Inicio y login
 async function initBrowser() {
   try {
     logger.info('Verificando sesión de Instagram...');
-    const { browser } = await instagramLogin();
-    browserInstance = browser;
+    await ensureLoggedIn(); // <<--- CORREGIDO
     sessionStatus = 'ACTIVE';
     logger.info('✅ Sesión de Instagram lista.');
     notifyTelegram('✅ Sesión de Instagram iniciada correctamente');
@@ -91,7 +86,7 @@ setInterval(async () => {
   }
 }, 60 * 60 * 1000);
 
-// Crear cuentas desde frontend
+// Crear cuentas
 app.post('/create-accounts', async (req, res) => {
   try {
     const count = req.body.count || 3;
@@ -146,7 +141,7 @@ app.get('/api/scrape', async (req, res) => {
   }
 });
 
-// Chat con OpenAI
+// Chat IA con OpenAI
 app.post('/api/chat', async (req, res) => {
   try {
     const { message } = req.body;
@@ -167,7 +162,7 @@ app.post('/api/chat', async (req, res) => {
   }
 });
 
-// Voz con TTS de OpenAI
+// Voz con TTS
 app.get('/voz-prueba', async (req, res) => {
   try {
     const text = req.query.text || "Hola, este es un ejemplo de voz generada.";
@@ -219,7 +214,7 @@ app.get('/health', (req, res) => {
   });
 });
 
-// Iniciar backend
+// Arranque
 app.listen(PORT, () => {
   logger.info(`🚀 Backend activo en puerto ${PORT}`);
   notifyTelegram(`🚀 Servidor backend activo en puerto ${PORT}`);
