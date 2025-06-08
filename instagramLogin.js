@@ -110,7 +110,7 @@ async function ensureLoggedIn() {
 
 function getCookies() {
   try {
-    const cookies = require(sessionPath);
+    const cookies = require(COOKIE_PATH);
     return cookies;
   } catch {
     return [];
@@ -118,7 +118,7 @@ function getCookies() {
 }
 
 function notifyTelegram(msg) {
-  // puedes personalizar esto si tienes lógica ya hecha en otro archivo
+  // Puedes reemplazar esto por tu integración real de Telegram si ya existe
   console.log('[Telegram]', msg);
 }
 
