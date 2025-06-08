@@ -1,5 +1,18 @@
+# 📦 Dependencias
 node_modules/
-npm-debug.log
+
+# 🐛 Logs y errores
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+*.log
+
+# 💾 Entornos
+.env
+.env.*
+*.env
+
+# 💻 IDEs y editores
 .DS_Store
 .idea/
 .vscode/
@@ -7,17 +20,20 @@ npm-debug.log
 *.bak
 *.tmp
 *~
-.env
-.env.*
-*.env
+
+# 🧪 Builds temporales
 dist/
 build/
 .cache/
 tmp/
-*.tsbuildinfo
 coverage/
-errors/
-screenshots/
-*.pdf
+*.tsbuildinfo
+
+# 🧪 Puppeteer / Chromium
 .puppeteer-cache/
 sessions/
+screenshots/
+errors/
+
+# 📄 Archivos innecesarios
+*.pdf
