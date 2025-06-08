@@ -47,11 +47,11 @@ COPY . .
 # Configura entorno
 ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/google-chrome-stable
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
-ENV NODE_ENV=DEBUG
+ENV NODE_ENV=production
 ENV LOG_DIR=/app/logs
 
 # Asegura permisos para logs y sesiones
-RUN mkdir -p /app/logs /app/sessions && chmod 666 /app/logs /app/sessions
+RUN mkdir -p /app/logs /app/sessions && chmod 777 /app/logs /app/sessions
 
 EXPOSE 3000
 
