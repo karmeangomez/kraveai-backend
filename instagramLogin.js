@@ -37,19 +37,21 @@ async function isSessionValid(page) {
 async function ensureLoggedIn() {
   const proxies = process.env.PROXY_LIST?.split(',') || [];
   const proxy = proxies[Math.floor(Math.random() * proxies.length)];
-  const proxyUrl = await proxyChain.anonymizeProxy(proxy);
+  let proxyUrl = null;
 
-  const browser = await puppeteer.launch({
-    headless: chromium.headless,
-    executablePath: await chromium.executablePath(),
-    args: [
-      ...chromium.args,
-      `--proxy-server=${proxyUrl}`
-    ]
-  });
-
-  const page = await browser.newPage();
   try {
+    proxyUrl = await proxyChain.anonymizeProxy(proxy);
+
+    const browser = await puppeteer.launch({
+      headless: chromium.headless,
+      executablePath: await chromium.executablePath(),
+      args: [
+        ...chromium.args,
+        `--proxy-server=${proxyUrl}`
+      ]
+    });
+
+    const page = await browser.newPage();
     const cookies = getCookies();
     if (cookies.length > 0) await page.setCookie(...cookies);
 
@@ -57,13 +59,14 @@ async function ensureLoggedIn() {
     const loggedIn = await page.evaluate(() => !!document.querySelector('nav[role="navigation"]'));
 
     logger.info(`🔐 Sesión actual: ${loggedIn ? 'ACTIVA' : 'NO ACTIVA'}`);
+    await browser.close();
     return loggedIn;
+
   } catch (err) {
     logger.error('❌ Error en ensureLoggedIn:', err.message);
     return false;
   } finally {
-    await browser.close();
-    await proxyChain.closeAnonymizedProxy(proxyUrl);
+    if (proxyUrl) await proxyChain.closeAnonymizedProxy(proxyUrl).catch(() => {});
   }
 }
 
@@ -72,19 +75,14 @@ async function smartLogin({ username, password, options = {} }) {
   let browser = null;
 
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    let proxyUrl = null;
+
     try {
       const userAgent = new UserAgent({ deviceCategory: 'desktop' }).toString();
-
-      let proxyUrl = null;
       const proxy = proxyList[(attempt - 1) % proxyList.length];
       logger.info(`🔁 Proxy [${attempt}/${maxRetries}]: ${proxy}`);
 
-      try {
-        proxyUrl = await proxyChain.anonymizeProxy(proxy);
-      } catch {
-        logger.warn(`⚠️ Proxy inválido: ${proxy}`);
-        continue;
-      }
+      proxyUrl = await proxyChain.anonymizeProxy(proxy);
 
       browser = await puppeteer.launch({
         headless: chromium.headless,
@@ -104,6 +102,7 @@ async function smartLogin({ username, password, options = {} }) {
       if (cookies) {
         logger.info('🍪 Cookies cargadas');
         await page.goto('https://www.instagram.com/', { waitUntil: 'networkidle2' });
+
         if (await isSessionValid(page)) {
           logger.info('✅ Sesión válida con cookies');
           return { success: true, browser, page };
