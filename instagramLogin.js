@@ -1,4 +1,4 @@
-// instagramLogin.js
+// instagramLogin.js - corregido para Railway
 
 const puppeteer = require('puppeteer-extra');
 const StealthPlugin = require('puppeteer-extra-plugin-stealth');
@@ -41,7 +41,7 @@ async function ensureLoggedIn() {
 
   const browser = await puppeteer.launch({
     args: [...chromium.args, `--proxy-server=${proxyUrl}`],
-    executablePath: chromium.executablePath,
+    executablePath: await chromium.executablePath(),
     headless: chromium.headless
   });
 
@@ -88,7 +88,7 @@ async function smartLogin({ username, password, options = {} }) {
 
       browser = await puppeteer.launch({
         args: [...chromium.args, `--proxy-server=${proxyUrl}`],
-        executablePath: chromium.executablePath,
+        executablePath: await chromium.executablePath(),
         headless: chromium.headless,
         defaultViewport: null
       });
