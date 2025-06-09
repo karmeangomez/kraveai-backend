@@ -1,4 +1,4 @@
-// 📦 server.js - Backend completo con Telegram y logs para Railway (corrigido)
+// 📦 server.js - Backend completo con Telegram y logs para Railway (reintenta si navegador no está iniciado)
 
 require('dotenv').config();
 const express = require('express');
@@ -98,6 +98,8 @@ async function initBrowser() {
     sessionStatus = 'ERROR';
     logger.error(`❌ Error de login: ${err.message}`);
     notifyTelegram(`❌ Error al iniciar sesión: ${err.message}`);
+    // Notificar también al frontend si es necesario
+    app.locals.sessionError = err.message;
     if (browserInstance) await browserInstance.close();
   }
 }
@@ -126,10 +128,24 @@ setInterval(async () => {
 
 app.post('/crear-cuenta', async (req, res) => {
   try {
+    if (!browserInstance) {
+      logger.warn('⚠️ Navegador no iniciado. Reintentando...');
+      await initBrowser();
+      if (!browserInstance) throw new Error('No se pudo iniciar el navegador');
+    }
+
     const proxyList = process.env.PROXY_LIST.split(',');
     const proxy = proxyList[Math.floor(Math.random() * proxyList.length)];
     const cuenta = await crearCuentaInstagram(proxy);
     if (!cuenta) return res.status(500).json({ error: 'Falló creación de cuenta' });
+    notifyTelegram(`✅ Cuenta creada: ${cuenta.usuario}`);
+    res.json({ success: true, cuenta });
+  } catch (err) {
+    logger.error('❌ Error en /crear-cuenta:', err.message);
+    notifyTelegram(`❌ Error al crear cuenta: ${err.message}`);
+    res.status(500).json({ error: err.message });
+  }
+}););
     notifyTelegram(`✅ Cuenta creada: ${cuenta.usuario}`);
     res.json({ success: true, cuenta });
   } catch (err) {
@@ -142,7 +158,13 @@ app.post('/crear-cuenta', async (req, res) => {
 app.post('/create-accounts', async (req, res) => {
   try {
     const count = req.body.count || 3;
-    if (!browserInstance) throw new Error('Navegador no iniciado');
+
+    if (!browserInstance) {
+      logger.warn('⚠️ Navegador no iniciado. Reintentando...');
+      await initBrowser();
+      if (!browserInstance) throw new Error('No se pudo iniciar el navegador');
+    }
+
     const page = await acquirePage(browserInstance);
     const accounts = await createMultipleAccounts(count, page);
     notifyTelegram(`✅ ${accounts.length} cuentas creadas`);
@@ -158,6 +180,7 @@ app.post('/create-accounts', async (req, res) => {
 app.get('/health', (req, res) => {
   res.json({
     status: sessionStatus,
+    sessionError: app.locals.sessionError || null,
     browser: browserInstance ? 'ACTIVE' : 'INACTIVE',
     memory: process.memoryUsage().rss,
     uptime: process.uptime()
