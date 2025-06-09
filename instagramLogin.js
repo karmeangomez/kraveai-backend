@@ -1,5 +1,3 @@
-// instagramLogin.js - Login y control de sesión con Puppeteer + Chromium + Proxies
-
 const puppeteer = require('puppeteer-extra');
 const StealthPlugin = require('puppeteer-extra-plugin-stealth');
 const UserAgent = require('user-agents');
@@ -26,8 +24,8 @@ function getCookies() {
 
 async function isSessionValid(page) {
   try {
-    await page.goto('https://www.instagram.com/', { waitUntil: 'networkidle2' });
-    await page.waitForSelector('nav[role="navigation"]', { timeout: 5000 });
+    await page.goto('https://www.instagram.com/', { waitUntil: 'domcontentloaded' });
+    await page.waitForSelector('a[href*="/accounts/activity/"]', { timeout: 5000 });
     return true;
   } catch {
     return false;
@@ -58,7 +56,9 @@ async function ensureLoggedIn() {
         '--disable-dev-shm-usage',
         '--disable-gpu',
         '--disable-software-rasterizer',
-      ]
+      ],
+      ignoreHTTPSErrors: true,
+      timeout: 60000
     };
 
     if (proxyUrl) launchOptions.args.push(`--proxy-server=${proxyUrl}`);
@@ -72,17 +72,18 @@ async function ensureLoggedIn() {
       logger.info('🍪 Cookies cargadas');
     }
 
-    await page.goto('https://www.instagram.com/', { waitUntil: 'domcontentloaded', timeout: 20000 });
-    const loggedIn = await page.evaluate(() => !!document.querySelector('a[href*="/accounts/activity/"]'));
+    await page.goto('https://www.instagram.com/', { waitUntil: 'domcontentloaded' });
 
+    const loggedIn = await isSessionValid(page);
     logger.info(`🔐 Sesión: ${loggedIn ? 'ACTIVA' : 'INACTIVA'}`);
     return loggedIn;
+
   } catch (err) {
-    logger.error('❌ Error en ensureLoggedIn:', err.message);
+    logger.error('❌ Error crítico en ensureLoggedIn:', err.message);
     return false;
   } finally {
-    if (browser) await browser.close().catch(() => {});
-    if (proxyUrl) await proxyChain.closeAnonymizedProxy(proxyUrl).catch(() => {});
+    if (browser) await browser.close().catch(e => logger.error('Error cerrando browser:', e));
+    if (proxyUrl) await proxyChain.closeAnonymizedProxy(proxyUrl).catch(e => logger.error('Error cerrando proxy:', e));
   }
 }
 
@@ -103,14 +104,14 @@ async function smartLogin({ username, password, options = {} }) {
       }
 
       browser = await puppeteer.launch({
-        headless: true,
+        headless: chromium.headless,
         executablePath: await chromium.executablePath(),
         args: [
           '--no-sandbox',
           '--disable-setuid-sandbox',
-          ...(proxyUrl ? [`--proxy-server=${proxyUrl}`] : [])
+          ...(proxyUrl ? [`--proxy-server=${proxyUrl}`] : []),
         ],
-        timeout: 30000
+        timeout: 30000,
       });
 
       const page = await browser.newPage();
@@ -134,7 +135,7 @@ async function smartLogin({ username, password, options = {} }) {
 
       await Promise.all([
         page.click('button[type="submit"]'),
-        page.waitForNavigation({ waitUntil: 'networkidle2' })
+        page.waitForNavigation({ waitUntil: 'networkidle2' }),
       ]);
 
       const errorMessage = await page.$('div[role="alert"]');
