@@ -1,4 +1,4 @@
-// instagramLogin.js - corregido para Railway
+// instagramLogin.js - Login y control de sesión con Puppeteer + Chromium + Proxies
 
 const puppeteer = require('puppeteer-extra');
 const StealthPlugin = require('puppeteer-extra-plugin-stealth');
@@ -40,21 +40,21 @@ async function ensureLoggedIn() {
   const proxyUrl = await proxyChain.anonymizeProxy(proxy);
 
   const browser = await puppeteer.launch({
-    args: [...chromium.args, `--proxy-server=${proxyUrl}`],
+    headless: chromium.headless,
     executablePath: await chromium.executablePath(),
-    headless: chromium.headless
+    args: [
+      ...chromium.args,
+      `--proxy-server=${proxyUrl}`
+    ]
   });
 
   const page = await browser.newPage();
-
   try {
     const cookies = getCookies();
     if (cookies.length > 0) await page.setCookie(...cookies);
 
     await page.goto('https://www.instagram.com/', { waitUntil: 'domcontentloaded' });
-    const loggedIn = await page.evaluate(() =>
-      !!document.querySelector('nav[role="navigation"]')
-    );
+    const loggedIn = await page.evaluate(() => !!document.querySelector('nav[role="navigation"]'));
 
     logger.info(`🔐 Sesión actual: ${loggedIn ? 'ACTIVA' : 'NO ACTIVA'}`);
     return loggedIn;
@@ -87,10 +87,14 @@ async function smartLogin({ username, password, options = {} }) {
       }
 
       browser = await puppeteer.launch({
-        args: [...chromium.args, `--proxy-server=${proxyUrl}`],
-        executablePath: await chromium.executablePath(),
         headless: chromium.headless,
-        defaultViewport: null
+        executablePath: await chromium.executablePath(),
+        args: [
+          ...chromium.args,
+          `--proxy-server=${proxyUrl}`
+        ],
+        defaultViewport: null,
+        timeout: parseInt(process.env.PUPPETEER_TIMEOUT) || 30000,
       });
 
       const page = await browser.newPage();
