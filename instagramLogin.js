@@ -26,7 +26,7 @@ function getCookies() {
 
 async function isSessionValid(page) {
   try {
-    await page.goto('https://www.instagram.com/', { waitUntil: 'networkidle2', timeout: 25000 });
+    await page.goto('https://www.instagram.com/', { waitUntil: 'networkidle2' });
     await page.waitForSelector('nav[role="navigation"]', { timeout: 5000 });
     return true;
   } catch {
@@ -45,9 +45,12 @@ async function ensureLoggedIn() {
       proxyUrl = await proxyChain.anonymizeProxy(proxy);
     }
 
+    const executablePath = await chromium.executablePath();
+    logger.info(`🚀 Chromium path: ${executablePath}`);
+
     const launchOptions = {
       headless: chromium.headless,
-      executablePath: await chromium.executablePath(),
+      executablePath,
       args: [
         ...chromium.args,
         '--no-sandbox',
@@ -55,11 +58,10 @@ async function ensureLoggedIn() {
         '--disable-dev-shm-usage',
         '--disable-gpu',
         '--disable-software-rasterizer',
-        ...(proxyUrl ? [`--proxy-server=${proxyUrl}`] : [])
-      ],
-      ignoreHTTPSErrors: true,
-      timeout: 60000
+      ]
     };
+
+    if (proxyUrl) launchOptions.args.push(`--proxy-server=${proxyUrl}`);
 
     browser = await puppeteer.launch(launchOptions);
     const [page] = await browser.pages();
@@ -70,22 +72,17 @@ async function ensureLoggedIn() {
       logger.info('🍪 Cookies cargadas');
     }
 
-    await page.goto('https://www.instagram.com/', {
-      waitUntil: 'domcontentloaded',
-      timeout: 20000
-    });
+    await page.goto('https://www.instagram.com/', { waitUntil: 'domcontentloaded', timeout: 20000 });
+    const loggedIn = await page.evaluate(() => !!document.querySelector('a[href*="/accounts/activity/"]'));
 
-    const loggedIn = await isSessionValid(page);
-    logger.info(`🔐 Sesión actual: ${loggedIn ? 'ACTIVA' : 'NO ACTIVA'}`);
+    logger.info(`🔐 Sesión: ${loggedIn ? 'ACTIVA' : 'INACTIVA'}`);
     return loggedIn;
-
   } catch (err) {
-    logger.error('❌ Error crítico en ensureLoggedIn:', err.message);
-    logger.error(err.stack);
+    logger.error('❌ Error en ensureLoggedIn:', err.message);
     return false;
   } finally {
-    if (browser) await browser.close().catch(e => logger.error('Error cerrando browser:', e));
-    if (proxyUrl) await proxyChain.closeAnonymizedProxy(proxyUrl).catch(e => logger.error('Error cerrando proxy:', e));
+    if (browser) await browser.close().catch(() => {});
+    if (proxyUrl) await proxyChain.closeAnonymizedProxy(proxyUrl).catch(() => {});
   }
 }
 
@@ -98,30 +95,22 @@ async function smartLogin({ username, password, options = {} }) {
 
     try {
       const userAgent = new UserAgent({ deviceCategory: 'desktop' }).toString();
-      const proxy = proxyList[(attempt - 1) % proxyList.length];
-      logger.info(`🔁 Proxy [${attempt}/${maxRetries}]: ${proxy}`);
+      const proxy = proxyList[(attempt - 1) % proxyList.length] || '';
+      logger.info(`🔁 Intento [${attempt}/${maxRetries}] con proxy: ${proxy}`);
 
-      try {
+      if (proxy) {
         proxyUrl = await proxyChain.anonymizeProxy(proxy);
-      } catch {
-        logger.warn(`⚠️ Proxy inválido: ${proxy}`);
-        continue;
       }
 
       browser = await puppeteer.launch({
-        headless: chromium.headless,
+        headless: true,
         executablePath: await chromium.executablePath(),
         args: [
-          ...chromium.args,
           '--no-sandbox',
           '--disable-setuid-sandbox',
-          '--disable-dev-shm-usage',
-          '--disable-gpu',
-          '--disable-software-rasterizer',
           ...(proxyUrl ? [`--proxy-server=${proxyUrl}`] : [])
         ],
-        defaultViewport: null,
-        timeout: parseInt(process.env.PUPPETEER_TIMEOUT) || 30000,
+        timeout: 30000
       });
 
       const page = await browser.newPage();
@@ -137,22 +126,29 @@ async function smartLogin({ username, password, options = {} }) {
         }
       }
 
-      logger.info('🔐 Login manual iniciado');
+      logger.info('🔐 Iniciando login manual');
       await page.goto('https://www.instagram.com/accounts/login/', { waitUntil: 'networkidle2' });
-      await page.type('input[name="username"]', username, { delay: 100 });
-      await page.type('input[name="password"]', password, { delay: 120 });
+      await page.waitForSelector('input[name="username"]', { timeout: 5000 });
+      await page.type('input[name="username"]', username, { delay: Math.random() * 100 + 50 });
+      await page.type('input[name="password"]', password, { delay: Math.random() * 100 + 50 });
 
       await Promise.all([
         page.click('button[type="submit"]'),
-        page.waitForNavigation({ waitUntil: 'networkidle2' }),
+        page.waitForNavigation({ waitUntil: 'networkidle2' })
       ]);
+
+      const errorMessage = await page.$('div[role="alert"]');
+      if (errorMessage) {
+        const text = await page.evaluate(el => el.textContent, errorMessage);
+        throw new Error(`Error de login: ${text}`);
+      }
 
       if (await isSessionValid(page)) {
         await saveCookies(page, username);
         logger.info(`✅ Login exitoso para ${username}`);
         return { success: true, browser, page };
       } else {
-        throw new Error('Login fallido');
+        throw new Error('Login fallido: sesión no válida');
       }
 
     } catch (err) {
