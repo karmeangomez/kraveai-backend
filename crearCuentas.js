@@ -4,6 +4,7 @@ const proxyChain = require('proxy-chain');
 const UserAgent = require('user-agents');
 const logger = require('./logger');
 const { generarCorreoInstAddr, obtenerCodigoInstAddr } = require('./utils/instaddr');
+const { guardarCuenta } = require('./utils/saveAccount');
 const nopecha = require('nopecha');
 const path = require('path');
 const fs = require('fs');
@@ -64,6 +65,14 @@ async function crearCuentaInstagram(proxy) {
       page.click('button[type="button"]'),
       page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 20000 }).catch(() => {})
     ]);
+
+    // ✅ Guardar cuenta
+    guardarCuenta({
+      usuario: datos.usuario,
+      email: datos.email,
+      password: datos.clave,
+      fecha: new Date().toISOString()
+    });
 
     logger.info(`✅ Cuenta creada: ${datos.usuario}`);
     return {
