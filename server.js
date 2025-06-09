@@ -1,4 +1,4 @@
-// server.js - Backend completo para Railway con login, creación de cuentas y Telegram
+// 📦 server.js - Backend completo con Telegram y logs para Railway
 
 require('dotenv').config();
 const express = require('express');
@@ -48,25 +48,57 @@ app.use((req, res, next) => {
   next();
 });
 
-// =========== LOGIN INICIAL =============
+// ============= BROWSER CONTROL ============
+const pageQueue = [];
+let activePages = 0;
+const maxConcurrentPages = parseInt(process.env.PUPPETEER_MAX_CONCURRENT_PAGES) || 2;
+
+async function acquirePage(browser) {
+  return new Promise(resolve => {
+    const tryAcquire = async () => {
+      if (activePages < maxConcurrentPages) {
+        activePages++;
+        const page = await browser.newPage();
+        resolve(page);
+      } else {
+        pageQueue.push(tryAcquire);
+        setTimeout(tryAcquire, 100);
+      }
+    };
+    tryAcquire();
+  });
+}
+
+async function releasePage(page) {
+  if (page && !page.isClosed()) await page.close().catch(() => {});
+  activePages--;
+  const next = pageQueue.shift();
+  if (next) next();
+}
+
+// =========== LOGIN INICIAL ============
 async function initBrowser() {
   try {
     logger.info('🔐 Verificando sesión...');
     const sessionValida = await ensureLoggedIn();
-    if (!sessionValida) throw new Error('Sesión inválida o expirada');
-
-    const { success, browser, page } = await smartLogin({
-      username: process.env.IG_USERNAME,
-      password: process.env.INSTAGRAM_PASS,
-      options: { proxyList: process.env.PROXY_LIST.split(',') }
-    });
-
-    if (!success) throw new Error('Fallo al iniciar sesión');
-    browserInstance = browser;
-    sessionStatus = 'ACTIVE';
-    logger.info('✅ Sesión activa');
-    notifyTelegram('✅ Sesión de Instagram iniciada correctamente');
-    await page.close();
+    if (!sessionValida) {
+      const username = process.env.IG_USERNAME;
+      const password = process.env.INSTAGRAM_PASS;
+      const { success, browser, page } = await smartLogin({
+        username,
+        password,
+        options: { proxyList: process.env.PROXY_LIST.split(',') }
+      });
+      if (!success) throw new Error('Fallo al iniciar sesión');
+      browserInstance = browser;
+      sessionStatus = 'ACTIVE';
+      logger.info('✅ Sesión activa');
+      notifyTelegram('✅ Sesión de Instagram iniciada correctamente');
+      await page.close();
+    } else {
+      sessionStatus = 'ACTIVE';
+      logger.info('✅ Sesión activa (cookies)');
+    }
   } catch (err) {
     sessionStatus = 'ERROR';
     logger.error(`❌ Error de login: ${err.message}`);
@@ -75,11 +107,11 @@ async function initBrowser() {
   }
 }
 
-// =========== REVISIÓN DE SESIÓN =============
+// =========== REVISIÓN DE SESIÓN ============
 setInterval(async () => {
   if (!browserInstance) return;
   try {
-    const page = await browserInstance.newPage();
+    const page = await acquirePage(browserInstance);
     const cookies = getCookies();
     await page.setCookie(...cookies);
     await page.goto('https://www.instagram.com/', { waitUntil: 'domcontentloaded' });
@@ -88,12 +120,12 @@ setInterval(async () => {
       logger.warn('⚠️ Sesión expirada, reintentando login...');
       await initBrowser();
     }
-    await page.close();
+    await releasePage(page);
   } catch (err) {
     sessionStatus = 'EXPIRED';
     logger.error(`❌ Error verificando sesión: ${err.message}`);
   }
-}, 1000 * 60 * 60);
+}, 60 * 60 * 1000);
 
 // ============= RUTAS ======================
 
@@ -120,16 +152,18 @@ app.post('/crear-cuenta', async (req, res) => {
 app.post('/create-accounts', async (req, res) => {
   try {
     const count = req.body.count || 3;
+
     if (!browserInstance) {
       logger.warn('⚠️ Navegador no iniciado. Reintentando...');
       await initBrowser();
       if (!browserInstance) throw new Error('No se pudo iniciar el navegador');
     }
-    const page = await browserInstance.newPage();
+
+    const page = await acquirePage(browserInstance);
     const accounts = await createMultipleAccounts(count, page);
     notifyTelegram(`✅ ${accounts.length} cuentas creadas`);
     res.json({ success: true, accounts });
-    await page.close();
+    await releasePage(page);
   } catch (err) {
     logger.error('❌ Error creando múltiples cuentas:', err.message);
     notifyTelegram(`❌ Error en creación múltiple: ${err.message}`);
@@ -137,4 +171,29 @@ app.post('/create-accounts', async (req, res) => {
   }
 });
 
-app.get('/health', (req,
+app.get('/health', (req, res) => {
+  res.json({
+    status: sessionStatus,
+    browser: browserInstance ? 'ACTIVE' : 'INACTIVE',
+    memory: process.memoryUsage().rss,
+    uptime: process.uptime()
+  });
+});
+
+// ====== ERRORES Y ARRANQUE =======
+process.on('SIGTERM', async () => {
+  logger.info('🛑 SIGTERM recibido. Cerrando navegador...');
+  if (browserInstance) await browserInstance.close();
+  process.exit(0);
+});
+
+process.on('unhandledRejection', reason => {
+  logger.error('Unhandled Rejection:', reason);
+});
+
+// 🚀 Iniciar servidor
+app.listen(PORT, () => {
+  logger.info(`🚀 Backend activo en puerto ${PORT}`);
+  notifyTelegram(`🚀 Servidor backend activo en puerto ${PORT}`);
+  initBrowser();
+});
