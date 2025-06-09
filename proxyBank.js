@@ -1,5 +1,5 @@
 // proxyBank.js - Manejo inteligente de proxies desde PROXY_LIST
-const proxies = process.env.PROXY_LIST?.split(';').map(p => p.trim()).filter(Boolean) || [];
+const proxies = process.env.PROXY_LIST?.split(',').map(p => p.trim()).filter(Boolean) || [];
 
 let index = 0;
 
@@ -11,7 +11,11 @@ function getNextProxy() {
 
   const proxy = proxies[index % proxies.length];
   index++;
-  console.log(`🔁 Usando proxy [${index}/${proxies.length}]: ${proxy}`);
+
+  if (proxies.length > 1) {
+    console.log(`🔁 Usando proxy [${index}/${proxies.length}]: ${proxy}`);
+  }
+
   return proxy;
 }
 
