@@ -5,6 +5,8 @@ const UserAgent = require('user-agents');
 const logger = require('./logger');
 const { generarCorreoInstAddr, obtenerCodigoInstAddr } = require('./utils/instaddr');
 const nopecha = require('nopecha');
+const path = require('path');
+const fs = require('fs');
 
 puppeteer.use(StealthPlugin());
 nopecha.apiKey = process.env.NOPECHA_APIKEY;
@@ -48,10 +50,21 @@ async function crearCuentaInstagram(proxy) {
       page.waitForNavigation({ waitUntil: 'networkidle2' }),
     ]);
 
+    // Verificación de campo de código
+    if (await page.$('input[name="email_confirmation_code"]') === null) {
+      throw new Error('No se mostró el campo para ingresar el código de confirmación');
+    }
+
     const codigo = await obtenerCodigoInstAddr(cuentaEmail.alias);
+    if (!codigo) throw new Error('No se recibió código desde InstAddr');
+
     await page.type('input[name="email_confirmation_code"]', codigo, { delay: 80 });
 
-    await page.click('button[type="button"]'); // Botón continuar tras el código
+    await Promise.all([
+      page.click('button[type="button"]'),
+      page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 20000 }).catch(() => {})
+    ]);
+
     logger.info(`✅ Cuenta creada: ${datos.usuario}`);
     return {
       usuario: datos.usuario,
@@ -60,7 +73,10 @@ async function crearCuentaInstagram(proxy) {
     };
 
   } catch (err) {
-    logger.error(`❌ Error creando cuenta: ${err.message}`);
+    const screenshotPath = path.join(__dirname, 'error_screenshot.png');
+    await page.screenshot({ path: screenshotPath }).catch(() => {});
+    logger.error(`❌ Error creando cuenta: ${err.stack || err.message}`);
+    logger.warn(`📸 Captura de error guardada en: ${screenshotPath}`);
     return null;
   } finally {
     await browser.close();
