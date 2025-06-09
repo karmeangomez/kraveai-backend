@@ -1,18 +1,25 @@
 const fs = require('fs');
 const path = require('path');
 
-const rutaArchivo = path.join(__dirname, '../cuentas_creadas.json');
+const filePath = path.join(__dirname, '..', 'cuentas_creadas.json');
 
-function guardarCuenta(cuenta) {
-  try {
-    let cuentas = [];
-    if (fs.existsSync(rutaArchivo)) {
-      const contenido = fs.readFileSync(rutaArchivo, 'utf8');
-      cuentas = JSON.parse(contenido);
+function guardarCuenta(nuevaCuenta) {
+  let cuentas = [];
+
+  if (fs.existsSync(filePath)) {
+    try {
+      const data = fs.readFileSync(filePath, 'utf8');
+      cuentas = JSON.parse(data);
+    } catch (err) {
+      console.warn('⚠️ Error leyendo archivo de cuentas, se creará nuevo');
     }
-    cuentas.push(cuenta);
-    fs.writeFileSync(rutaArchivo, JSON.stringify(cuentas, null, 2));
-    console.log(`📝 Cuenta guardada: ${cuenta.usuario}`);
+  }
+
+  cuentas.push(nuevaCuenta);
+
+  try {
+    fs.writeFileSync(filePath, JSON.stringify(cuentas, null, 2));
+    console.log(`✅ Cuenta guardada: ${nuevaCuenta.usuario}`);
   } catch (err) {
     console.error('❌ Error guardando cuenta:', err.message);
   }
