@@ -26,7 +26,7 @@ function getCookies() {
 
 async function isSessionValid(page) {
   try {
-    await page.goto('https://www.instagram.com/', { waitUntil: 'networkidle2' });
+    await page.goto('https://www.instagram.com/', { waitUntil: 'networkidle2', timeout: 25000 });
     await page.waitForSelector('nav[role="navigation"]', { timeout: 5000 });
     return true;
   } catch {
@@ -35,38 +35,57 @@ async function isSessionValid(page) {
 }
 
 async function ensureLoggedIn() {
-  const proxies = process.env.PROXY_LIST?.split(',') || [];
-  const proxy = proxies[Math.floor(Math.random() * proxies.length)];
+  const proxies = (process.env.PROXY_LIST || '').split(',').filter(p => p.trim());
   let proxyUrl = null;
+  let browser = null;
 
   try {
-    proxyUrl = await proxyChain.anonymizeProxy(proxy);
+    if (proxies.length > 0) {
+      const proxy = proxies[Math.floor(Math.random() * proxies.length)];
+      proxyUrl = await proxyChain.anonymizeProxy(proxy);
+    }
 
-    const browser = await puppeteer.launch({
+    const launchOptions = {
       headless: chromium.headless,
       executablePath: await chromium.executablePath(),
       args: [
         ...chromium.args,
-        `--proxy-server=${proxyUrl}`
-      ]
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-dev-shm-usage',
+        '--disable-gpu',
+        '--disable-software-rasterizer',
+        ...(proxyUrl ? [`--proxy-server=${proxyUrl}`] : [])
+      ],
+      ignoreHTTPSErrors: true,
+      timeout: 60000
+    };
+
+    browser = await puppeteer.launch(launchOptions);
+    const [page] = await browser.pages();
+
+    const cookies = getCookies();
+    if (cookies.length > 0) {
+      await page.setCookie(...cookies);
+      logger.info('🍪 Cookies cargadas');
+    }
+
+    await page.goto('https://www.instagram.com/', {
+      waitUntil: 'domcontentloaded',
+      timeout: 20000
     });
 
-    const page = await browser.newPage();
-    const cookies = getCookies();
-    if (cookies.length > 0) await page.setCookie(...cookies);
-
-    await page.goto('https://www.instagram.com/', { waitUntil: 'domcontentloaded' });
-    const loggedIn = await page.evaluate(() => !!document.querySelector('nav[role="navigation"]'));
-
+    const loggedIn = await isSessionValid(page);
     logger.info(`🔐 Sesión actual: ${loggedIn ? 'ACTIVA' : 'NO ACTIVA'}`);
-    await browser.close();
     return loggedIn;
 
   } catch (err) {
-    logger.error('❌ Error en ensureLoggedIn:', err.message);
+    logger.error('❌ Error crítico en ensureLoggedIn:', err.message);
+    logger.error(err.stack);
     return false;
   } finally {
-    if (proxyUrl) await proxyChain.closeAnonymizedProxy(proxyUrl).catch(() => {});
+    if (browser) await browser.close().catch(e => logger.error('Error cerrando browser:', e));
+    if (proxyUrl) await proxyChain.closeAnonymizedProxy(proxyUrl).catch(e => logger.error('Error cerrando proxy:', e));
   }
 }
 
@@ -82,14 +101,24 @@ async function smartLogin({ username, password, options = {} }) {
       const proxy = proxyList[(attempt - 1) % proxyList.length];
       logger.info(`🔁 Proxy [${attempt}/${maxRetries}]: ${proxy}`);
 
-      proxyUrl = await proxyChain.anonymizeProxy(proxy);
+      try {
+        proxyUrl = await proxyChain.anonymizeProxy(proxy);
+      } catch {
+        logger.warn(`⚠️ Proxy inválido: ${proxy}`);
+        continue;
+      }
 
       browser = await puppeteer.launch({
         headless: chromium.headless,
         executablePath: await chromium.executablePath(),
         args: [
           ...chromium.args,
-          `--proxy-server=${proxyUrl}`
+          '--no-sandbox',
+          '--disable-setuid-sandbox',
+          '--disable-dev-shm-usage',
+          '--disable-gpu',
+          '--disable-software-rasterizer',
+          ...(proxyUrl ? [`--proxy-server=${proxyUrl}`] : [])
         ],
         defaultViewport: null,
         timeout: parseInt(process.env.PUPPETEER_TIMEOUT) || 30000,
@@ -102,7 +131,6 @@ async function smartLogin({ username, password, options = {} }) {
       if (cookies) {
         logger.info('🍪 Cookies cargadas');
         await page.goto('https://www.instagram.com/', { waitUntil: 'networkidle2' });
-
         if (await isSessionValid(page)) {
           logger.info('✅ Sesión válida con cookies');
           return { success: true, browser, page };
