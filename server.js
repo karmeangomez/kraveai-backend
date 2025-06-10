@@ -1,4 +1,4 @@
-// 📦 server.js - Backend completo con Telegram y logs para Railway
+// 📦 server.js - Backend completo con Telegram y logs para Railway (final completo actualizado)
 
 require('dotenv').config();
 const express = require('express');
@@ -76,38 +76,33 @@ async function releasePage(page) {
   if (next) next();
 }
 
-// =========== LOGIN INICIAL ============
+// =========== LOGIN INICIAL =============
 async function initBrowser() {
   try {
-    logger.info('🔐 Verificando sesión...');
+    logger.info('🔐 Verificando sesión de Instagram...');
     const sessionValida = await ensureLoggedIn();
-    if (!sessionValida) {
-      const username = process.env.IG_USERNAME;
-      const password = process.env.INSTAGRAM_PASS;
-      const { success, browser, page } = await smartLogin({
-        username,
-        password,
-        options: { proxyList: process.env.PROXY_LIST.split(',') }
-      });
-      if (!success) throw new Error('Fallo al iniciar sesión');
-      browserInstance = browser;
-      sessionStatus = 'ACTIVE';
-      logger.info('✅ Sesión activa');
-      notifyTelegram('✅ Sesión de Instagram iniciada correctamente');
-      await page.close();
-    } else {
-      sessionStatus = 'ACTIVE';
-      logger.info('✅ Sesión activa (cookies)');
-    }
+    const username = process.env.IG_USERNAME;
+    const password = process.env.INSTAGRAM_PASS;
+    const { success, browser, page } = await smartLogin({
+      username,
+      password,
+      options: { proxyList: process.env.PROXY_LIST.split(',') }
+    });
+    if (!success) throw new Error('Fallo al iniciar sesión');
+    browserInstance = browser;
+    sessionStatus = 'ACTIVE';
+    logger.info('✅ Sesión activa');
+    notifyTelegram('✅ Sesión de Instagram iniciada correctamente');
+    await page.close();
   } catch (err) {
     sessionStatus = 'ERROR';
     logger.error(`❌ Error de login: ${err.message}`);
     notifyTelegram(`❌ Error al iniciar sesión: ${err.message}`);
-    if (browserInstance) await browserInstance.close().catch(() => {});
+    if (browserInstance) await browserInstance.close();
   }
 }
 
-// =========== REVISIÓN DE SESIÓN ============
+// =========== REVISIÓN DE SESIÓN =============
 setInterval(async () => {
   if (!browserInstance) return;
   try {
@@ -171,6 +166,22 @@ app.post('/create-accounts', async (req, res) => {
   }
 });
 
+app.get('/estado-sesion', (req, res) => {
+  res.json({ status: sessionStatus });
+});
+
+app.get('/ultimas-cuentas', async (req, res) => {
+  try {
+    const cuentasPath = path.join(__dirname, 'created_accounts.json');
+    if (!fs.existsSync(cuentasPath)) return res.json([]);
+    const data = await fs.readJson(cuentasPath);
+    res.json(data.slice(-10).reverse());
+  } catch (err) {
+    logger.error('❌ Error leyendo archivo de cuentas:', err.message);
+    res.status(500).json({ error: 'No se pudieron cargar las cuentas creadas' });
+  }
+});
+
 app.get('/health', (req, res) => {
   res.json({
     status: sessionStatus,
@@ -181,6 +192,7 @@ app.get('/health', (req, res) => {
 });
 
 // ====== ERRORES Y ARRANQUE =======
+
 process.on('SIGTERM', async () => {
   logger.info('🛑 SIGTERM recibido. Cerrando navegador...');
   if (browserInstance) await browserInstance.close();
