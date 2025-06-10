@@ -1,4 +1,4 @@
-// 📦 server.js - Backend completo con Telegram y logs para Railway (final completo actualizado)
+// 📦 server.js - Backend completo con frontend, Telegram y cuentas guardadas
 
 require('dotenv').config();
 const express = require('express');
@@ -79,7 +79,7 @@ async function releasePage(page) {
 // =========== LOGIN INICIAL =============
 async function initBrowser() {
   try {
-    logger.info('🔐 Verificando sesión de Instagram...');
+    logger.info('🔐 Verificando sesión...');
     const sessionValida = await ensureLoggedIn();
     const username = process.env.IG_USERNAME;
     const password = process.env.INSTAGRAM_PASS;
@@ -147,13 +147,11 @@ app.post('/crear-cuenta', async (req, res) => {
 app.post('/create-accounts', async (req, res) => {
   try {
     const count = req.body.count || 3;
-
     if (!browserInstance) {
       logger.warn('⚠️ Navegador no iniciado. Reintentando...');
       await initBrowser();
       if (!browserInstance) throw new Error('No se pudo iniciar el navegador');
     }
-
     const page = await acquirePage(browserInstance);
     const accounts = await createMultipleAccounts(count, page);
     notifyTelegram(`✅ ${accounts.length} cuentas creadas`);
@@ -166,19 +164,16 @@ app.post('/create-accounts', async (req, res) => {
   }
 });
 
-app.get('/estado-sesion', (req, res) => {
-  res.json({ status: sessionStatus });
-});
-
-app.get('/ultimas-cuentas', async (req, res) => {
+// Mostrar cuentas guardadas
+app.get('/cuentas', (req, res) => {
+  const filePath = path.join(__dirname, 'cuentas_creadas.json');
+  if (!fs.existsSync(filePath)) return res.json([]);
+  const data = fs.readFileSync(filePath, 'utf8');
   try {
-    const cuentasPath = path.join(__dirname, 'created_accounts.json');
-    if (!fs.existsSync(cuentasPath)) return res.json([]);
-    const data = await fs.readJson(cuentasPath);
-    res.json(data.slice(-10).reverse());
-  } catch (err) {
-    logger.error('❌ Error leyendo archivo de cuentas:', err.message);
-    res.status(500).json({ error: 'No se pudieron cargar las cuentas creadas' });
+    const cuentas = JSON.parse(data);
+    res.json(Array.isArray(cuentas) ? cuentas : []);
+  } catch {
+    res.json([]);
   }
 });
 
@@ -203,7 +198,6 @@ process.on('unhandledRejection', reason => {
   logger.error('Unhandled Rejection:', reason);
 });
 
-// 🚀 Iniciar servidor
 app.listen(PORT, () => {
   logger.info(`🚀 Backend activo en puerto ${PORT}`);
   notifyTelegram(`🚀 Servidor backend activo en puerto ${PORT}`);
