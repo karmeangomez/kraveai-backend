@@ -1,4 +1,11 @@
 // instagramAccountCreator.js
+const puppeteer = require('puppeteer-extra');
+const StealthPlugin = require('puppeteer-extra-plugin-stealth');
+const proxyChain = require('proxy-chain');
+const { getNextProxy } = require('./proxyBank');
+
+puppeteer.use(StealthPlugin());
+
 async function createMultipleAccounts(count, page) {
   const accounts = [];
 
@@ -21,7 +28,6 @@ async function createMultipleAccounts(count, page) {
 
       await page.waitForNavigation({ waitUntil: 'networkidle0', timeout: 30000 });
 
-      // Validación simple: revisa si se redirigió a home o no hay error
       const pageUrl = page.url();
       if (pageUrl.includes('/accounts/emailsignup/')) {
         throw new Error(`Instagram no redirigió, posible bloqueo o CAPTCHA`);
@@ -32,8 +38,6 @@ async function createMultipleAccounts(count, page) {
 
     } catch (err) {
       console.error(`❌ Error creando cuenta ${i + 1}:`, err.stack || err.message);
-      // Si quieres romper el bucle ante fallo crítico, descomenta:
-      // throw err;
       continue;
     }
   }
@@ -41,4 +45,36 @@ async function createMultipleAccounts(count, page) {
   return accounts;
 }
 
-module.exports = { createMultipleAccounts };
+async function crearCuentasInstagram(cantidad) {
+  let browser;
+  let cuentasCreadas = [];
+
+  try {
+    const rawProxy = getNextProxy();
+    const proxyUrl = await proxyChain.anonymizeProxy(rawProxy);
+
+    browser = await puppeteer.launch({
+      headless: true,
+      args: [
+        `--proxy-server=${proxyUrl}`,
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-dev-shm-usage',
+        '--disable-gpu'
+      ]
+    });
+
+    const page = await browser.newPage();
+    await page.setViewport({ width: 375, height: 812 });
+
+    cuentasCreadas = await createMultipleAccounts(cantidad, page);
+  } catch (error) {
+    console.error('❌ Error en crearCuentasInstagram:', error);
+  } finally {
+    if (browser) await browser.close();
+  }
+
+  return cuentasCreadas.length;
+}
+
+module.exports = { crearCuentasInstagram };
