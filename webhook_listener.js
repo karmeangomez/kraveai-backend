@@ -18,7 +18,7 @@ app.post('/', (req, res) => {
       res.sendStatus(200);
     });
   } else {
-    res.sendStatus(204);
+    res.sendStatus(204); // Otros eventos no se procesan
   }
 });
 
@@ -26,3 +26,4 @@ app.post('/', (req, res) => {
 app.listen(5050, () => {
   console.log('🔔 Webhook listener activo en puerto 5050');
 });
+
