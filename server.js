@@ -107,15 +107,15 @@ setInterval(async () => {
     const page = await acquirePage(browserInstance);
     const cookies = getCookies();
     await page.setCookie(...cookies);
-    await page.goto('https://www.instagram.com/', { 
+    await page.goto('https://www.instagram.com/', {
       waitUntil: 'domcontentloaded',
       timeout: 60000
     });
-    
-    const loggedIn = await page.evaluate(() => 
+
+    const loggedIn = await page.evaluate(() =>
       !!document.querySelector('a[href*="/accounts/activity/"]')
     );
-    
+
     if (!loggedIn) {
       logger.warn('⚠️ Sesión expirada, reintentando login...');
       await initBrowser();
@@ -132,75 +132,68 @@ setInterval(async () => {
 // Endpoint para Server-Sent Events (SSE)
 app.get('/create-accounts-sse', (req, res) => {
   const count = parseInt(req.query.count) || 1;
-  
-  // Configurar SSE
+
   res.setHeader('Content-Type', 'text/event-stream');
   res.setHeader('Cache-Control', 'no-cache');
   res.setHeader('Connection', 'keep-alive');
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.flushHeaders();
-  
-  // Crear un stream de eventos
+
   const stream = new PassThrough();
   stream.pipe(res);
-  
-  // Función para enviar eventos
+
   const sendEvent = (type, data) => {
     stream.write(`event: ${type}\n`);
     stream.write(`data: ${JSON.stringify(data)}\n\n`);
   };
-  
-  // Enviar estado inicial
+
   sendEvent('status', {
     status: 'active',
     message: 'Iniciando creación de cuentas'
   });
-  
-  // Proceso de creación de cuentas
+
   (async () => {
     try {
       const proxyList = process.env.PROXY_LIST.split(',');
-      
+
       for (let i = 0; i < count; i++) {
         try {
           const proxy = proxyList[Math.floor(Math.random() * proxyList.length)];
-          
+
           sendEvent('status', {
             status: 'active',
-            message: `Creando cuenta ${i+1}/${count}`
+            message: `Creando cuenta ${i + 1}/${count}`
           });
-          
+
           const cuenta = await crearCuentaInstagram(proxy);
-          
+
           if (cuenta) {
             sendEvent('account-created', { account: cuenta });
             notifyTelegram(`✅ Cuenta creada: ${cuenta.usuario}`);
           } else {
             sendEvent('status', {
               status: 'error',
-              message: `Error creando cuenta ${i+1}`
+              message: `Error creando cuenta ${i + 1}`
             });
           }
         } catch (err) {
           sendEvent('status', {
             status: 'error',
-            message: `Error en cuenta ${i+1}: ${err.message}`
+            message: `Error en cuenta ${i + 1}: ${err.message}`
           });
-          logger.error(`❌ Error creando cuenta ${i+1}: ${err.message}`);
+          logger.error(`❌ Error creando cuenta ${i + 1}: ${err.message}`);
         }
       }
-      
+
       sendEvent('complete', { message: 'Proceso completado' });
     } catch (err) {
       sendEvent('error', { message: err.message });
       logger.error(`❌ Error en el proceso SSE: ${err.message}`);
     } finally {
-      // Cerrar la conexión SSE
       res.end();
     }
   })();
-  
-  // Manejar cierre de conexión
+
   req.on('close', () => {
     stream.end();
     logger.info('🔌 Conexión SSE cerrada por el cliente');
@@ -211,7 +204,7 @@ app.get('/create-accounts-sse', (req, res) => {
 app.get('/cuentas', (req, res) => {
   const filePath = path.join(__dirname, 'cuentas_creadas.json');
   if (!fs.existsSync(filePath)) return res.json([]);
-  
+
   try {
     const data = fs.readFileSync(filePath, 'utf8');
     const cuentas = JSON.parse(data);
@@ -231,7 +224,6 @@ app.get('/health', (req, res) => {
   });
 });
 
-// Servir el frontend
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
@@ -248,7 +240,7 @@ process.on('unhandledRejection', reason => {
   logger.error('Unhandled Rejection:', reason);
 });
 
-app.listen(PORT, () => {
+app.listen(PORT, '0.0.0.0', () => {
   logger.info(`🚀 Backend activo en puerto ${PORT}`);
   notifyTelegram(`🚀 Servidor backend activo en puerto ${PORT}`);
   initBrowser();
