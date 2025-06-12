@@ -1,4 +1,4 @@
-// 📦 server.js - Backend completo con SSE, Telegram y cuentas guardadas
+// 📦 server.js - Backend con SSE y login temporalmente desactivado
 
 require('dotenv').config();
 const express = require('express');
@@ -47,89 +47,9 @@ app.use((req, res, next) => {
   next();
 });
 
-// ============= BROWSER CONTROL ============
-const pageQueue = [];
-let activePages = 0;
-const maxConcurrentPages = parseInt(process.env.PUPPETEER_MAX_CONCURRENT_PAGES) || 3;
-
-async function acquirePage(browser) {
-  return new Promise(resolve => {
-    const tryAcquire = async () => {
-      if (activePages < maxConcurrentPages) {
-        activePages++;
-        const page = await browser.newPage();
-        resolve(page);
-      } else {
-        pageQueue.push(tryAcquire);
-        setTimeout(tryAcquire, 100);
-      }
-    };
-    tryAcquire();
-  });
-}
-
-async function releasePage(page) {
-  if (page && !page.isClosed()) await page.close().catch(() => {});
-  activePages--;
-  const next = pageQueue.shift();
-  if (next) next();
-}
-
-// =========== LOGIN INICIAL =============
-async function initBrowser() {
-  try {
-    logger.info('🔐 Verificando sesión...');
-    const sessionValida = await ensureLoggedIn();
-    const username = process.env.IG_USERNAME;
-    const password = process.env.INSTAGRAM_PASS;
-    const { success, browser } = await smartLogin({
-      username,
-      password,
-      options: { proxyList: process.env.PROXY_LIST.split(',') }
-    });
-    if (!success) throw new Error('Fallo al iniciar sesión');
-    browserInstance = browser;
-    sessionStatus = 'ACTIVE';
-    logger.info('✅ Sesión activa');
-    notifyTelegram('✅ Sesión de Instagram iniciada correctamente');
-  } catch (err) {
-    sessionStatus = 'ERROR';
-    logger.error(`❌ Error de login: ${err.message}`);
-    notifyTelegram(`❌ Error al iniciar sesión: ${err.message}`);
-    if (browserInstance) await browserInstance.close();
-  }
-}
-
-// =========== REVISIÓN DE SESIÓN =============
-setInterval(async () => {
-  if (!browserInstance) return;
-  try {
-    const page = await acquirePage(browserInstance);
-    const cookies = getCookies();
-    await page.setCookie(...cookies);
-    await page.goto('https://www.instagram.com/', {
-      waitUntil: 'domcontentloaded',
-      timeout: 60000
-    });
-
-    const loggedIn = await page.evaluate(() =>
-      !!document.querySelector('a[href*="/accounts/activity/"]')
-    );
-
-    if (!loggedIn) {
-      logger.warn('⚠️ Sesión expirada, reintentando login...');
-      await initBrowser();
-    }
-    await releasePage(page);
-  } catch (err) {
-    sessionStatus = 'EXPIRED';
-    logger.error(`❌ Error verificando sesión: ${err.message}`);
-  }
-}, 60 * 60 * 1000);
-
 // ============= RUTAS ======================
 
-// Endpoint para Server-Sent Events (SSE)
+// SSE para creación de cuentas
 app.get('/create-accounts-sse', (req, res) => {
   const count = parseInt(req.query.count) || 1;
 
@@ -215,6 +135,7 @@ app.get('/cuentas', (req, res) => {
   }
 });
 
+// Healthcheck
 app.get('/health', (req, res) => {
   res.json({
     status: sessionStatus,
@@ -224,11 +145,17 @@ app.get('/health', (req, res) => {
   });
 });
 
+// Ruta base
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-// ====== ERRORES Y ARRANQUE =======
+// ========== ARRANQUE DEL SERVIDOR ============
+app.listen(PORT, '0.0.0.0', () => {
+  logger.info(`🚀 Backend activo en puerto ${PORT}`);
+  notifyTelegram(`🚀 Servidor backend activo en puerto ${PORT}`);
+  // initBrowser(); // ⚠️ Desactivado temporalmente para pruebas
+});
 
 process.on('SIGTERM', async () => {
   logger.info('🛑 SIGTERM recibido. Cerrando navegador...');
@@ -238,10 +165,4 @@ process.on('SIGTERM', async () => {
 
 process.on('unhandledRejection', reason => {
   logger.error('Unhandled Rejection:', reason);
-});
-
-app.listen(PORT, '0.0.0.0', () => {
-  logger.info(`🚀 Backend activo en puerto ${PORT}`);
-  notifyTelegram(`🚀 Servidor backend activo en puerto ${PORT}`);
-  initBrowser();
 });
