@@ -22,6 +22,7 @@ app.post('/', (req, res) => {
   }
 });
 
-app.listen(5000, () => {
-  console.log('🔔 Webhook listener activo en puerto 5000');
+// ✅ Versión actualizada con puerto corregido
+app.listen(5050, () => {
+  console.log('🔔 Webhook listener activo en puerto 5050');
 });
