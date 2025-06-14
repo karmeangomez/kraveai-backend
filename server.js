@@ -53,18 +53,23 @@ app.use(rateLimit({
 // ============= BROWSER CONTROL ============
 const pageQueue = [];
 let activePages = 0;
-const maxConcurrentPages = parseInt(process.env.PUPPETEER_MAX_CONCURRENT_PAGES) || 3;
+const maxConcurrentPages = parseInt(process.env.PUPPETEER_MAX_CONCURRENT_PAGES) || 2; // Reducido para Raspberry Pi
 
 async function acquirePage() {
   return new Promise(resolve => {
     const tryAcquire = async () => {
       if (activePages < maxConcurrentPages && browserInstance) {
         activePages++;
-        const page = await browserInstance.newPage();
-        resolve(page);
+        try {
+          const page = await browserInstance.newPage();
+          resolve(page);
+        } catch (err) {
+          logger.error(`⚠️ Error creando página: ${err.message}`);
+          resolve(null);
+        }
       } else {
         pageQueue.push(tryAcquire);
-        setTimeout(tryAcquire, 100);
+        setTimeout(tryAcquire, 500); // Mayor intervalo
       }
     };
     tryAcquire();
@@ -82,7 +87,7 @@ async function releasePage(page) {
   activePages--;
   if (pageQueue.length > 0) {
     const next = pageQueue.shift();
-    next();
+    setTimeout(next, 100); // Añadir retardo
   }
 }
 
@@ -101,9 +106,14 @@ async function initBrowser() {
         '--disable-dev-shm-usage',
         '--single-process',
         '--disable-gpu',
-        '--no-zygote'
+        '--no-zygote',
+        '--disable-accelerated-2d-canvas',
+        '--disable-software-rasterizer',
+        '--disable-background-timer-throttling',
+        '--disable-backgrounding-occluded-windows',
+        '--disable-renderer-backgrounding'
       ],
-      timeout: 60000
+      timeout: 120000  // Aumentar timeout a 2 minutos
     });
     
     browserInstance = browser;
@@ -123,11 +133,19 @@ async function initBrowser() {
   } catch (err) {
     sessionStatus = 'ERROR';
     logger.error(`❌ Error de inicio: ${err.message}`);
+    logger.error(err.stack); // Registrar stack completo
+    
     notifyTelegram(`❌ Error al iniciar sesión: ${err.message}`);
+    
     if (browserInstance) {
-      await browserInstance.close().catch(e => logger.error('⚠️ Error cerrando navegador:', e));
+      try {
+        await browserInstance.close();
+      } catch (e) {
+        logger.error('⚠️ Error cerrando navegador:', e.message);
+      }
       browserInstance = null;
     }
+    
     // Reintentar después de 1 minuto
     setTimeout(initBrowser, 60000);
   }
@@ -140,9 +158,15 @@ setInterval(async () => {
   try {
     logger.info('🔍 Verificando estado de sesión...');
     const page = await acquirePage();
+    
+    if (!page) {
+      logger.warn('⚠️ No se pudo adquirir página para verificación de sesión');
+      return;
+    }
+    
     await page.goto('https://www.instagram.com/', { 
-      waitUntil: 'networkidle2',
-      timeout: 60000
+      waitUntil: 'domcontentloaded', // Menos exigente
+      timeout: 30000
     });
     
     const loggedIn = await page.evaluate(() => {
@@ -156,17 +180,19 @@ setInterval(async () => {
     } else {
       logger.info('🔄 Sesión sigue activa');
     }
-    
-    await releasePage(page);
   } catch (err) {
     logger.error(`❌ Error en verificación de sesión: ${err.message}`);
     sessionStatus = 'ERROR';
+  } finally {
+    if (page && !page.isClosed()) {
+      await releasePage(page);
+    }
   }
-}, 30 * 60 * 1000); // Cada 30 minutos
+}, 60 * 60 * 1000); // Cada 60 minutos (reducido)
 
 // ============= RUTAS ======================
 app.get('/create-accounts-sse', (req, res) => {
-  const count = parseInt(req.query.count) || 1;
+  const count = Math.min(parseInt(req.query.count) || 1, 5); // Limitar a 5 cuentas
 
   res.setHeader('Content-Type', 'text/event-stream');
   res.setHeader('Cache-Control', 'no-cache');
@@ -218,6 +244,9 @@ app.get('/create-accounts-sse', (req, res) => {
           });
           logger.error(`❌ Error creando cuenta ${i + 1}: ${err.message}`);
         }
+        
+        // Pausa entre cuentas
+        await new Promise(resolve => setTimeout(resolve, 5000));
       }
 
       sendEvent('complete', { message: 'Proceso completado' });
@@ -266,14 +295,20 @@ app.get('/', (req, res) => {
 app.listen(PORT, '0.0.0.0', () => {
   logger.info(`🚀 Backend activo en puerto ${PORT}`);
   notifyTelegram(`🚀 Servidor backend activo en puerto ${PORT}`);
-  initBrowser();
+  
+  // Iniciar navegador después de 10 segundos
+  setTimeout(initBrowser, 10000);
 });
 
 // ========== MANEJO DE CIERRE ============
 process.on('SIGTERM', async () => {
   logger.info('🛑 SIGTERM recibido. Cerrando navegador...');
   if (browserInstance) {
-    await browserInstance.close().catch(e => logger.error('⚠️ Error cerrando navegador:', e));
+    try {
+      await browserInstance.close();
+    } catch (e) {
+      logger.error('⚠️ Error cerrando navegador:', e.message);
+    }
   }
   process.exit(0);
 });
@@ -284,8 +319,12 @@ process.on('unhandledRejection', (reason, promise) => {
 
 process.on('uncaughtException', err => {
   logger.error(`⚠️ Uncaught Exception: ${err.message}`);
+  logger.error(err.stack);
+  
   if (browserInstance) {
     browserInstance.close().catch(e => logger.error('⚠️ Error cerrando navegador:', e));
   }
-  process.exit(1);
+  
+  // Reiniciar después de 1 minuto
+  setTimeout(() => process.exit(1), 60000);
 });
