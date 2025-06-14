@@ -8,6 +8,7 @@ from fastapi.responses import StreamingResponse, JSONResponse
 from dotenv import load_dotenv
 from telegram_utils import notify_telegram
 from nombre_utils import generar_nombre, generar_usuario
+from instagram_utils import login_instagram
 
 load_dotenv()
 
@@ -21,6 +22,30 @@ async def health():
         "version": "1.0",
         "uptime": os.times().elapsed
     }
+
+@app.get("/create-account")
+async def crear_cuenta():
+    nombre = generar_nombre()
+    usuario = generar_usuario()
+    email = f"{usuario}@tempmail.com"
+    password = f"Krave{random.randint(1000, 9999)}!"
+
+    cuenta = {
+        "nombre": nombre,
+        "usuario": usuario,
+        "email": email,
+        "clave": password
+    }
+
+    try:
+        cl = login_instagram()
+        if cl:
+            await notify_telegram(f"✅ Cuenta generada: {usuario}")
+            return cuenta
+        else:
+            return {"error": "No se pudo iniciar sesión"}
+    except Exception as e:
+        return {"error": str(e)}
 
 @app.get("/create-accounts-sse")
 async def crear_cuentas_sse(request: Request, count: int = 1):
