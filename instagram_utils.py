@@ -1,36 +1,36 @@
-# instagram_utils.py - Creador de cuentas reales con instagrapi y proxy
+# login_utils.py - Login y verificacion de sesion con cookies
 
 import os
-import random
+import json
 from instagrapi import Client
-from nombre_utils import generar_nombre, generar_usuario
 
-PROXY_LIST = os.getenv("PROXY_LIST", "").split(",")
-IG_PASSWORD = os.getenv("INSTAGRAM_PASS", "KraveAi2025!")
+COOKIE_FILE = "ig_session.json"
+USERNAME = os.getenv("IG_USERNAME")
+PASSWORD = os.getenv("INSTAGRAM_PASS")
 
-def crear_cuenta_instagram():
-    if not PROXY_LIST or PROXY_LIST[0] == "":
-        raise ValueError("No hay proxies disponibles en PROXY_LIST")
 
-    # Elegir un proxy aleatorio
-    proxy = random.choice(PROXY_LIST).strip()
-    nombre = generar_nombre()
-    usuario = generar_usuario()
-    email = f"{usuario}@tempmail.com"
-    clave = IG_PASSWORD
-
+def login_instagram():
     cl = Client()
-    cl.set_proxy(proxy)
+    cl.delay_range = [2, 5]
+
+    if os.path.exists(COOKIE_FILE):
+        try:
+            cl.load_settings(COOKIE_FILE)
+            cl.get_timeline_feed()
+            print("✅ Sesion restaurada desde cookies.")
+            return cl
+        except Exception as e:
+            print("⚠️ Fallo restaurar sesion, intentando login...", e)
 
     try:
-        # Esto normalmente requiere bypass de verificación por email/sms
-        cl.signup(email=email, username=usuario, password=clave, first_name=nombre)
-        return {
-            "usuario": usuario,
-            "email": email,
-            "clave": clave,
-            "proxy": proxy
-        }
+        cl.login(USERNAME, PASSWORD)
+        cl.dump_settings(COOKIE_FILE)
+        print(f"✅ Login exitoso como @{USERNAME}")
+        return cl
     except Exception as e:
-        print(f"❌ Error creando cuenta: {e}")
+        print("❌ Error en login:", e)
         return None
+
+
+if __name__ == "__main__":
+    login_instagram()
