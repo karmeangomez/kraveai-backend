@@ -1,0 +1,7 @@
+tunnel: f502f355-6b90-4df9-be26-417826ff7f29
+credentials-file: /home/karmean/.cloudflared/f502f355-6b90-4df9-be26-417826ff7f29.json
+
+ingress:
+  - hostname: api.kraveapi.xyz
+    service: http://localhost:8000
+  - service: http_status:404
