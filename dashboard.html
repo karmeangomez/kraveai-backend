@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>KraveAI Dashboard</title>
+</head>
+<body style="background-color:#111; color:#fff; font-family:sans-serif; padding:20px">
+  <h1>📊 Panel de Control — KraveAI</h1>
+
+  <button onclick="startService()">▶️ Iniciar crear-cuentas</button>
+  <button onclick="stopService()">⏹️ Detener</button>
+  <button onclick="checkStatus()">🔁 Ver estado</button>
+
+  <pre id="status" style="margin-top:20px; background:#222; padding:10px; border-radius:8px;"></pre>
+
+  <h3>📄 Últimos logs</h3>
+  <pre id="logs" style="background:#000; padding:10px; border:1px solid #444; max-height:300px; overflow:auto"></pre>
+
+  <script>
+    const api = 'https://api.kraveapi.xyz';
+
+    function startService() {
+      fetch(`${api}/servicio/crear-cuentas/start`, { method: 'POST' })
+        .then(res => res.text()).then(text => document.getElementById('status').textContent = text);
+    }
+
+    function stopService() {
+      fetch(`${api}/servicio/crear-cuentas/stop`, { method: 'POST' })
+        .then(res => res.text()).then(text => document.getElementById('status').textContent = text);
+    }
+
+    function checkStatus() {
+      fetch(`${api}/servicio/crear-cuentas/status`)
+        .then(res => res.text()).then(text => document.getElementById('status').textContent = text);
+      fetch(`${api}/servicio/crear-cuentas/logs`)
+        .then(res => res.text()).then(text => document.getElementById('logs').textContent = text);
+    }
+
+    checkStatus(); // Carga estado al iniciar
+  </script>
+</body>
+</html>
