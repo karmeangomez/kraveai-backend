@@ -1,75 +1,35 @@
-name: Deploy to Raspberry Pi with Telegram + Rollback
+name: Deploy Worker - Crear Cuentas
 
 on:
   push:
-    branches: [main]
+    paths:
+      - '**.js'
+      - 'proxies.json'
 
 jobs:
   deploy:
+    name: Worker Deployment
     runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
 
-      - name: Deploy via SSH with Rollback
+    steps:
+      - name: Pull y reinicio de servicio worker
         uses: appleboy/ssh-action@v1
         with:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
-            echo "🛡️ Iniciando backup"
-            TIMESTAMP=$(date +%F-%H%M)
-            BACKUP_DIR=~/kraveai-backend-backups/$TIMESTAMP
-            mkdir -p $BACKUP_DIR
-            cp -r ~/kraveai-backend/* $BACKUP_DIR
-
-            echo "📥 Pulling latest code"
+            echo "🧠 Pulling worker updates"
             cd ~/kraveai-backend
             git pull origin main
 
-            echo "🐍 Activando entorno"
-            source env/bin/activate || python3 -m venv env
-            source env/bin/activate
-
-            echo "📦 Instalando dependencias"
-            pip install -r requirements.txt
-
-            echo "🔄 Reiniciando backend"
-            sudo systemctl restart kraveai-python
+            echo "🔁 Reiniciando crear-cuentas.service"
+            sudo systemctl restart crear-cuentas.service
             sleep 3
 
-            echo "🌐 Verificando backend"
-            STATUS=$(curl -s http://localhost:8000/health || echo FAIL)
-            BACKEND_OK=false
-            if echo "$STATUS" | grep -q '"status":"OK"'; then
-              BACKEND_OK=true
-            else
-              echo "⚠️ Backend sin respuesta, reiniciando túnel Cloudflare"
-              sudo systemctl restart cloudflared
-              sleep 3
-              STATUS=$(curl -s http://localhost:8000/health || echo FAIL)
-              if echo "$STATUS" | grep -q '"status":"OK"'; then
-                BACKEND_OK=true
-              fi
-            fi
-
-            echo "📊 Obteniendo métricas"
-            RAM=$(free -m | awk '/Mem:/ {print $3"MB"}')
-            CPU=$(top -bn1 | grep Cpu | awk '{print $2"%"}')
-
-            echo "📝 Registrando log"
-            echo "[$TIMESTAMP] Deploy ejecutado" >> ~/kraveai-backend/deploy.log
-
-            if [ "$BACKEND_OK" = true ]; then
-              MSG="✅ *KraveAI desplegado correctamente*%0A🌐 https://api.kraveapi.xyz/health%0A🧠 RAM: $RAM | 🔥 CPU: $CPU"
-            else
-              echo "🔁 Iniciando rollback"
-              cp -r $BACKUP_DIR/* ~/kraveai-backend/
-              sudo systemctl restart kraveai-python
-              sleep 3
-              MSG="❌ *Deploy fallido. Rollback ejecutado.*%0A🚨 Revisar backend en Raspberry"
-            fi
+            echo "📄 Verificando logs recientes"
+            LOG=$(tail -n 10 logs/creacion.log 2>/dev/null || echo "Sin log disponible")
+            MSG="🚀 *Worker actualizado y reiniciado*\n\n📄 Últimas líneas del log:\n\`\`\`\n$LOG\n\`\`\`"
 
             echo "📲 Enviando Telegram"
             curl -s -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage" \
