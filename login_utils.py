@@ -1,35 +1,36 @@
-# login_utils.py - Login a Instagram usando instagrapi y cookies
+# login_utils.py - Login y verificacion de sesion con cookies
 
 import os
+import json
 from instagrapi import Client
-from dotenv import load_dotenv
 
-load_dotenv()
+COOKIE_FILE = "ig_session.json"
+USERNAME = os.getenv("IG_USERNAME")
+PASSWORD = os.getenv("INSTAGRAM_PASS")
 
-IG_USERNAME = os.getenv("IG_USERNAME")
-INSTAGRAM_PASS = os.getenv("INSTAGRAM_PASS")
-COOKIES_PATH = "ig_session.json"
 
-def iniciar_sesion():
+def login_instagram():
     cl = Client()
-    if os.path.exists(COOKIES_PATH):
+    cl.delay_range = [2, 5]
+
+    if os.path.exists(COOKIE_FILE):
         try:
-            cl.load_settings(COOKIES_PATH)
+            cl.load_settings(COOKIE_FILE)
             cl.get_timeline_feed()
-            print(f"✅ Sesión restaurada como @{IG_USERNAME}")
+            print("✅ Sesion restaurada desde cookies.")
             return cl
         except Exception as e:
-            print(f"⚠️ Cookies inválidas: {e}")
+            print("⚠️ Fallo restaurar sesion, intentando login...", e)
 
     try:
-        cl.login(IG_USERNAME, INSTAGRAM_PASS)
-        cl.dump_settings(COOKIES_PATH)
-        print(f"✅ Login exitoso como @{IG_USERNAME}")
+        cl.login(USERNAME, PASSWORD)
+        cl.dump_settings(COOKIE_FILE)
+        print(f"✅ Login exitoso como @{USERNAME}")
         return cl
     except Exception as e:
-        print(f"❌ Error al iniciar sesión: {e}")
+        print("❌ Error en login:", e)
         return None
 
-# Ejecutar directamente
+
 if __name__ == "__main__":
-    iniciar_sesion()
+    login_instagram()
