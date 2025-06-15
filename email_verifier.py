@@ -98,7 +98,7 @@ def leer_codigo_10min(max_intentos=6):
 
 # =================== SISTEMA PRINCIPAL ===================
 def obtener_codigo_verificacion(timeout=90):
-    logger.info("🔁 Iniciando sistema de verificacion híbrido")
+    logger.info("🔁 Iniciando sistema de verificación híbrido")
 
     # 1. InstAddr
     correo = crear_email_instaddr()
@@ -115,6 +115,7 @@ def obtener_codigo_verificacion(timeout=90):
     alias = "verificador"  # puede cambiarse
     code = leer_codigo_maildrop(alias)
     if code:
+        logger.info(f"✅ Código MailDrop: {code}")
         return code, f"{alias}@maildrop.cc"
 
     # 3. 10MinuteMail fallback
@@ -122,15 +123,22 @@ def obtener_codigo_verificacion(timeout=90):
     if correo:
         code = leer_codigo_10min()
         if code:
+            logger.info(f"✅ Código 10MinuteMail: {code}")
             return code, correo
 
     logger.error("❌ No se pudo obtener el código desde ningún servicio")
     return None, None
 
-# =================== PRUEBA ===================
+# =================== EJECUCIÓN DIRECTA ===================
 if __name__ == "__main__":
     code, correo = obtener_codigo_verificacion()
     if code:
         print(f"\n✅ Código obtenido: {code} para {correo}")
+        try:
+            with open("last_code.txt", "w") as f:
+                f.write(f"{code}|{correo}")
+            logger.info("💾 Código guardado en last_code.txt")
+        except Exception as e:
+            logger.error(f"❌ No se pudo guardar el código: {e}")
     else:
         print("\n❌ No se pudo obtener el código")
