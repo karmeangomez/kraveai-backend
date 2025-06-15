@@ -1,11 +1,7 @@
-# ✅ requirements.txt - versión final lista para KraveAI (Python)
-
-fastapi
-uvicorn
-python-dotenv
-httpx
+fastapi==0.100.0
+uvicorn==0.22.0
 instagrapi==1.19.8
-
-# Recomendado para futuro (si se usa OpenAI, Bitly, etc.)
-# openai
-# pyshorteners
+pydantic==1.10.9
+python-dotenv
+pillow==10.3.0
+requests
