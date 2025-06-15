@@ -1,4 +1,3 @@
-# main.py
 import os
 import asyncio
 from fastapi import FastAPI, Request
@@ -11,8 +10,6 @@ from login_utils import iniciar_sesion
 
 load_dotenv()
 app = FastAPI()
-
-# Iniciar sesión al levantar el backend
 cl = iniciar_sesion()
 
 @app.get("/health")
@@ -26,7 +23,7 @@ def health():
 @app.get("/create-accounts-sse")
 async def crear_cuentas_sse(request: Request, count: int = 1):
     async def event_stream():
-        for i in range(min(count, 5)):  # seguridad: máximo 5 por petición
+        for i in range(min(count, 5)):
             if await request.is_disconnected():
                 break
             cuenta = crear_cuenta_instagram(cl)
