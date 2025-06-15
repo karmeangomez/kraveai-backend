@@ -3,12 +3,20 @@
 import os
 import json
 from instagrapi import Client
+from dotenv import load_dotenv
+
+# 🔐 Cargar variables de entorno desde .env
+load_dotenv()
 
 COOKIE_FILE = "ig_session.json"
 USERNAME = os.getenv("IG_USERNAME")
 PASSWORD = os.getenv("INSTAGRAM_PASS")
 
 def iniciar_sesion():
+    if not USERNAME or not PASSWORD:
+        print("❌ Login fallido: IG_USERNAME o INSTAGRAM_PASS no están definidos en .env")
+        return None
+
     cl = Client()
     cl.delay_range = [2, 5]
 
@@ -30,3 +38,4 @@ def iniciar_sesion():
     except Exception as e:
         print(f"❌ Login fallido: {e}")
         return None
+
