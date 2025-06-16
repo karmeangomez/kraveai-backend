@@ -1,4 +1,3 @@
-# main.py - Backend principal de KraveAI
 import os
 import asyncio
 from fastapi import FastAPI, Request
@@ -7,7 +6,7 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from dotenv import load_dotenv
 
-from login_utils import iniciar_sesion
+from login_utils import login_instagram
 from instagram_utils import crear_cuenta_instagram
 from telegram_utils import notify_telegram
 
