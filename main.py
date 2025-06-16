@@ -1,31 +1,41 @@
-# main.py - Backend principal KraveAI
+# main.py - Backend FastAPI KraveAI
 
 import os
+import json
 import asyncio
 from fastapi import FastAPI, Request
-from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
+from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
-from pydantic import BaseModel
-from login_utils import login_instagram
+from nombre_utils import generar_nombre, generar_usuario
 from telegram_utils import notify_telegram
 from instagram_utils import crear_cuenta_instagram
-from nombre_utils import generar_usuario, generar_nombre
-import subprocess
+from instagrapi import Client
 
 load_dotenv()
-
 app = FastAPI()
-cl = login_instagram()
 
-# Configurar CORS
+# CORS para permitir conexión desde Netlify
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+cl = Client()
+
+# Restaurar sesión si hay cookies
+try:
+    if os.path.exists("ig_session.json"):
+        cl.load_settings("ig_session.json")
+        cl.get_timeline_feed()
+        print("✅ Sesión restaurada desde cookies")
+    else:
+        print("❌ No hay sesión previa guardada")
+except Exception as e:
+    print("❌ Error al cargar sesión:", e)
+    cl = None
 
 @app.get("/health")
 def health():
@@ -44,7 +54,6 @@ def estado_sesion():
 
 @app.post("/iniciar-sesion")
 def iniciar_sesion_post(datos: dict):
-    from instagrapi import Client
     usuario = datos.get("usuario")
     contrasena = datos.get("contrasena")
     if not usuario or not contrasena:
@@ -86,8 +95,7 @@ def buscar_usuario(username: str):
             "biografia": user.biography,
             "privado": user.is_private,
             "verificado": user.is_verified,
-            "negocio": user.is_business,
-            "tick_azul": user.is_verified
+            "negocio": user.is_business
         }
     except Exception as e:
         return {"error": str(e)}
@@ -95,36 +103,38 @@ def buscar_usuario(username: str):
 @app.get("/create-accounts-sse")
 async def crear_cuentas_sse(request: Request, count: int = 1):
     async def event_stream():
-        for i in range(count):
+        for i in range(min(count, 5)):
             if await request.is_disconnected():
                 break
             cuenta = crear_cuenta_instagram(cl)
             if cuenta and cuenta.get("usuario"):
-                await notify_telegram(f"✅ Hola Karmean, cuenta creada: @{cuenta['usuario']} con {cuenta['proxy'] or 'sin proxy'}")
-                yield f"event: account-created\ndata: {cuenta}\n\n"
+                await notify_telegram(f"✅ Hola Karmean, cuenta creada: @{cuenta['usuario']} con {cuenta.get('proxy', 'sin proxy')}")
+                yield f"event: account-created\ndata: {json.dumps(cuenta)}\n\n"
             else:
                 yield f"event: error\ndata: {{\"message\": \"Falló la cuenta {i+1}\"}}\n\n"
             await asyncio.sleep(2)
         yield f"event: complete\ndata: {{\"message\": \"Proceso completado\"}}\n\n"
     return StreamingResponse(event_stream(), media_type="text/event-stream")
 
-class CrearCuentasRequest(BaseModel):
-    cantidad: int
-
-@app.post("/crear-cuentas-real")
-def crear_cuentas_real(body: CrearCuentasRequest):
-    try:
-        comando = f"node main.js {body.cantidad}"
-        subprocess.Popen(comando, shell=True)
-        return {"exito": True, "mensaje": f"🔁 Creación de {body.cantidad} cuentas iniciada"}
-    except Exception as e:
-        return {"exito": False, "mensaje": str(e)}
-
 @app.get("/test-telegram")
 async def test_telegram():
-    await notify_telegram("📣 Hola Karmean, esta es una notificación de prueba desde KraveAI 🚀")
-    return {"mensaje": "Notificación enviada a Telegram"}
+    try:
+        await notify_telegram("📢 Hola Karmean, esta es una prueba de conexión desde `/test-telegram`.")
+        return {"exito": True, "mensaje": "Notificación enviada"}
+    except Exception as e:
+        return {"exito": False, "error": str(e)}
+
+@app.get("/cuentas")
+def obtener_cuentas():
+    try:
+        if not os.path.exists("cuentas_creadas.json"):
+            return []
+        with open("cuentas_creadas.json", "r") as f:
+            return json.load(f)
+    except Exception as e:
+        return {"error": str(e)}
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=False)
+    port = int(os.getenv("PORT", 8000))
+    uvicorn.run("main:app", host="0.0.0.
