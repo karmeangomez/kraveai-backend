@@ -1,4 +1,4 @@
-# login_utils.py
+# login_utils.py - Login con cookies o credenciales
 
 import os
 from instagrapi import Client
@@ -18,7 +18,7 @@ def login_instagram():
             print("✅ Sesión restaurada desde cookies.")
             return cl
         except Exception as e:
-            print("⚠️ Fallo restaurar sesión, intentando login...", e)
+            print("⚠️ Falló restaurar sesión, intentando login...", e)
 
     try:
         cl.login(USERNAME, PASSWORD)
@@ -28,3 +28,4 @@ def login_instagram():
     except Exception as e:
         print("❌ Error en login:", e)
         return None
+
