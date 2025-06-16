@@ -4,6 +4,7 @@ import os
 import asyncio
 from fastapi import FastAPI, Request
 from fastapi.responses import StreamingResponse
+from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 from nombre_utils import generar_nombre, generar_usuario
 from telegram_utils import notify_telegram
@@ -14,6 +15,15 @@ from pydantic import BaseModel
 
 load_dotenv()
 app = FastAPI()
+
+# ✅ Habilitar CORS para permitir frontend de Netlify
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # O especifica ["https://kraveai.netlify.app"]
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 cl = login_instagram()
 
@@ -112,4 +122,3 @@ def crear_cuentas_real(body: CrearCuentasRequest):
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=False)
-
