@@ -86,7 +86,8 @@ def buscar_usuario(username: str):
             "biografia": user.biography,
             "privado": user.is_private,
             "verificado": user.is_verified,
-            "negocio": user.is_business
+            "negocio": user.is_business,
+            "tick_azul": user.is_verified
         }
     except Exception as e:
         return {"error": str(e)}
@@ -118,6 +119,11 @@ def crear_cuentas_real(body: CrearCuentasRequest):
         return {"exito": True, "mensaje": f"🔁 Creación de {body.cantidad} cuentas iniciada"}
     except Exception as e:
         return {"exito": False, "mensaje": str(e)}
+
+@app.get("/test-telegram")
+async def test_telegram():
+    await notify_telegram("📣 Hola Karmean, esta es una notificación de prueba desde KraveAI 🚀")
+    return {"mensaje": "Notificación enviada a Telegram"}
 
 if __name__ == "__main__":
     import uvicorn
