@@ -1,7 +1,7 @@
 import os
 import asyncio
 from fastapi import FastAPI, Request
-from fastapi.responses import StreamingResponse
+from fastapi.responses import StreamingResponse, JSONResponse
 from dotenv import load_dotenv
 from nombre_utils import generar_nombre, generar_usuario
 from telegram_utils import notify_telegram
@@ -21,10 +21,10 @@ try:
         print("✅ Sesión restaurada desde cookies")
     else:
         print("❌ No hay sesión previa guardada")
+        cl = None
 except Exception as e:
     print("❌ Error al cargar sesión:", e)
     cl = None
-
 
 @app.get("/health")
 def health():
@@ -109,3 +109,4 @@ if __name__ == "__main__":
     import uvicorn
     port = int(os.getenv("PORT", 8000))
     uvicorn.run("main:app", host="0.0.0.0", port=port, reload=False)
+
