@@ -1,4 +1,4 @@
-# main.py - Backend FastAPI principal de KraveAI
+# main.py - Backend principal KraveAI
 
 import os
 import asyncio
@@ -6,17 +6,19 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from dotenv import load_dotenv
-from nombre_utils import generar_nombre, generar_usuario
+from pydantic import BaseModel
+from login_utils import login_instagram
 from telegram_utils import notify_telegram
 from instagram_utils import crear_cuenta_instagram
-from login_utils import iniciar_sesion
-from pydantic import BaseModel
+from nombre_utils import generar_usuario, generar_nombre
 import subprocess
 
 load_dotenv()
-app = FastAPI()
 
-# CORS
+app = FastAPI()
+cl = login_instagram()
+
+# Configurar CORS
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -24,9 +26,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-# Cliente global de sesión
-cl = iniciar_sesion()
 
 @app.get("/health")
 def health():
@@ -95,12 +94,12 @@ def buscar_usuario(username: str):
 @app.get("/create-accounts-sse")
 async def crear_cuentas_sse(request: Request, count: int = 1):
     async def event_stream():
-        for i in range(min(count, 5)):
+        for i in range(count):
             if await request.is_disconnected():
                 break
             cuenta = crear_cuenta_instagram(cl)
             if cuenta and cuenta.get("usuario"):
-                await notify_telegram(f"✅ Cuenta creada: @{cuenta['usuario']} con {cuenta['proxy'] or 'sin proxy'}")
+                await notify_telegram(f"✅ Hola Karmean, cuenta creada: @{cuenta['usuario']} con {cuenta['proxy'] or 'sin proxy'}")
                 yield f"event: account-created\ndata: {cuenta}\n\n"
             else:
                 yield f"event: error\ndata: {{\"message\": \"Falló la cuenta {i+1}\"}}\n\n"
