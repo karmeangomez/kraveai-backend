@@ -2,17 +2,15 @@
 
 import os
 import asyncio
-import subprocess
 from fastapi import FastAPI, Request
 from fastapi.responses import StreamingResponse
-from pydantic import BaseModel
 from dotenv import load_dotenv
-from instagrapi import Client
-
 from nombre_utils import generar_nombre, generar_usuario
 from telegram_utils import notify_telegram
 from instagram_utils import crear_cuenta_instagram
 from login_utils import login_instagram
+import subprocess
+from pydantic import BaseModel
 
 load_dotenv()
 app = FastAPI()
@@ -36,6 +34,7 @@ def estado_sesion():
 
 @app.post("/iniciar-sesion")
 def iniciar_sesion_post(datos: dict):
+    from instagrapi import Client
     usuario = datos.get("usuario")
     contrasena = datos.get("contrasena")
     if not usuario or not contrasena:
@@ -112,6 +111,5 @@ def crear_cuentas_real(body: CrearCuentasRequest):
 
 if __name__ == "__main__":
     import uvicorn
-    port = int(os.getenv("PORT", 8000))
-    uvicorn.run("main:app", host="0.0.0.0", port=port, reload=False)
+    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=False)
 
