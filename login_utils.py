@@ -1,22 +1,13 @@
-# login_utils.py - Login a Instagram usando instagrapi y guardar cookies
+# login_utils.py
 
 import os
-import json
 from instagrapi import Client
-from dotenv import load_dotenv
-
-# 🔐 Cargar variables de entorno desde .env
-load_dotenv()
 
 COOKIE_FILE = "ig_session.json"
 USERNAME = os.getenv("IG_USERNAME")
 PASSWORD = os.getenv("INSTAGRAM_PASS")
 
-def iniciar_sesion():
-    if not USERNAME or not PASSWORD:
-        print("❌ Login fallido: IG_USERNAME o INSTAGRAM_PASS no están definidos en .env")
-        return None
-
+def login_instagram():
     cl = Client()
     cl.delay_range = [2, 5]
 
@@ -27,15 +18,13 @@ def iniciar_sesion():
             print("✅ Sesión restaurada desde cookies.")
             return cl
         except Exception as e:
-            print(f"⚠️ Error cargando cookies: {e}")
+            print("⚠️ Fallo restaurar sesión, intentando login...", e)
 
     try:
         cl.login(USERNAME, PASSWORD)
-        with open(COOKIE_FILE, "w") as f:
-            f.write(json.dumps(cl.get_settings()))
-        print("🔐 Login exitoso. Cookies guardadas.")
+        cl.dump_settings(COOKIE_FILE)
+        print(f"✅ Login exitoso como @{USERNAME}")
         return cl
     except Exception as e:
-        print(f"❌ Login fallido: {e}")
+        print("❌ Error en login:", e)
         return None
-
