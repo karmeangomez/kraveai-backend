@@ -1,27 +1,18 @@
-<<<<<<< HEAD
 # main.py - Backend principal KraveAI
-=======
-# main.py - backend FastAPI principal (actualizado)
->>>>>>> 105536e (Auto-push desde Raspberry - index.lock)
 
 import os
 import json
 import asyncio
 import subprocess
 from fastapi import FastAPI, Request
-<<<<<<< HEAD
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import StreamingResponse
-=======
 from fastapi.responses import StreamingResponse, PlainTextResponse
->>>>>>> 105536e (Auto-push desde Raspberry - index.lock)
 from dotenv import load_dotenv
 from pydantic import BaseModel
 from login_utils import login_instagram
 from telegram_utils import notify_telegram
 from instagram_utils import crear_cuenta_instagram
 from nombre_utils import generar_usuario, generar_nombre
-import subprocess
 
 load_dotenv()
 app = FastAPI()
@@ -120,7 +111,6 @@ async def crear_cuentas_sse(request: Request, count: int = 1):
         yield f"event: complete\ndata: {{\"message\": \"Proceso completado\"}}\n\n"
     return StreamingResponse(event_stream(), media_type="text/event-stream")
 
-<<<<<<< HEAD
 class CrearCuentasRequest(BaseModel):
     cantidad: int
 
@@ -144,17 +134,12 @@ def obtener_cuentas():
         path = "cuentas_creadas.json"
         if not os.path.exists(path):
             return []
-
         with open(path, "r", encoding="utf-8") as f:
             cuentas = json.load(f)
         return cuentas
     except Exception as e:
         return {"error": str(e)}
 
-if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=False)
-=======
 # ⬇️ Endpoints para controlar crear-cuentas.service desde frontend
 
 @app.post("/servicio/crear-cuentas/start", response_class=PlainTextResponse)
@@ -194,4 +179,3 @@ if __name__ == "__main__":
     port = int(os.getenv("PORT", 8000))
     uvicorn.run("main:app", host="0.0.0.0", port=port, reload=False)
 
->>>>>>> 105536e (Auto-push desde Raspberry - index.lock)
