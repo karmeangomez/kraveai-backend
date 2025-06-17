@@ -1,11 +1,20 @@
+<<<<<<< HEAD
 # main.py - Backend principal KraveAI
+=======
+# main.py - backend FastAPI principal (actualizado)
+>>>>>>> 105536e (Auto-push desde Raspberry - index.lock)
 
 import os
 import json
 import asyncio
+import subprocess
 from fastapi import FastAPI, Request
+<<<<<<< HEAD
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
+=======
+from fastapi.responses import StreamingResponse, PlainTextResponse
+>>>>>>> 105536e (Auto-push desde Raspberry - index.lock)
 from dotenv import load_dotenv
 from pydantic import BaseModel
 from login_utils import login_instagram
@@ -111,6 +120,7 @@ async def crear_cuentas_sse(request: Request, count: int = 1):
         yield f"event: complete\ndata: {{\"message\": \"Proceso completado\"}}\n\n"
     return StreamingResponse(event_stream(), media_type="text/event-stream")
 
+<<<<<<< HEAD
 class CrearCuentasRequest(BaseModel):
     cantidad: int
 
@@ -144,3 +154,44 @@ def obtener_cuentas():
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=False)
+=======
+# ⬇️ Endpoints para controlar crear-cuentas.service desde frontend
+
+@app.post("/servicio/crear-cuentas/start", response_class=PlainTextResponse)
+def iniciar_creacion():
+    try:
+        subprocess.run(["sudo", "systemctl", "start", "crear-cuentas.service"], check=True)
+        return "✅ Servicio de creación de cuentas INICIADO"
+    except subprocess.CalledProcessError:
+        return PlainTextResponse("❌ Error al iniciar el servicio", status_code=500)
+
+@app.post("/servicio/crear-cuentas/stop", response_class=PlainTextResponse)
+def detener_creacion():
+    try:
+        subprocess.run(["sudo", "systemctl", "stop", "crear-cuentas.service"], check=True)
+        return "⏹️ Servicio de creación de cuentas DETENIDO"
+    except subprocess.CalledProcessError:
+        return PlainTextResponse("❌ Error al detener el servicio", status_code=500)
+
+@app.get("/servicio/crear-cuentas/status", response_class=PlainTextResponse)
+def estado_creacion():
+    try:
+        output = subprocess.check_output(["systemctl", "is-active", "crear-cuentas.service"]).decode().strip()
+        return f"📊 Estado del servicio: {output}"
+    except subprocess.CalledProcessError:
+        return PlainTextResponse("❌ No se pudo obtener el estado", status_code=500)
+
+@app.get("/servicio/crear-cuentas/logs", response_class=PlainTextResponse)
+def logs_creacion():
+    try:
+        output = subprocess.check_output(["tail", "-n", "40", "logs/creacion.log"]).decode()
+        return output
+    except Exception as e:
+        return PlainTextResponse(f"❌ Error al leer logs: {str(e)}", status_code=500)
+
+if __name__ == "__main__":
+    import uvicorn
+    port = int(os.getenv("PORT", 8000))
+    uvicorn.run("main:app", host="0.0.0.0", port=port, reload=False)
+
+>>>>>>> 105536e (Auto-push desde Raspberry - index.lock)
