@@ -1,9 +1,8 @@
-# main.py - Backend principal KraveAI (actualizado completo)
+# main.py - Backend principal KraveAI
 
 import os
 import json
 import asyncio
-import subprocess
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
@@ -13,12 +12,13 @@ from login_utils import login_instagram
 from telegram_utils import notify_telegram
 from instagram_utils import crear_cuenta_instagram
 from nombre_utils import generar_usuario, generar_nombre
+import subprocess
 
 load_dotenv()
 app = FastAPI()
 cl = login_instagram()
 
-# Configurar CORS para frontend
+# CORS
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -94,53 +94,21 @@ def buscar_usuario(username: str):
         return {"error": str(e)}
 
 @app.get("/create-accounts-sse")
-async def crear_cuentas_sse(request: Request, count: int = 1, force_email_type: str = None):
+async def crear_cuentas_sse(request: Request, count: int = 1):
     async def event_stream():
-        created_count = 0
-        stats = {"gmail": 0, "instaddr": 0, "errors": 0}
-
         for i in range(count):
             if await request.is_disconnected():
                 break
-            try:
-                cuenta = crear_cuenta_instagram(force_email_type=force_email_type)
-
-                if cuenta.get("success"):
-                    email_type = cuenta.get("email_type", "unknown")
-                    stats[email_type] += 1
-                    notify_telegram(f"✅ Hola Karmean, cuenta creada: @{cuenta['username']} con {cuenta.get('proxy') or 'sin proxy'}")
-                    yield f"event: account-created\ndata: {json.dumps(cuenta)}\n\n"
-                    created_count += 1
-                else:
-                    stats["errors"] += 1
-                    error_msg = cuenta.get("error", "Error desconocido")
-                    notify_telegram(f"⚠️ Fallo cuenta {i+1}: {error_msg}")
-                    yield f"event: error\ndata: {json.dumps({'message': error_msg})}\n\n"
-            except Exception as e:
-                stats["errors"] += 1
-                error_msg = f"Excepción inesperada: {str(e)}"
-                notify_telegram(f"⚠️ Error crítico: {error_msg}")
-                yield f"event: error\ndata: {json.dumps({'message': error_msg})}\n\n"
+            cuenta = crear_cuenta_instagram(cl)
+            if cuenta and cuenta.get("usuario"):
+                notify_telegram(f"✅ Hola Karmean, cuenta creada: @{cuenta['usuario']} con {cuenta['proxy'] or 'sin proxy'}")
+                yield f"event: account-created\ndata: {json.dumps(cuenta)}\n\n"
+            else:
+                error = cuenta.get("error", "Desconocido")
+                notify_telegram(f"⚠️ Karmean, error en cuenta {i+1}: {error}")
+                yield f"event: error\ndata: {{\"message\": \"Falló la cuenta {i+1}\"}}\n\n"
             await asyncio.sleep(2)
-
-        resumen = {
-            "solicitadas": count,
-            "creadas": created_count,
-            "gmail": stats["gmail"],
-            "instaddr": stats["instaddr"],
-            "errores": stats["errors"]
-        }
-        notify_telegram(
-            f"📊 Resumen creación:\n"
-            f"• Total: {count}\n"
-            f"• Creadas: {created_count}\n"
-            f"• Gmail: {stats['gmail']}\n"
-            f"• InstAddr: {stats['instaddr']}\n"
-            f"• Errores: {stats['errors']}"
-        )
-        yield f"event: summary\ndata: {json.dumps(resumen)}\n\n"
-        yield "event: complete\ndata: {\"message\": \"Proceso terminado\"}\n\n"
-
+        yield f"event: complete\ndata: {{\"message\": \"Proceso completado\"}}\n\n"
     return StreamingResponse(event_stream(), media_type="text/event-stream")
 
 class CrearCuentasRequest(BaseModel):
@@ -160,7 +128,18 @@ def test_telegram():
     notify_telegram("📣 Hola Karmean, esta es una notificación de prueba desde KraveAI 🚀")
     return {"mensaje": "Notificación enviada"}
 
+@app.get("/cuentas")
+def obtener_cuentas():
+    try:
+        if os.path.exists("cuentas_creadas.json"):
+            with open("cuentas_creadas.json", "r") as f:
+                cuentas = json.load(f)
+            return cuentas
+        else:
+            return []
+    except Exception as e:
+        return {"error": str(e)}
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=False)
-
