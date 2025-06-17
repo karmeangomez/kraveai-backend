@@ -131,12 +131,13 @@ def test_telegram():
 @app.get("/cuentas")
 def obtener_cuentas():
     try:
-        if os.path.exists("cuentas_creadas.json"):
-            with open("cuentas_creadas.json", "r") as f:
-                cuentas = json.load(f)
-            return cuentas
-        else:
+        path = "cuentas_creadas.json"
+        if not os.path.exists(path):
             return []
+
+        with open(path, "r", encoding="utf-8") as f:
+            cuentas = json.load(f)
+        return cuentas
     except Exception as e:
         return {"error": str(e)}
 
