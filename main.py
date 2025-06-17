@@ -1,7 +1,9 @@
 # main.py - Backend principal KraveAI
 
 import os
+import json
 import asyncio
+import subprocess
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
@@ -11,13 +13,12 @@ from login_utils import login_instagram
 from telegram_utils import notify_telegram
 from instagram_utils import crear_cuenta_instagram
 from nombre_utils import generar_usuario, generar_nombre
-import subprocess
 
 load_dotenv()
 app = FastAPI()
 cl = login_instagram()
 
-# Configurar CORS
+# CORS para frontend
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -101,7 +102,7 @@ async def crear_cuentas_sse(request: Request, count: int = 1):
             cuenta = crear_cuenta_instagram(cl)
             if cuenta and cuenta.get("usuario"):
                 notify_telegram(f"✅ Hola Karmean, cuenta creada: @{cuenta['usuario']} con {cuenta['proxy'] or 'sin proxy'}")
-                yield f"event: account-created\ndata: {cuenta}\n\n"
+                yield f"event: account-created\ndata: {json.dumps(cuenta)}\n\n"
             else:
                 yield f"event: error\ndata: {{\"message\": \"Falló la cuenta {i+1}\"}}\n\n"
             await asyncio.sleep(2)
@@ -119,6 +120,18 @@ def crear_cuentas_real(body: CrearCuentasRequest):
         return {"exito": True, "mensaje": f"🔁 Creación de {body.cantidad} cuentas iniciada"}
     except Exception as e:
         return {"exito": False, "mensaje": str(e)}
+
+@app.get("/cuentas")
+def obtener_cuentas():
+    try:
+        path = "cuentas_creadas.json"
+        if not os.path.exists(path):
+            return []
+        with open(path, "r") as f:
+            data = json.load(f)
+        return data
+    except Exception as e:
+        return {"error": str(e)}
 
 @app.get("/test-telegram")
 def test_telegram():
