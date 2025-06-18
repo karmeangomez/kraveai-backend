@@ -8,3 +8,4 @@ cuentas_creadas.json
 error_screenshots/
 *.pyc
 __pycache__/
+env/
