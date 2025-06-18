@@ -1,29 +1,13 @@
 import subprocess
 import json
-import os
-import logging
-import requests
 import random
+import logging
 from datetime import datetime
 
 logger = logging.getLogger("InstagramUtils")
 
-CUENTAS_PATH = "cuentas_creadas.json"
-
-def guardar_cuenta(data: dict) -> bool:
-    """Guarda cuenta eficientemente en Raspberry Pi"""
-    try:
-        # Modo append para bajo consumo
-        data["timestamp"] = datetime.now().isoformat()
-        with open(CUENTAS_PATH, "a", encoding="utf-8") as f:
-            f.write(json.dumps(data) + "\n")
-        return True
-    except Exception as e:
-        logger.error(f"Error guardando cuenta: {str(e)}")
-        return False
-
 def crear_cuenta_instagram():
-    """Crea cuenta con rotación de proxies y verificación"""
+    """Crea cuenta con rotación de proxies y bajo consumo"""
     try:
         # 1. Rotación de proxies
         with open("proxies.json", "r") as f:
@@ -50,22 +34,6 @@ def crear_cuenta_instagram():
         if result.returncode == 0:
             cuenta = json.loads(result.stdout.strip())
             cuenta["proxy"] = proxy
-            
-            # 4. Verificación solo si es necesario
-            if cuenta.get("requires_verification") and not cuenta.get("verification_code"):
-                try:
-                    response = requests.get(
-                        "http://localhost:8000/get-verification-code",
-                        timeout=15
-                    )
-                    if response.status_code == 200:
-                        verification = response.json()
-                        if verification.get("code"):
-                            cuenta["verification_code"] = verification["code"]
-                except:
-                    pass
-            
-            guardar_cuenta(cuenta)
             return cuenta
         else:
             return {"error": result.stderr[:200]}
