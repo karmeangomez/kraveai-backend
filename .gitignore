@@ -6,3 +6,5 @@ cuentas_creadas.json
 *.log
 *.pid
 error_screenshots/
+*.pyc
+__pycache__/
