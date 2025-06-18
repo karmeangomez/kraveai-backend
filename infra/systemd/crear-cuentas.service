@@ -1,0 +1,16 @@
+[Unit]
+Description=KraveAI - Crear Cuentas Instagram Worker
+After=network.target
+
+[Service]
+User=karmean
+WorkingDirectory=/home/karmean/kraveai-backend
+ExecStart=/usr/bin/node main.js
+Restart=always
+RestartSec=5
+StandardOutput=append:/home/karmean/kraveai-backend/logs/crear-cuentas.log
+StandardError=append:/home/karmean/kraveai-backend/logs/crear-cuentas.log
+Environment=NODE_ENV=production
+
+[Install]
+WantedBy=multi-user.target
