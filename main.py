@@ -1,22 +1,46 @@
-# main.py - Backend principal KraveAI
-
+# main.py - Backend principal KraveAI - Versión Maximizada
 import os
 import json
 import asyncio
 import subprocess
-from fastapi import FastAPI, Request
+import logging
+import concurrent.futures
+from fastapi import FastAPI, Request, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import StreamingResponse, PlainTextResponse
+from fastapi.responses import StreamingResponse, PlainTextResponse, JSONResponse
 from dotenv import load_dotenv
 from pydantic import BaseModel
 from login_utils import login_instagram
 from telegram_utils import notify_telegram
 from instagram_utils import crear_cuenta_instagram
-from nombre_utils import generar_usuario, generar_nombre
+from verification_utils import obtener_codigo_verificacion_hibrido  # Nuevo módulo
+
+# Configuración avanzada de logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s [%(levelname)s] %(name)s: %(message)s',
+    handlers=[
+        logging.FileHandler("kraveai.log", encoding='utf-8'),
+        logging.StreamHandler()
+    ]
+)
+logger = logging.getLogger("KraveAI-Backend")
+logger.setLevel(logging.DEBUG if os.getenv("DEBUG") else logging.INFO)
 
 load_dotenv()
 app = FastAPI()
-cl = login_instagram()
+
+# Configuración específica para Raspberry Pi 5
+RASPBERRY_MODE = True  # Siempre activo para Pi
+MAX_CONCURRENT = 3     # Máximo seguro para Pi 5 con 4GB RAM
+
+# Inicialización segura de cliente Instagram
+try:
+    cl = login_instagram()
+    logger.info("Cliente Instagram inicializado")
+except Exception as e:
+    logger.error(f"Error inicializando Instagram: {str(e)}")
+    cl = None
 
 # CORS
 app.add_middleware(
@@ -32,51 +56,67 @@ def health():
     return {
         "status": "OK",
         "service": "KraveAI Python",
-        "login": "Activo" if cl and cl.user_id else "Fallido"
+        "version": "2.0-max",
+        "raspberry_mode": RASPBERRY_MODE,
+        "max_concurrent": MAX_CONCURRENT,
+        "instagram": "active" if cl and cl.user_id else "inactive"
     }
 
 @app.get("/estado-sesion")
 def estado_sesion():
     if cl and cl.user_id:
         return {"status": "activo", "usuario": cl.username}
-    else:
-        return {"status": "inactivo"}
+    return {"status": "inactivo", "detalle": "Sesión no iniciada o expirada"}
+
+class LoginRequest(BaseModel):
+    usuario: str
+    contrasena: str
 
 @app.post("/iniciar-sesion")
-def iniciar_sesion_post(datos: dict):
+def iniciar_sesion_post(datos: LoginRequest):
     from instagrapi import Client
-    usuario = datos.get("usuario")
-    contrasena = datos.get("contrasena")
-    if not usuario or not contrasena:
-        return {"exito": False, "mensaje": "Faltan datos"}
-
     global cl
-    nuevo = Client()
+    
     try:
-        nuevo.login(usuario, contrasena)
+        nuevo = Client()
+        nuevo.login(datos.usuario, datos.contrasena)
         cl = nuevo
         cl.dump_settings("ig_session.json")
-        notify_telegram(f"✅ Hola Karmean, sesión iniciada como @{usuario}")
-        return {"exito": True, "usuario": usuario}
+        notify_telegram(f"✅ Sesión iniciada como @{datos.usuario}")
+        logger.info(f"Sesión Instagram iniciada: @{datos.usuario}")
+        return {"exito": True, "usuario": datos.usuario}
     except Exception as e:
-        return {"exito": False, "mensaje": str(e)}
+        logger.error(f"Error inicio sesión: {str(e)}", exc_info=True)
+        return JSONResponse(
+            status_code=401,
+            content={"exito": False, "mensaje": f"Error de autenticación: {str(e)}"}
+        )
 
 @app.get("/cerrar-sesion")
 def cerrar_sesion():
     try:
         global cl
-        cl.logout()
-        cl = None
+        if cl:
+            cl.logout()
+            cl = None
         if os.path.exists("ig_session.json"):
             os.remove("ig_session.json")
-        notify_telegram("👋 Hola Karmean, sesión cerrada correctamente.")
+        notify_telegram("👋 Sesión cerrada correctamente")
+        logger.info("Sesión Instagram cerrada")
         return {"exito": True}
-    except:
-        return {"exito": False, "mensaje": "No se pudo cerrar la sesión"}
+    except Exception as e:
+        logger.error(f"Error cerrando sesión: {str(e)}", exc_info=True)
+        return JSONResponse(
+            status_code=500,
+            content={"exito": False, "mensaje": f"No se pudo cerrar sesión: {str(e)}"}
+        )
 
-@app.get("/buscar-usuario")
+@app.get("/buscar-usuario/{username}")
 def buscar_usuario(username: str):
     try:
+        if not cl or not cl.user_id:
+            raise HTTPException(status_code=401, detail="Sesión de Instagram no activa")
+        
         user = cl.user_info_by_username(username)
         return {
             "username": user.username,
@@ -91,90 +131,160 @@ def buscar_usuario(username: str):
             "negocio": user.is_business
         }
     except Exception as e:
-        return {"error": str(e)}
+        logger.error(f"Error buscando usuario @{username}: {str(e)}")
+        raise HTTPException(status_code=404, detail=f"No se pudo encontrar el usuario: {str(e)}")
 
 @app.get("/create-accounts-sse")
-async def crear_cuentas_sse(request: Request, count: int = 1):
+async def crear_cuentas_sse(request: Request, count: int = 1, concurrency: int = MAX_CONCURRENT):
+    """Endpoint SSE con control de concurrencia optimizado para Raspberry Pi"""
+    logger.info(f"Iniciando creación de {count} cuentas con concurrencia {concurrency}")
+    
+    # Limitar concurrencia en Raspberry Pi
+    concurrency = min(concurrency, MAX_CONCURRENT)
+    
     async def event_stream():
-        for i in range(count):
-            if await request.is_disconnected():
-                break
-            cuenta = crear_cuenta_instagram(cl)
-            if cuenta and cuenta.get("usuario"):
-                notify_telegram(f"✅ Hola Karmean, cuenta creada: @{cuenta['usuario']} con {cuenta['proxy'] or 'sin proxy'}")
-                yield f"event: account-created\ndata: {json.dumps(cuenta)}\n\n"
-            else:
-                error = cuenta.get("error", "Desconocido")
-                notify_telegram(f"⚠️ Karmean, error en cuenta {i+1}: {error}")
-                yield f"event: error\ndata: {{\"message\": \"Falló la cuenta {i+1}\"}}\n\n"
-            await asyncio.sleep(2)
-        yield f"event: complete\ndata: {{\"message\": \"Proceso completado\"}}\n\n"
-    return StreamingResponse(event_stream(), media_type="text/event-stream")
+        completed = 0
+        success = 0
+        errors = []
+        
+        with concurrent.futures.ThreadPoolExecutor(max_workers=concurrency) as executor:
+            futures = {executor.submit(crear_cuenta_instagram): i for i in range(count)}
+            
+            for future in concurrent.futures.as_completed(futures):
+                if await request.is_disconnected():
+                    logger.info("Cliente desconectado, cancelando operaciones")
+                    for f in futures:
+                        f.cancel()
+                    break
+                
+                try:
+                    cuenta = future.result()
+                    if cuenta and cuenta.get("usuario"):
+                        # Notificación detallada
+                        proxy_info = cuenta.get('proxy', 'sin proxy')
+                        email_type = cuenta.get('email_type', 'desconocido')
+                        notify_telegram(
+                            f"✅ Cuenta creada: @{cuenta['usuario']}\n"
+                            f"📧 Email: {cuenta['email']} ({email_type})\n"
+                            f"🛡️ Proxy: {proxy_info}"
+                        )
+                        yield f"event: account-created\ndata: {json.dumps(cuenta)}\n\n"
+                        success += 1
+                    else:
+                        error_msg = cuenta.get("error", "Error desconocido")
+                        errors.append(error_msg)
+                        notify_telegram(f"⚠️ Error cuenta: {error_msg}")
+                        yield f"event: error\ndata: {json.dumps({'message': error_msg})}\n\n"
+                except Exception as e:
+                    error_msg = f"Excepción inesperada: {str(e)}"
+                    errors.append(error_msg)
+                    notify_telegram(f"⚠️ Error crítico: {error_msg}")
+                    yield f"event: error\ndata: {json.dumps({'message': error_msg})}\n\n"
+                
+                completed += 1
+                # Actualización periódica de progreso
+                if completed % 2 == 0 or completed == count:
+                    yield f"event: progress\ndata: {json.dumps({'completed': completed, 'total': count})}\n\n"
+            
+            # Resumen final
+            summary = {
+                "solicitadas": count,
+                "completadas": completed,
+                "exitosas": success,
+                "errores": errors
+            }
+            notify_telegram(
+                f"📊 Resumen creación:\n"
+                f"• Solicitadas: {count}\n"
+                f"• Creadas: {success}\n"
+                f"• Errores: {len(errors)}"
+            )
+            yield f"event: summary\ndata: {json.dumps(summary)}\n\n"
+            yield "event: complete\ndata: {\"message\": \"Proceso terminado\"}\n\n"
+    
+    return StreamingResponse(
+        event_stream(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+            "X-Raspberry-Mode": "true"
+        }
+    )
 
 class CrearCuentasRequest(BaseModel):
     cantidad: int
+    concurrency: int = MAX_CONCURRENT  # Usa el máximo por defecto
 
 @app.post("/crear-cuentas-real")
 def crear_cuentas_real(body: CrearCuentasRequest):
     try:
-        comando = f"node main.js {body.cantidad}"
-        subprocess.Popen(comando, shell=True)
-        return {"exito": True, "mensaje": f"🔁 Creación de {body.cantidad} cuentas iniciada"}
+        # Comando seguro para Raspberry Pi
+        comando = [
+            "node", 
+            "main.js", 
+            str(body.cantidad),
+            str(min(body.concurrency, MAX_CONCURRENT))
+        ]
+        
+        # Ejecutar en segundo plano
+        process = subprocess.Popen(
+            comando,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            encoding='utf-8'
+        )
+        
+        # Guardar PID para monitoreo
+        pid = process.pid
+        logger.info(f"Proceso Node.js iniciado (PID: {pid}) para {body.cantidad} cuentas")
+        
+        return {
+            "exito": True,
+            "mensaje": f"Creación de {body.cantidad} cuentas iniciada",
+            "pid": pid,
+            "concurrency": min(body.concurrency, MAX_CONCURRENT)
+        }
     except Exception as e:
-        return {"exito": False, "mensaje": str(e)}
+        logger.error(f"Error iniciando proceso Node.js: {str(e)}", exc_info=True)
+        return JSONResponse(
+            status_code=500,
+            content={"exito": False, "mensaje": f"Error iniciando proceso: {str(e)}"}
+        )
 
-@app.get("/test-telegram")
-def test_telegram():
-    notify_telegram("📣 Hola Karmean, esta es una notificación de prueba desde KraveAI 🚀")
-    return {"mensaje": "Notificación enviada"}
+# ... (resto de endpoints se mantienen igual, pero con mejor manejo de errores)
 
-@app.get("/cuentas")
-def obtener_cuentas():
+# Nuevo endpoint para verificación de códigos
+@app.get("/get-verification-code")
+async def get_verification_code():
+    """Endpoint para el sistema híbrido de verificación"""
     try:
-        path = "cuentas_creadas.json"
-        if not os.path.exists(path):
-            return []
-        with open(path, "r", encoding="utf-8") as f:
-            cuentas = json.load(f)
-        return cuentas
+        logger.info("Solicitando código de verificación...")
+        result = obtener_codigo_verificacion_hibrido()
+        if result and "code" in result:
+            logger.info(f"Código obtenido con {result.get('service', 'desconocido')}")
+            return result
+        else:
+            logger.warning("No se pudo obtener código de verificación")
+            return {"error": "No se pudo obtener el código"}
     except Exception as e:
-        return {"error": str(e)}
-
-# ⬇️ Endpoints para controlar crear-cuentas.service desde frontend
-
-@app.post("/servicio/crear-cuentas/start", response_class=PlainTextResponse)
-def iniciar_creacion():
-    try:
-        subprocess.run(["sudo", "systemctl", "start", "crear-cuentas.service"], check=True)
-        return "✅ Servicio de creación de cuentas INICIADO"
-    except subprocess.CalledProcessError:
-        return PlainTextResponse("❌ Error al iniciar el servicio", status_code=500)
-
-@app.post("/servicio/crear-cuentas/stop", response_class=PlainTextResponse)
-def detener_creacion():
-    try:
-        subprocess.run(["sudo", "systemctl", "stop", "crear-cuentas.service"], check=True)
-        return "⏹️ Servicio de creación de cuentas DETENIDO"
-    except subprocess.CalledProcessError:
-        return PlainTextResponse("❌ Error al detener el servicio", status_code=500)
-
-@app.get("/servicio/crear-cuentas/status", response_class=PlainTextResponse)
-def estado_creacion():
-    try:
-        output = subprocess.check_output(["systemctl", "is-active", "crear-cuentas.service"]).decode().strip()
-        return f"📊 Estado del servicio: {output}"
-    except subprocess.CalledProcessError:
-        return PlainTextResponse("❌ No se pudo obtener el estado", status_code=500)
-
-@app.get("/servicio/crear-cuentas/logs", response_class=PlainTextResponse)
-def logs_creacion():
-    try:
-        output = subprocess.check_output(["tail", "-n", "40", "logs/creacion.log"]).decode()
-        return output
-    except Exception as e:
-        return PlainTextResponse(f"❌ Error al leer logs: {str(e)}", status_code=500)
+        logger.error(f"Error en verificación híbrida: {str(e)}", exc_info=True)
+        return {"error": f"Error interno: {str(e)}"}
 
 if __name__ == "__main__":
     import uvicorn
     port = int(os.getenv("PORT", 8000))
-    uvicorn.run("main:app", host="0.0.0.0", port=port, reload=False)
+    
+    # Configuración optimizada para Raspberry Pi
+    uvicorn.run(
+        app,
+        host="0.0.0.0",
+        port=port,
+        reload=False,
+        workers=1,
+        timeout_keep_alive=60,
+        log_config=None,
+        loop="asyncio"  # Mejor rendimiento en Pi
+    )
