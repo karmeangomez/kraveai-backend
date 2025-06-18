@@ -1,15 +1,43 @@
+// main.js - Lanzador paralelo de cuentas (KraveAI)
+
 const { Worker } = require('worker_threads');
-const proxies = require('./proxies.json'); // Asegúrate de que este archivo exista
 const path = require('path');
-const logger = require('./logger');
 
-const WORKERS = 4; // Número de hilos paralelos
-const CHUNK_SIZE = Math.ceil(proxies.length / WORKERS);
+const cantidad = parseInt(process.argv[2]) || 1;
+let completadas = 0;
+let activas = 0;
+let errores = 0;
 
-for (let i = 0; i < WORKERS; i++) {
-  const workerProxies = proxies.slice(i * CHUNK_SIZE, (i + 1) * CHUNK_SIZE);
-  
-  new Worker(path.join(__dirname, 'crearCuentaInstagramWorker.js'), {
-    workerData: { proxies: workerProxies, workerId: i + 1 }
+function lanzarWorker(i) {
+  const worker = new Worker(path.resolve(__dirname, 'crearCuentaInstagram.js'));
+
+  activas++;
+
+  worker.on('message', (msg) => {
+    if (msg.exito) {
+      console.log(`✅ Cuenta #${i + 1} creada: ${msg.usuario}`);
+    } else {
+      errores++;
+      console.log(`⚠️ Fallo en cuenta #${i + 1}: ${msg.error}`);
+    }
   });
+
+  worker.on('error', (err) => {
+    errores++;
+    console.error(`❌ Error interno en worker #${i + 1}:`, err);
+  });
+
+  worker.on('exit', (code) => {
+    completadas++;
+    activas--;
+    if (completadas === cantidad) {
+      console.log(`🎉 Completadas: ${completadas} | Errores: ${errores}`);
+      process.exit(0);
+    }
+  });
+}
+
+console.log(`🚀 Iniciando creación de ${cantidad} cuentas...`);
+for (let i = 0; i < cantidad; i++) {
+  setTimeout(() => lanzarWorker(i), i * 250); // Espaciado para proxies
 }
