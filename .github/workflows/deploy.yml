@@ -1,4 +1,4 @@
-name: Deploy Worker - Crear Cuentas
+name: 🚀 Deploy Worker - Crear Cuentas
 
 on:
   push:
@@ -29,7 +29,11 @@ jobs:
 
             echo "📄 Verificando logs recientes"
             LOG=$(tail -n 10 logs/creacion.log 2>/dev/null || echo "Sin log disponible")
-            MSG="🚀 *Worker actualizado y reiniciado*\n\n📄 Últimas líneas del log:\n\`\`\`\n$LOG\n\`\`\`"
+
+            # Escapar comillas dobles y backticks para evitar errores de Markdown
+            ESCAPED_LOG=$(echo "$LOG" | sed 's/`/\\`/g; s/"/\\"/g')
+
+            MSG="🚀 *Worker actualizado y reiniciado*\n\n📄 Últimas líneas del log:\n\`\`\`\n$ESCAPED_LOG\n\`\`\`"
 
             echo "📲 Enviando Telegram"
             curl -s -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage" \
