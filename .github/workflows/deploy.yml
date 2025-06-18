@@ -1,41 +1,33 @@
-name: 🚀 Deploy Worker - Crear Cuentas
+name: 🚀 Deploy Backend - KraveAI FastAPI
 
 on:
   push:
     paths:
-      - '**.js'
-      - 'proxies.json'
+      - '**.py'
+      - 'requirements.txt'
+      - '.env.example'
 
 jobs:
   deploy:
-    name: Worker Deployment
+    name: Backend Deployment
     runs-on: ubuntu-latest
 
     steps:
-      - name: Pull y reinicio de servicio worker
+      - name: Deploy a Raspberry Pi por SSH
         uses: appleboy/ssh-action@v1
         with:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
-            echo "🧠 Pulling worker updates"
+            echo "🧠 Pulling backend updates"
             cd ~/kraveai-backend
             git pull origin main
+            source env/bin/activate
+            pip install -r requirements.txt
+            sudo systemctl restart kraveai-python.service
 
-            echo "🔁 Reiniciando crear-cuentas.service"
-            sudo systemctl restart crear-cuentas.service
-            sleep 3
-
-            echo "📄 Verificando logs recientes"
-            LOG=$(tail -n 10 logs/creacion.log 2>/dev/null || echo "Sin log disponible")
-
-            # Escapar comillas dobles y backticks para evitar errores de Markdown
-            ESCAPED_LOG=$(echo "$LOG" | sed 's/`/\\`/g; s/"/\\"/g')
-
-            MSG="🚀 *Worker actualizado y reiniciado*\n\n📄 Últimas líneas del log:\n\`\`\`\n$ESCAPED_LOG\n\`\`\`"
-
-            echo "📲 Enviando Telegram"
+            MSG="🔄 *KraveAI Backend actualizado desde GitHub*\n\n✅ Servicio: \`kraveai-python.service\`\n🌐 Dominio: [api.kraveapi.xyz](https://api.kraveapi.xyz)"
             curl -s -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage" \
               -d chat_id="${{ secrets.TELEGRAM_CHAT_ID }}" \
               -d text="$MSG" \
