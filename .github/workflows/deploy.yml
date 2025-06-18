@@ -6,29 +6,76 @@ on:
       - '**.py'
       - 'requirements.txt'
       - '.env.example'
+      - 'systemd/**'
 
 jobs:
   deploy:
     name: Backend Deployment
     runs-on: ubuntu-latest
+    timeout-minutes: 10
 
     steps:
+      - name: Verificar conectividad SSH
+        run: |
+          echo "🔍 Probando conexión a ${{ secrets.SSH_HOST }}"
+          if ! nc -z -w 5 ${{ secrets.SSH_HOST }} 22; then
+            echo "❌ Error: No se puede conectar al servidor"
+            exit 1
+          fi
+
       - name: Deploy a Raspberry Pi por SSH
         uses: appleboy/ssh-action@v1
         with:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: ${{ secrets.SSH_PORT || 22 }}
+          timeout: 180s  # Más tiempo para pip install
           script: |
+            set -e
+            
             echo "🧠 Pulling backend updates"
             cd ~/kraveai-backend
+            
+            # Stash cambios locales
+            git stash save "Auto-stash by GitHub Actions"
+            
+            # Pull forzado
+            git fetch --all
+            git reset --hard origin/main
             git pull origin main
+            
+            echo "🔄 Actualizando dependencias"
             source env/bin/activate
-            pip install -r requirements.txt
+            pip install -U pip
+            pip install -r requirements.txt --no-cache-dir
+            
+            echo "📦 Aplicando configuraciones systemd"
+            sudo cp systemd/*.service /etc/systemd/system/
+            sudo systemctl daemon-reload
+            
+            echo "🚀 Reiniciando servicios"
             sudo systemctl restart kraveai-python.service
-
-            MSG="🔄 *KraveAI Backend actualizado desde GitHub*\n\n✅ Servicio: \`kraveai-python.service\`\n🌐 Dominio: [api.kraveapi.xyz](https://api.kraveapi.xyz)"
+            sleep 5  # Esperar inicio
+            
+            echo "📊 Verificando estado"
+            STATUS=$(sudo systemctl status kraveai-python.service)
+            ESCAPED_STATUS=$(echo "$STATUS" | sed 's/`/\\`/g; s/"/\\"/g; s/$/\\n/' | tr -d '\n')
+            
+            MSG="🔄 *KraveAI Backend actualizado desde GitHub*"
+            MSG+="\n\n✅ Servicio: \`kraveai-python.service\`"
+            MSG+="\n\n📊 Estado del servicio:"
+            MSG+="\n\`\`\`"
+            MSG+="\n$ESCAPED_STATUS"
+            MSG+="\n\`\`\`"
+            MSG+="\n🌐 Dominio: [api.kraveapi.xyz](https://api.kraveapi.xyz)"
+            
             curl -s -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage" \
               -d chat_id="${{ secrets.TELEGRAM_CHAT_ID }}" \
               -d text="$MSG" \
               -d parse_mode="Markdown"
+
+      - name: Notificar éxito
+        if: success()
+        run: |
+          echo "✅ Backend desplegado con éxito!"
