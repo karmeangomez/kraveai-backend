@@ -116,6 +116,7 @@ async def crear_cuentas_sse(request: Request, count: int = 1):
 
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
 class CrearCuentasRequest(BaseModel):
     cantidad: int
 
@@ -153,6 +154,8 @@ def obtener_cuentas():
 # Endpoints seguros para controlar crear-cuentas.service
 
 >>>>>>> efb1078 (Auto-push desde Raspberry - index.lock)
+=======
+>>>>>>> ed6675f (Auto-push desde Raspberry - index.lock)
 @app.post("/servicio/crear-cuentas/start", response_class=PlainTextResponse)
 def iniciar_creacion():
     try:
