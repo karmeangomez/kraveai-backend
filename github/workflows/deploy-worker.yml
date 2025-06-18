@@ -1,0 +1,39 @@
+name: 🚀 Deploy Worker - Crear Cuentas
+
+on:
+  push:
+    paths:
+      - '**.js'
+      - 'proxies.json'
+
+jobs:
+  deploy:
+    name: Worker Deployment
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Pull y reinicio de servicio worker
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            echo "🧠 Pulling worker updates"
+            cd ~/kraveai-backend
+            git pull origin main
+
+            echo "🔁 Reiniciando crear-cuentas.service"
+            sudo systemctl restart crear-cuentas.service
+            sleep 3
+
+            echo "📄 Verificando logs recientes"
+            LOG=$(tail -n 10 logs/creacion.log 2>/dev/null || echo "Sin log disponible")
+            ESCAPED_LOG=$(echo "$LOG" | sed 's/`/\\`/g; s/"/\\"/g')
+            MSG="🚀 *Worker actualizado y reiniciado*\n\n📄 Últimas líneas del log:\n\`\`\`\n$ESCAPED_LOG\n\`\`\`"
+
+            echo "📲 Enviando Telegram"
+            curl -s -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage" \
+              -d chat_id="${{ secrets.TELEGRAM_CHAT_ID }}" \
+              -d text="$MSG" \
+              -d parse_mode="Markdown"
