@@ -1,8 +1,5 @@
-<<<<<<< HEAD
 # main.py - Backend principal KraveAI
 
-=======
->>>>>>> 41ae119 (Auto-push desde Raspberry - COMMIT_EDITMSG)
 import os
 import json
 import asyncio
@@ -114,9 +111,6 @@ async def crear_cuentas_sse(request: Request, count: int = 1):
         yield f"event: complete\ndata: {{\"message\": \"Proceso completado\"}}\n\n"
     return StreamingResponse(event_stream(), media_type="text/event-stream")
 
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
 class CrearCuentasRequest(BaseModel):
     cantidad: int
 
@@ -148,14 +142,6 @@ def obtener_cuentas():
 
 # ⬇️ Endpoints para controlar crear-cuentas.service desde frontend
 
-=======
->>>>>>> 41ae119 (Auto-push desde Raspberry - COMMIT_EDITMSG)
-=======
-# Endpoints seguros para controlar crear-cuentas.service
-
->>>>>>> efb1078 (Auto-push desde Raspberry - index.lock)
-=======
->>>>>>> ed6675f (Auto-push desde Raspberry - index.lock)
 @app.post("/servicio/crear-cuentas/start", response_class=PlainTextResponse)
 def iniciar_creacion():
     try:
