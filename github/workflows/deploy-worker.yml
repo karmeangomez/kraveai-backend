@@ -5,35 +5,67 @@ on:
     paths:
       - '**.js'
       - 'proxies.json'
+      - 'worker-config.json'
 
 jobs:
   deploy:
     name: Worker Deployment
     runs-on: ubuntu-latest
+    timeout-minutes: 10  # Evita ejecuciones eternas
 
     steps:
+      - name: Verificar conectividad SSH
+        run: |
+          echo "🔍 Probando conexión a ${{ secrets.SSH_HOST }}"
+          if ! nc -z -w 5 ${{ secrets.SSH_HOST }} 22; then
+            echo "❌ Error: No se puede conectar al servidor"
+            exit 1
+          fi
+
       - name: Pull y reinicio de servicio worker
         uses: appleboy/ssh-action@v1
         with:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: ${{ secrets.SSH_PORT || 22 }}
+          timeout: 120s  # Aumentar timeout
           script: |
+            set -e  # Salir inmediatamente ante cualquier error
+            
             echo "🧠 Pulling worker updates"
             cd ~/kraveai-backend
+            
+            # Stash cambios locales que puedan causar conflictos
+            git stash save "Auto-stash by GitHub Actions"
+            
+            # Pull con reset forzado para evitar conflictos
+            git fetch --all
+            git reset --hard origin/main
             git pull origin main
-
+            
             echo "🔁 Reiniciando crear-cuentas.service"
+            sudo systemctl daemon-reload
             sudo systemctl restart crear-cuentas.service
-            sleep 3
-
+            sleep 5  # Esperar a que el servicio inicie
+            
             echo "📄 Verificando logs recientes"
-            LOG=$(tail -n 10 logs/creacion.log 2>/dev/null || echo "Sin log disponible")
-            ESCAPED_LOG=$(echo "$LOG" | sed 's/`/\\`/g; s/"/\\"/g')
-            MSG="🚀 *Worker actualizado y reiniciado*\n\n📄 Últimas líneas del log:\n\`\`\`\n$ESCAPED_LOG\n\`\`\`"
-
+            LOG=$(sudo journalctl -u crear-cuentas.service -n 15 --no-pager)
+            ESCAPED_LOG=$(echo "$LOG" | sed 's/`/\\`/g; s/"/\\"/g; s/$/\\n/' | tr -d '\n')
+            
+            MSG="🚀 *Worker actualizado y reiniciado*"
+            MSG+="\n\n📄 Últimas líneas del log:"
+            MSG+="\n\`\`\`"
+            MSG+="\n$ESCAPED_LOG"
+            MSG+="\n\`\`\`"
+            
             echo "📲 Enviando Telegram"
             curl -s -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage" \
               -d chat_id="${{ secrets.TELEGRAM_CHAT_ID }}" \
               -d text="$MSG" \
               -d parse_mode="Markdown"
+
+      - name: Notificar éxito
+        if: success()
+        run: |
+          echo "✅ Despliegue completado con éxito!"
