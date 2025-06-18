@@ -1,4 +1,4 @@
-name: 🚀 Despliegue Automático - Raspberry
+name: 🚀 Despliegue Automático KraveAI
 
 on:
   push:
@@ -7,30 +7,57 @@ on:
 
 jobs:
   deploy:
-    name: Actualizar Raspberry Pi
+    name: Despliegue en Raspberry Pi
     runs-on: ubuntu-latest
 
     steps:
-      - name: 📡 Conexión y actualización
+      - name: 📡 Despliegue vía SSH
         uses: appleboy/ssh-action@v1
         with:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          port: ${{ secrets.SSH_PORT || 22 }}
+          port: ${{ secrets.SSH_PORT }}
           script: |
-            echo "🧠 Iniciando despliegue en Raspberry Pi..."
+            echo "📦 Iniciando despliegue KraveAI..."
+
             cd ~/kraveai-backend
             git fetch --all
             git reset --hard origin/main
 
-            echo "📦 Instalando dependencias..."
+            echo "🐍 Activando entorno..."
             source env/bin/activate
             pip install -r requirements.txt
 
             echo "🔁 Reiniciando servicios..."
-            sudo systemctl restart kraveai-python.service || echo "❗ kraveai-python.service no existe"
-            sudo systemctl restart crear-cuentas.service || echo "❗ crear-cuentas.service no existe"
+            sudo systemctl restart kraveai-python.service
+            sudo systemctl restart crear-cuentas.service
 
-            echo "🩺 Verificando estado..."
-            curl -s http://localhost:8000/health || echo "⚠️ /health no responde"
+            echo "🌐 Verificando túnel Cloudflare..."
+            estado=$(systemctl is-active cloudflared.service)
+            if [ "$estado" != "active" ]; then
+              echo "Túnel inactivo, reiniciando..."
+              sudo systemctl restart cloudflared.service
+            else
+              echo "Túnel Cloudflare ya estaba activo ✅"
+            fi
+
+            echo "🩺 Verificando estado del backend..."
+            respuesta=$(curl -s http://localhost:8000/health || echo "")
+            echo "Respuesta /health: $respuesta"
+
+            if echo "$respuesta" | grep -q "\"status\": \"OK\""; then
+              mensaje="✅ *KraveAI actualizado con éxito*\n📅 $(date '+%Y-%m-%d %H:%M')\n🟢 Backend responde en /health"
+              status=0
+            else
+              mensaje="⚠️ *Error en despliegue KraveAI*\n📅 $(date '+%Y-%m-%d %H:%M')\n🔴 /health no respondió"
+              status=1
+            fi
+
+            echo "📨 Enviando notificación Telegram..."
+            curl -s -X POST https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage \
+              -d chat_id=${{ secrets.TELEGRAM_CHAT_ID }} \
+              -d text="$mensaje" \
+              -d parse_mode=Markdown
+
+            exit $status
