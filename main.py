@@ -115,6 +115,7 @@ async def crear_cuentas_sse(request: Request, count: int = 1):
     return StreamingResponse(event_stream(), media_type="text/event-stream")
 
 <<<<<<< HEAD
+<<<<<<< HEAD
 class CrearCuentasRequest(BaseModel):
     cantidad: int
 
@@ -148,6 +149,10 @@ def obtener_cuentas():
 
 =======
 >>>>>>> 41ae119 (Auto-push desde Raspberry - COMMIT_EDITMSG)
+=======
+# Endpoints seguros para controlar crear-cuentas.service
+
+>>>>>>> efb1078 (Auto-push desde Raspberry - index.lock)
 @app.post("/servicio/crear-cuentas/start", response_class=PlainTextResponse)
 def iniciar_creacion():
     try:
