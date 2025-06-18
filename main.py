@@ -52,6 +52,7 @@ app.add_middleware(
 def health():
     return {
         "status": "OK",
+        "versión": "v1.7 - actualizado 2025-06-18",
         "service": "KraveAI Python",
         "login": "Activo" if cl and cl.user_id else "Fallido",
         "concurrent_max": MAX_CONCURRENT
