@@ -1,5 +1,8 @@
+<<<<<<< HEAD
 # main.py - Backend principal KraveAI
 
+=======
+>>>>>>> 41ae119 (Auto-push desde Raspberry - COMMIT_EDITMSG)
 import os
 import json
 import asyncio
@@ -111,6 +114,7 @@ async def crear_cuentas_sse(request: Request, count: int = 1):
         yield f"event: complete\ndata: {{\"message\": \"Proceso completado\"}}\n\n"
     return StreamingResponse(event_stream(), media_type="text/event-stream")
 
+<<<<<<< HEAD
 class CrearCuentasRequest(BaseModel):
     cantidad: int
 
@@ -142,6 +146,8 @@ def obtener_cuentas():
 
 # ⬇️ Endpoints para controlar crear-cuentas.service desde frontend
 
+=======
+>>>>>>> 41ae119 (Auto-push desde Raspberry - COMMIT_EDITMSG)
 @app.post("/servicio/crear-cuentas/start", response_class=PlainTextResponse)
 def iniciar_creacion():
     try:
@@ -178,4 +184,3 @@ if __name__ == "__main__":
     import uvicorn
     port = int(os.getenv("PORT", 8000))
     uvicorn.run("main:app", host="0.0.0.0", port=port, reload=False)
-
