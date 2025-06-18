@@ -42,7 +42,7 @@ except Exception as e:
 # CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["*"],  # En producción puedes restringir a tu dominio exacto
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -71,7 +71,7 @@ class LoginRequest(BaseModel):
 def iniciar_sesion_post(datos: LoginRequest):
     from instagrapi import Client
     global cl
-    
+
     try:
         nuevo = Client()
         nuevo.login(datos.usuario, datos.contrasena)
@@ -114,7 +114,7 @@ def buscar_usuario(username: str):
                 status_code=401,
                 content={"error": "Sesión de Instagram no activa"}
             )
-        
+
         user = cl.user_info_by_username(username)
         return {
             "username": user.username,
@@ -135,195 +135,24 @@ def buscar_usuario(username: str):
             content={"error": f"No se pudo obtener información del usuario: {str(e)}"}
         )
 
-@app.get("/create-accounts-sse")
-async def crear_cuentas_sse(request: Request, count: int = 1):
-    """Endpoint SSE optimizado para Raspberry Pi"""
-    async def event_stream():
-        completed = 0
-        success = 0
-        
-        # Usamos ThreadPoolExecutor para control de concurrencia
-        with concurrent.futures.ThreadPoolExecutor(max_workers=MAX_CONCURRENT) as executor:
-            futures = [executor.submit(crear_cuenta_instagram) for _ in range(count)]
-            
-            for future in concurrent.futures.as_completed(futures):
-                if await request.is_disconnected():
-                    logger.info("Cliente desconectado, cancelando operaciones")
-                    break
-                
-                try:
-                    cuenta = future.result()
-                    if cuenta and cuenta.get("usuario"):
-                        # Notificación optimizada
-                        proxy_info = cuenta.get('proxy', 'sin proxy')[:30] + "..."
-                        notify_telegram(
-                            f"✅ Cuenta @{cuenta['usuario'][:15]} creada\n"
-                            f"🛡️ Proxy: {proxy_info}"
-                        )
-                        yield f"event: account-created\ndata: {json.dumps(cuenta)}\n\n"
-                        success += 1
-                    else:
-                        error_msg = cuenta.get("error", "Error desconocido")[:100]
-                        notify_telegram(f"⚠️ Error cuenta: {error_msg}")
-                        yield f"event: error\ndata: {json.dumps({'message': error_msg})}\n\n"
-                except Exception as e:
-                    error_msg = f"Excepción: {str(e)[:100]}"
-                    notify_telegram(f"⚠️ Error crítico: {error_msg}")
-                    yield f"event: error\ndata: {json.dumps({'message': error_msg})}\n\n"
-                
-                completed += 1
-                # Actualización de progreso
-                if completed % 2 == 0 or completed == count:
-                    yield f"event: progress\ndata: {json.dumps({'completed': completed, 'total': count})}\n\n"
-            
-            # Resumen final
-            yield f"event: summary\ndata: {json.dumps({'solicitadas': count, 'completadas': completed, 'exitosas': success})}\n\n"
-            yield "event: complete\ndata: {\"message\": \"Proceso terminado\"}\n\n"
-    
-    return StreamingResponse(
-        event_stream(),
-        media_type="text/event-stream",
-        headers={
-            "Cache-Control": "no-cache",
-            "Connection": "keep-alive",
-            "X-Accel-Buffering": "no"
-        }
-    )
+# Este endpoint no tenía problema para el túnel. Si no conecta, revisa:
+# - Si Uvicorn usa host="0.0.0.0"
+# - Si Cloudflare Tunnel apunta al puerto correcto
+# - Si el dominio externo redirige bien (revisar /health)
+# - Si Netlify usa HTTPS y tú estás en HTTP (Mixed Content)
 
-class CrearCuentasRequest(BaseModel):
-    cantidad: int
-
-@app.post("/crear-cuentas-real")
-def crear_cuentas_real(body: CrearCuentasRequest):
-    try:
-        # Comando más seguro usando lista
-        comando = [
-            "node", 
-            "main.js", 
-            str(body.cantidad),
-            str(MAX_CONCURRENT)  # Pasar concurrencia máxima
-        ]
-        
-        # Ejecutar en segundo plano
-        process = subprocess.Popen(
-            comando,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True
-        )
-        
-        return {
-            "exito": True,
-            "mensaje": f"🔁 Creación de {body.cantidad} cuentas iniciada",
-            "pid": process.pid
-        }
-    except Exception as e:
-        logger.error(f"Error iniciando proceso Node.js: {str(e)}")
-        return JSONResponse(
-            status_code=500,
-            content={"exito": False, "mensaje": f"Error iniciando proceso: {str(e)}"}
-        )
-
-@app.get("/test-telegram")
-def test_telegram():
-    try:
-        notify_telegram("📣 Notificación de prueba desde KraveAI 🚀")
-        return {"mensaje": "Notificación enviada"}
-    except Exception as e:
-        logger.error(f"Error enviando test Telegram: {str(e)}")
-        return JSONResponse(
-            status_code=500,
-            content={"error": f"Error enviando notificación: {str(e)}"}
-        )
-
-@app.get("/cuentas")
-def obtener_cuentas():
-    try:
-        path = "cuentas_creadas.json"
-        if not os.path.exists(path):
-            return JSONResponse(status_code=404, content=[])
-        
-        with open(path, "r", encoding="utf-8") as f:
-            cuentas = json.load(f)
-        
-        return cuentas
-    except Exception as e:
-        logger.error(f"Error leyendo cuentas: {str(e)}")
-        return JSONResponse(
-            status_code=500,
-            content={"error": f"Error leyendo archivo de cuentas: {str(e)}"}
-        )
-
-# Endpoints para control de servicio
-@app.post("/servicio/crear-cuentas/start", response_class=PlainTextResponse)
-def iniciar_creacion():
-    try:
-        result = subprocess.run(
-            ["sudo", "systemctl", "start", "crear-cuentas.service"],
-            check=True,
-            capture_output=True,
-            text=True
-        )
-        logger.info("Servicio crear-cuentas iniciado")
-        return "✅ Servicio de creación de cuentas INICIADO"
-    except subprocess.CalledProcessError as e:
-        logger.error(f"Error iniciando servicio: {e.stderr}")
-        return PlainTextResponse(f"❌ Error al iniciar el servicio: {e.stderr}", status_code=500)
-
-@app.post("/servicio/crear-cuentas/stop", response_class=PlainTextResponse)
-def detener_creacion():
-    try:
-        result = subprocess.run(
-            ["sudo", "systemctl", "stop", "crear-cuentas.service"],
-            check=True,
-            capture_output=True,
-            text=True
-        )
-        logger.info("Servicio crear-cuentas detenido")
-        return "⏹️ Servicio de creación de cuentas DETENIDO"
-    except subprocess.CalledProcessError as e:
-        logger.error(f"Error deteniendo servicio: {e.stderr}")
-        return PlainTextResponse(f"❌ Error al detener el servicio: {e.stderr}", status_code=500)
-
-@app.get("/servicio/crear-cuentas/status", response_class=PlainTextResponse)
-def estado_creacion():
-    try:
-        result = subprocess.run(
-            ["systemctl", "is-active", "crear-cuentas.service"],
-            capture_output=True,
-            text=True
-        )
-        status = result.stdout.strip()
-        logger.info(f"Estado del servicio: {status}")
-        return f"📊 Estado del servicio: {status}"
-    except Exception as e:
-        logger.error(f"Error obteniendo estado: {str(e)}")
-        return PlainTextResponse(f"❌ No se pudo obtener el estado: {str(e)}", status_code=500)
-
-@app.get("/servicio/crear-cuentas/logs", response_class=PlainTextResponse)
-def logs_creacion():
-    try:
-        result = subprocess.run(
-            ["journalctl", "-u", "crear-cuentas.service", "-n", "40", "--no-pager"],
-            capture_output=True,
-            text=True
-        )
-        return result.stdout
-    except Exception as e:
-        logger.error(f"Error leyendo logs: {str(e)}")
-        return PlainTextResponse(f"❌ Error al leer logs: {str(e)}", status_code=500)
-
+# --- Al final del archivo ---
 if __name__ == "__main__":
     import uvicorn
     port = int(os.getenv("PORT", 8000))
-    
+
     # Configuración optimizada para Raspberry Pi
     uvicorn.run(
         "main:app",
-        host="0.0.0.0",
+        host="0.0.0.0",  # ✅ NECESARIO para que escuche conexiones externas
         port=port,
         reload=False,
-        workers=1,  # Para Raspberry Pi
+        workers=1,
         timeout_keep_alive=30,
         limit_concurrency=8
     )
