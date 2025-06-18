@@ -1,4 +1,4 @@
-# main.py - Backend principal KraveAI - Versión Maximizada
+# main.py - Backend KraveAI (Versión Optimizada para Raspberry Pi 5)
 import os
 import json
 import asyncio
@@ -7,13 +7,13 @@ import logging
 import concurrent.futures
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import StreamingResponse, PlainTextResponse, JSONResponse
+from fastapi.responses import StreamingResponse, JSONResponse, PlainTextResponse
 from dotenv import load_dotenv
 from pydantic import BaseModel
 from login_utils import login_instagram
 from telegram_utils import notify_telegram
 from instagram_utils import crear_cuenta_instagram
-from verification_utils import obtener_codigo_verificacion_hibrido  # Nuevo módulo
+from verification_utils import obtener_codigo_verificacion_hibrido
 
 # Configuración avanzada de logging
 logging.basicConfig(
@@ -51,15 +51,23 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# ======= MÁXIMA OPTIMIZACIÓN ======= #
+# Variables críticas para rendimiento
+PROXY_ROTATION_ENABLED = True
+MEMORY_OPTIMIZATION = True
+# =================================== #
+
 @app.get("/health")
 def health():
     return {
         "status": "OK",
         "service": "KraveAI Python",
-        "version": "2.0-max",
+        "version": "2.5-max",
         "raspberry_mode": RASPBERRY_MODE,
         "max_concurrent": MAX_CONCURRENT,
-        "instagram": "active" if cl and cl.user_id else "inactive"
+        "instagram": "active" if cl and cl.user_id else "inactive",
+        "memory_optimized": MEMORY_OPTIMIZATION,
+        "proxy_rotation": PROXY_ROTATION_ENABLED
     }
 
 @app.get("/estado-sesion")
@@ -132,14 +140,17 @@ def buscar_usuario(username: str):
         }
     except Exception as e:
         logger.error(f"Error buscando usuario @{username}: {str(e)}")
-        raise HTTPException(status_code=404, detail=f"No se pudo encontrar el usuario: {str(e)}")
+        raise HTTPException(
+            status_code=404,
+            detail=f"No se pudo obtener información del usuario: {str(e)}"
+        )
 
 @app.get("/create-accounts-sse")
 async def crear_cuentas_sse(request: Request, count: int = 1, concurrency: int = MAX_CONCURRENT):
     """Endpoint SSE con control de concurrencia optimizado para Raspberry Pi"""
-    logger.info(f"Iniciando creación de {count} cuentas con concurrencia {concurrency}")
+    logger.info(f"🚀 Iniciando creación de {count} cuentas (Concurrencia: {concurrency})")
     
-    # Limitar concurrencia en Raspberry Pi
+    # Limitar concurrencia automáticamente
     concurrency = min(concurrency, MAX_CONCURRENT)
     
     async def event_stream():
@@ -160,44 +171,40 @@ async def crear_cuentas_sse(request: Request, count: int = 1, concurrency: int =
                 try:
                     cuenta = future.result()
                     if cuenta and cuenta.get("usuario"):
-                        # Notificación detallada
-                        proxy_info = cuenta.get('proxy', 'sin proxy')
-                        email_type = cuenta.get('email_type', 'desconocido')
+                        # Notificación optimizada
+                        proxy_info = cuenta.get('proxy', 'sin proxy')[:30] + "..."  # Acortar para Telegram
                         notify_telegram(
-                            f"✅ Cuenta creada: @{cuenta['usuario']}\n"
-                            f"📧 Email: {cuenta['email']} ({email_type})\n"
+                            f"✅ Cuenta @{cuenta['usuario'][:15]} creada\n"
                             f"🛡️ Proxy: {proxy_info}"
                         )
                         yield f"event: account-created\ndata: {json.dumps(cuenta)}\n\n"
                         success += 1
                     else:
-                        error_msg = cuenta.get("error", "Error desconocido")
+                        error_msg = cuenta.get("error", "Error desconocido")[:100]  # Limitar longitud
                         errors.append(error_msg)
                         notify_telegram(f"⚠️ Error cuenta: {error_msg}")
                         yield f"event: error\ndata: {json.dumps({'message': error_msg})}\n\n"
                 except Exception as e:
-                    error_msg = f"Excepción inesperada: {str(e)}"
+                    error_msg = f"Excepción: {str(e)[:100]}"
                     errors.append(error_msg)
                     notify_telegram(f"⚠️ Error crítico: {error_msg}")
                     yield f"event: error\ndata: {json.dumps({'message': error_msg})}\n\n"
                 
                 completed += 1
-                # Actualización periódica de progreso
+                # Actualización de progreso optimizada
                 if completed % 2 == 0 or completed == count:
                     yield f"event: progress\ndata: {json.dumps({'completed': completed, 'total': count})}\n\n"
             
-            # Resumen final
+            # Resumen final ligero
             summary = {
                 "solicitadas": count,
                 "completadas": completed,
                 "exitosas": success,
-                "errores": errors
+                "errores": len(errors)
             }
             notify_telegram(
-                f"📊 Resumen creación:\n"
-                f"• Solicitadas: {count}\n"
-                f"• Creadas: {success}\n"
-                f"• Errores: {len(errors)}"
+                f"📊 Resumen: {success}/{count} cuentas creadas\n"
+                f"💥 Errores: {len(errors)}"
             )
             yield f"event: summary\ndata: {json.dumps(summary)}\n\n"
             yield "event: complete\ndata: {\"message\": \"Proceso terminado\"}\n\n"
@@ -254,7 +261,98 @@ def crear_cuentas_real(body: CrearCuentasRequest):
             content={"exito": False, "mensaje": f"Error iniciando proceso: {str(e)}"}
         )
 
-# ... (resto de endpoints se mantienen igual, pero con mejor manejo de errores)
+@app.get("/test-telegram")
+def test_telegram():
+    try:
+        notify_telegram("📣 Notificación de prueba desde KraveAI 🚀")
+        return {"mensaje": "Notificación enviada"}
+    except Exception as e:
+        logger.error(f"Error enviando test Telegram: {str(e)}")
+        return JSONResponse(
+            status_code=500,
+            content={"error": f"Error enviando notificación: {str(e)}"}
+        )
+
+@app.get("/cuentas")
+def obtener_cuentas():
+    try:
+        path = "cuentas_creadas.json"
+        if not os.path.exists(path):
+            return JSONResponse(status_code=404, content=[])
+        
+        with open(path, "r", encoding="utf-8") as f:
+            cuentas = json.load(f)
+        
+        return cuentas
+    except Exception as e:
+        logger.error(f"Error leyendo cuentas: {str(e)}", exc_info=True)
+        return JSONResponse(
+            status_code=500,
+            content={"error": f"Error leyendo archivo de cuentas: {str(e)}"}
+        )
+
+# Endpoints para control de servicio
+@app.post("/servicio/crear-cuentas/start", response_class=PlainTextResponse)
+def iniciar_creacion():
+    try:
+        result = subprocess.run(
+            ["sudo", "systemctl", "start", "crear-cuentas.service"],
+            check=True,
+            capture_output=True,
+            text=True,
+            encoding='utf-8'
+        )
+        logger.info("Servicio crear-cuentas iniciado")
+        return "✅ Servicio de creación de cuentas INICIADO"
+    except subprocess.CalledProcessError as e:
+        logger.error(f"Error iniciando servicio: {e.stderr}")
+        return PlainTextResponse(f"❌ Error al iniciar el servicio: {e.stderr}", status_code=500)
+
+@app.post("/servicio/crear-cuentas/stop", response_class=PlainTextResponse)
+def detener_creacion():
+    try:
+        result = subprocess.run(
+            ["sudo", "systemctl", "stop", "crear-cuentas.service"],
+            check=True,
+            capture_output=True,
+            text=True,
+            encoding='utf-8'
+        )
+        logger.info("Servicio crear-cuentas detenido")
+        return "⏹️ Servicio de creación de cuentas DETENIDO"
+    except subprocess.CalledProcessError as e:
+        logger.error(f"Error deteniendo servicio: {e.stderr}")
+        return PlainTextResponse(f"❌ Error al detener el servicio: {e.stderr}", status_code=500)
+
+@app.get("/servicio/crear-cuentas/status", response_class=PlainTextResponse)
+def estado_creacion():
+    try:
+        result = subprocess.run(
+            ["systemctl", "is-active", "crear-cuentas.service"],
+            capture_output=True,
+            text=True,
+            encoding='utf-8'
+        )
+        status = result.stdout.strip()
+        logger.info(f"Estado del servicio: {status}")
+        return f"📊 Estado del servicio: {status}"
+    except Exception as e:
+        logger.error(f"Error obteniendo estado: {str(e)}")
+        return PlainTextResponse(f"❌ No se pudo obtener el estado: {str(e)}", status_code=500)
+
+@app.get("/servicio/crear-cuentas/logs", response_class=PlainTextResponse)
+def logs_creacion():
+    try:
+        result = subprocess.run(
+            ["journalctl", "-u", "crear-cuentas.service", "-n", "40", "--no-pager"],
+            capture_output=True,
+            text=True,
+            encoding='utf-8'
+        )
+        return result.stdout
+    except Exception as e:
+        logger.error(f"Error leyendo logs: {str(e)}")
+        return PlainTextResponse(f"❌ Error al leer logs: {str(e)}", status_code=500)
 
 # Nuevo endpoint para verificación de códigos
 @app.get("/get-verification-code")
@@ -284,7 +382,9 @@ if __name__ == "__main__":
         port=port,
         reload=False,
         workers=1,
-        timeout_keep_alive=60,
+        timeout_keep_alive=30,  # Reducido para ahorro de memoria
         log_config=None,
-        loop="asyncio"  # Mejor rendimiento en Pi
+        loop="asyncio",
+        limit_concurrency=8,     # Evitar sobrecarga
+        limit_max_requests=100   # Reinicio periódico para limpiar memoria
     )
