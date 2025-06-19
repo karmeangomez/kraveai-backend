@@ -1,51 +1,42 @@
-// runCrearCuentaConProxy.js - Ejecuta creación con proxies reales
+// runCrearCuentaConProxy.js
+const { getNextProxy } = require('./proxyBank');
+const { exec } = require('child_process');
 
-const { spawn } = require('child_process');
-const fs = require('fs');
-const path = require('path');
-const proxyChain = require('proxy-chain');
+const TOTAL = 20;
 
-const proxies = JSON.parse(fs.readFileSync(path.join(__dirname, 'proxies.json')));
-const MAX_CUENTAS = 20; // ajustable
-let index = 0;
+console.log(`🚀 Creando ${TOTAL} cuentas con proxies reales...\n`);
 
-async function ejecutarCuenta(proxyRaw) {
-    const proxyAnonymized = await proxyChain.anonymizeProxy(`http://${proxyRaw}`);
-    return new Promise((resolve) => {
-        const proceso = spawn('node', ['crearCuentaInstagram.js', proxyAnonymized], {
-            stdio: ['ignore', 'pipe', 'pipe'],
-            env: { ...process.env, NODE_ENV: 'production' },
-        });
-
-        let salida = '';
-        proceso.stdout.on('data', data => salida += data.toString());
-        proceso.stderr.on('data', data => console.error(`[stderr] ${data}`));
-
-        proceso.on('exit', code => {
-            console.log(`\n🔁 Proxy usado: ${proxyRaw}`);
-            try {
-                const resultado = JSON.parse(salida.trim());
-                if (resultado.status === 'success') {
-                    console.log(`✅ Cuenta creada: @${resultado.usuario}`);
-                } else {
-                    console.log(`❌ Falló: ${resultado.error}`);
-                }
-            } catch {
-                console.error('⚠️ Error procesando salida');
-            }
-            resolve();
-        });
+let count = 0;
+async function crearCuenta() {
+  return new Promise(resolve => {
+    const proxy = getNextProxy();
+    console.log(`🔁 Proxy usado: ${proxy.replace('http://', '')}`);
+    const proceso = exec(`node crearCuentaInstagram.js "${proxy.replace('http://', '')}"`);
+    proceso.stdout.on('data', d => {
+      try {
+        const j = JSON.parse(d);
+        if (j.status === 'success') {
+          console.log(`✅ Cuenta creada: @${j.usuario} (${j.email})`);
+        } else {
+          console.log(`❌ Falló: ${j.error}`);
+        }
+        resolve();
+      } catch (e) {
+        console.log(`⚠️ Salida inválida: ${d}`);
+        resolve();
+      }
     });
+    proceso.stderr.on('data', e => {
+      console.log(`❌ Error de ejecución: ${e}`);
+      resolve();
+    });
+  });
 }
 
-async function run() {
-    console.log(`🚀 Creando ${MAX_CUENTAS} cuentas con proxies reales...`);
-    for (let i = 0; i < MAX_CUENTAS; i++) {
-        const proxy = proxies[index % proxies.length];
-        await ejecutarCuenta(proxy);
-        index++;
-    }
-    console.log('🎉 Proceso finalizado');
-}
-
-run();
+(async () => {
+  for (let i = 0; i < TOTAL; i++) {
+    await crearCuenta();
+    count++;
+  }
+  console.log(`🎉 Proceso finalizado. Total: ${count}`);
+})();
