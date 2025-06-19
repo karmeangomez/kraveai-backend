@@ -4,13 +4,12 @@ After=network.target
 
 [Service]
 User=karmean
+Group=karmean
 WorkingDirectory=/home/karmean/kraveai-backend
+Environment="PATH=/home/karmean/kraveai-backend/env/bin:/usr/bin:/bin:/usr/local/bin"
 ExecStart=/home/karmean/kraveai-backend/env/bin/python -m uvicorn main:app --host 0.0.0.0 --port 8000
 Restart=always
 RestartSec=5
-StandardOutput=append:/home/karmean/kraveai-backend/logs/backend.log
-StandardError=append:/home/karmean/kraveai-backend/logs/backend.log
-Environment=PYTHONUNBUFFERED=1
 
 [Install]
 WantedBy=multi-user.target
