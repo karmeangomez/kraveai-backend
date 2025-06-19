@@ -1,25 +1,35 @@
-// proxyBank.js - Manejo inteligente de proxies desde PROXY_LIST
-const proxies = process.env.PROXY_LIST?.split(',').map(p => p.trim()).filter(Boolean) || [];
+// proxyBank.js - Manejo inteligente de proxies con prefijo automático
 
-let index = 0;
+const fs = require('fs');
+const path = require('path');
 
-function getNextProxy() {
-  if (proxies.length === 0) {
-    console.warn('⚠️ No hay proxies definidos en PROXY_LIST');
-    return null;
-  }
+const proxiesPath = path.join(__dirname, 'proxies.json');
 
-  const proxy = proxies[index % proxies.length];
-  index++;
+let proxies = [];
+let currentIndex = 0;
 
-  if (proxies.length > 1) {
-    console.log(`🔁 Usando proxy [${index}/${proxies.length}]: ${proxy}`);
-  }
+function cargarProxies() {
+    try {
+        const data = fs.readFileSync(proxiesPath, 'utf8');
+        const rawList = JSON.parse(data);
 
-  return proxy;
+        // Asegura prefijo 'http://'
+        proxies = rawList.map(p => {
+            return p.startsWith('http://') ? p : `http://${p}`;
+        });
+    } catch (e) {
+        console.error('❌ Error cargando proxies:', e.message);
+        proxies = [];
+    }
 }
 
-module.exports = {
-  getNextProxy,
-  proxyCount: proxies.length
-};
+function getNextProxy() {
+    if (proxies.length === 0) cargarProxies();
+    if (proxies.length === 0) return null;
+
+    const proxy = proxies[currentIndex];
+    currentIndex = (currentIndex + 1) % proxies.length;
+    return proxy;
+}
+
+module.exports = { getNextProxy };
