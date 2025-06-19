@@ -1,5 +1,4 @@
-// proxyBank.js - rotador de proxies con prefijo http:// para proxy-chain
-
+// proxyBank.js
 const proxies = require('./proxies.json');
 let index = 0;
 
@@ -12,8 +11,16 @@ function getNextProxy() {
   const raw = proxies[index % proxies.length];
   index++;
 
-  // Asegurar que comience con http://
-  return raw.startsWith('http://') ? raw : `http://${raw}`;
+  // Validar formato: [username:password@]hostname:port
+  const proxyRegex = /^(?:.+:.+@)?(?:\d{1,3}\.){3}\d{1,3}:\d+$/;
+  if (!proxyRegex.test(raw)) {
+    console.warn(`⚠️ Proxy inválido: ${raw}`);
+    return getNextProxy();
+  }
+
+  const formattedProxy = raw.startsWith('http://') ? raw : `http://${raw}`;
+  console.log(`🔍 Proxy generado: ${formattedProxy}`);
+  return formattedProxy;
 }
 
 module.exports = { getNextProxy };
