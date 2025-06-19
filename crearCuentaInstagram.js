@@ -123,8 +123,14 @@ async function saveAccount(account) {
 
 async function createInstagramAccount() {
   const account = {
-    usuario: '', email: '', password: '', proxy: proxy || 'none', status: 'error',
-    error: '', timestamp: new Date().toISOString(), screenshots: []
+    usuario: '',
+    email: '',
+    password: '',
+    proxy: proxy || 'none',
+    status: 'error',
+    error: '',
+    timestamp: new Date().toISOString(),
+    screenshots: []
   };
   let browser;
   let proxyAnon = null;
@@ -154,10 +160,17 @@ async function createInstagramAccount() {
 
     // Autenticar credenciales del proxy si existen
     if (credentials) {
-      await page.authenticate({ username: credentials.split(':')[0], password: credentials.split(':')[1] });
+      const [username, password] = credentials.split(':');
+      await page.authenticate({ username, password });
     }
 
     await page.goto(INSTAGRAM_SIGNUP_URL, { waitUntil: 'networkidle2', timeout: 60000 });
+
+    // Generar datos de la cuenta
+    const username = generar_usuario();
+    const fullName = generar_nombre();
+    const password = uuidv4().slice(0, 12);
+    const email = await generateTempEmail();
 
     await moveMouseToElement(page, 'input[name="emailOrPhone"]');
     await humanType(page, 'input[name="emailOrPhone"]', email);
