@@ -4,8 +4,9 @@ const StealthPlugin = require('puppeteer-extra-plugin-stealth');
 const proxyChain = require('proxy-chain');
 const fs = require('fs');
 const path = require('path');
-const { v4: uuidv4 } = require('uuid');
+const { v4: uuidv4 } = require('uuid'); // Corrección de 'vek4' a 'v4'
 const fetch = require('node-fetch');
+const { URL } = require('url');
 const { generar_usuario, generar_nombre } = require('./nombre_utils');
 
 puppeteer.use(StealthPlugin());
@@ -18,236 +19,312 @@ const ACCOUNTS_FILE = path.join(__dirname, 'cuentas_creadas.json');
 const SCREENSHOTS_DIR = path.join(__dirname, 'screenshots');
 const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
 
-// Obtener el proxy desde los argumentos de línea de comandos
-const proxy = process.argv[2];
+// Obtener proxy desde argumentos CLI
+const rawProxy = process.argv[2] || null;
 
-async function humanType(page, selector, text) {
-  await page.focus(selector);
-  for (const char of text) {
-    await page.type(selector, char, { delay: Math.random() * 40 + 20 });
-    await delay(Math.random() * 100);
-  }
-}
+// Validar y formatear proxy
+function validateAndFormatProxy(proxy) {
+    if (!proxy || proxy === 'none') return null;
 
-async function moveMouseToElement(page, selector) {
-  const rect = await page.evaluate(selector => {
-    const el = document.querySelector(selector);
-    if (!el) return null;
-    const { x, y, width, height } = el.getBoundingClientRect();
-    return { x: x + width / 2, y: y + height / 2 };
-  }, selector);
-  if (rect) await page.mouse.move(rect.x, rect.y, { steps: 10 });
-}
-
-async function detectInstagramErrors(page) {
-  const selectors = ['#ssfErrorAlert', 'div[role="alert"]', 'p[id*="error"]', 'span[class*="error"]'];
-  for (const sel of selectors) {
-    const el = await page.$(sel);
-    if (el) {
-      const text = await page.evaluate(el => el.textContent, el);
-      if (text) return text.trim();
-    }
-  }
-  return null;
-}
-
-async function checkForCaptcha(page) {
-  const captchaSelectors = ['iframe[src*="captcha"]', 'div[id*="recaptcha"]', 'form[action*="/challenge"]'];
-  for (const sel of captchaSelectors) {
-    if (await page.$(sel)) {
-      return true;
-    }
-  }
-  return false;
-}
-
-async function saveScreenshot(page, username) {
-  if (!fs.existsSync(SCREENSHOTS_DIR)) fs.mkdirSync(SCREENSHOTS_DIR);
-  const screenshotPath = path.join(SCREENSHOTS_DIR, `${username}_${Date.now()}.png`);
-  await page.screenshot({ path: screenshotPath });
-  return screenshotPath;
-}
-
-async function generateTempEmail() {
-  try {
-    const res = await fetch(`${TEMP_EMAIL_API}/v1/?action=genRandomMailbox&count=1`);
-    const json = await res.json();
-    return json[0];
-  } catch {
-    return `krave_${uuidv4().slice(0, 8)}@1secmail.com`;
-  }
-}
-
-async function getVerificationCode(email) {
-  const [login, domain] = email.split('@');
-  for (let i = 0; i < MAX_ATTEMPTS; i++) {
     try {
-      const res = await fetch(`${TEMP_EMAIL_API}/v1/?action=getMessages&login=${login}&domain=${domain}`);
-      const messages = await res.json();
-      for (const msg of messages) {
-        if (msg.subject.toLowerCase().includes('instagram')) {
-          const msgRes = await fetch(`${TEMP_EMAIL_API}/v1/?action=readMessage&login=${login}&domain=${domain}&id=${msg.id}`);
-          const content = await msgRes.json();
-          const match = /\b\d{6}\b/.exec(content.textBody || content.htmlBody);
-          if (match) return match[0];
+        let formattedProxy = proxy;
+        if (!proxy.startsWith('http://') && !proxy.startsWith('socks5://')) {
+            formattedProxy = `http://${proxy}`;
         }
-      }
-    } catch (e) {
-      console.error(`Intento ${i + 1} fallido: ${e.message}`);
+
+        const url = new URL(formattedProxy);
+        if (!url.hostname || !url.port) {
+            throw new Error('Proxy inválido: falta hostname o puerto');
+        }
+
+        return formattedProxy;
+    } catch (error) {
+        console.error(`❌ Error validando proxy: ${error.message}`);
+        return null;
     }
-    await delay(4000);
-  }
-  return await getCodeFallbackVisual(login, domain);
 }
 
-async function getCodeFallbackVisual(mailName, domain) {
-  const fallbackURL = `https://email-fake.com/${domain}/${mailName}`;
-  let browser;
-  try {
-    browser = await puppeteer.launch({
-      headless: true,
-      executablePath: '/usr/bin/chromium-browser',
-      args: ['--no-sandbox', '--disable-setuid-sandbox']
-    });
-    const page = await browser.newPage();
-    await page.goto(fallbackURL, { waitUntil: 'domcontentloaded' });
-    for (let i = 0; i < MAX_ATTEMPTS; i++) {
-      const title = await page.title();
-      const match = title.match(/(\d{6})/);
-      if (match) return match[1];
-      await page.reload({ waitUntil: 'domcontentloaded' });
-      await delay(3000);
+// Comportamiento humano
+async function humanType(page, selector, text) {
+    try {
+        await page.focus(selector);
+        for (const char of text) {
+            await page.type(selector, char, { delay: Math.random() * 40 + 20 });
+            if (Math.random() > 0.7) await delay(Math.random() * 100);
+        }
+    } catch (error) {
+        console.error(`❌ Error en humanType para ${selector}: ${error.message}`);
+        throw error;
     }
-  } catch (e) {
-    console.error('Error en fallback visual:', e.message);
-  } finally {
-    if (browser) await browser.close();
-  }
-  return null;
 }
 
+// Verificar disponibilidad de nombre de usuario
+async function verifyUsernameAvailability(page, username) {
+    try {
+        await page.focus('input[name="username"]');
+        await page.evaluate(selector => {
+            const input = document.querySelector(selector);
+            if (input) input.value = '';
+        }, 'input[name="username"]');
+
+        await humanType(page, 'input[name="username"]', username);
+        await delay(2000); // Esperar validación de Instagram
+
+        const errorElements = await page.$$('div[role="alert"], p[id*="error"], span[class*="error"], div[class*="error"]');
+        for (const element of errorElements) {
+            const errorText = await page.evaluate(el => el.textContent, element);
+            if (errorText && (errorText.includes('taken') || errorText.includes('no está disponible'))) {
+                console.error(`❌ Nombre de usuario ${username} no disponible: ${errorText}`);
+                return false;
+            }
+        }
+
+        return true;
+    } catch (error) {
+        console.error(`⚠️ Error verificando usuario ${username}: ${error.message}`);
+        return false;
+    }
+}
+
+// Captura de pantalla
+async function saveScreenshot(page, name) {
+    try {
+        if (!fs.existsSync(SCREENSHOTS_DIR)) fs.mkdirSync(SCREENSHOTS_DIR);
+        const filePath = path.join(SCREENSHOTS_DIR, `${name}_${Date.now()}.png`);
+        await page.screenshot({ path: filePath, fullPage: true });
+        return filePath;
+    } catch (error) {
+        console.error(`❌ Error guardando screenshot: ${error.message}`);
+        return null;
+    }
+}
+
+// Guardar cookies
 async function saveCookies(page, username) {
-  const cookies = await page.cookies();
-  if (!fs.existsSync(COOKIES_DIR)) fs.mkdirSync(COOKIES_DIR);
-  const pathOut = path.join(COOKIES_DIR, `${username}.json`);
-  fs.writeFileSync(pathOut, JSON.stringify(cookies, null, 2));
+    try {
+        if (!fs.existsSync(COOKIES_DIR)) fs.mkdirSync(COOKIES_DIR);
+        const cookies = await page.cookies();
+        fs.writeFileSync(
+            path.join(COOKIES_DIR, `${username}.json`),
+            JSON.stringify(cookies, null, 2)
+        );
+    } catch (error) {
+        console.error(`❌ Error guardando cookies: ${error.message}`);
+    }
 }
 
-async function saveAccount(account) {
-  const list = fs.existsSync(ACCOUNTS_FILE) ? JSON.parse(fs.readFileSync(ACCOUNTS_FILE)) : [];
-  list.push({ ...account, creation_time: new Date().toISOString() });
-  fs.writeFileSync(ACCOUNTS_FILE, JSON.stringify(list, null, 2));
+// Guardar cuenta
+async function saveAccount(data) {
+    try {
+        let accounts = [];
+        if (fs.existsSync(ACCOUNTS_FILE)) {
+            accounts = JSON.parse(fs.readFileSync(ACCOUNTS_FILE, 'utf8'));
+        }
+        accounts.push({ ...data, creation_time: new Date().toISOString() });
+        fs.writeFileSync(ACCOUNTS_FILE, JSON.stringify(accounts, null, 2));
+    } catch (error) {
+        console.error(`❌ Error guardando cuenta: ${error.message}`);
+    }
 }
 
+// Generar email temporal
+async function generateTempEmail() {
+    try {
+        const response = await fetch(`${TEMP_EMAIL_API}/v1/?action=genRandomMailbox&count=1`);
+        const data = await response.json();
+        return data[0];
+    } catch (error) {
+        console.error(`⚠️ Error generando email: ${error.message}`);
+        return `krave_${uuidv4().slice(0, 8)}@1secmail.com`;
+    }
+}
+
+// Obtener código de verificación
+async function getVerificationCode(email) {
+    const [login, domain] = email.split('@');
+    for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+        try {
+            console.error(`📭 Buscando código (intento ${attempt}/${MAX_ATTEMPTS})...`);
+            const response = await fetch(`${TEMP_EMAIL_API}/v1/?action=getMessages&login=${login}&domain=${domain}`);
+            const messages = await response.json();
+            for (const message of messages) {
+                if (message.subject.toLowerCase().includes('instagram')) {
+                    const contentRes = await fetch(`${TEMP_EMAIL_API}/v1/?action=readMessage&login=${login}&domain=${domain}&id=${message.id}`);
+                    const content = await contentRes.json();
+                    const codeRegex = /(\b\d{6}\b)|(código[\s:]+(\d{6}))|(>\s*(\d{6})\s*<)/i;
+                    const match = codeRegex.exec(content.textBody || content.htmlBody);
+                    if (match) {
+                        return match[1] || match[3] || match[5];
+                    }
+                }
+            }
+            await delay(5000);
+        } catch (error) {
+            console.error(`⚠️ Error obteniendo código: ${error.message}`);
+        }
+    }
+    console.error(`❌ No se recibió código tras ${MAX_ATTEMPTS} intentos`);
+    return null;
+}
+
+// Función principal
 async function createInstagramAccount() {
-  const account = {
-    usuario: '',
-    email: '',
-    password: '',
-    proxy: proxy || 'none',
-    status: 'error',
-    error: '',
-    timestamp: new Date().toISOString(),
-    screenshots: []
-  };
-  let browser;
-  let proxyAnon = null;
+    const proxy = validateAndFormatProxy(rawProxy);
+    const accountData = {
+        usuario: '',
+        email: '',
+        password: '',
+        proxy: proxy || 'none',
+        status: 'error',
+        error: '',
+        timestamp: new Date().toISOString(),
+        screenshots: []
+    };
+    let browser;
+    let page;
+    let proxyAnon = null;
 
-  try {
-    if (!proxy) throw new Error('No se proporcionó un proxy válido');
+    try {
+        if (!proxy) throw new Error('No se proporcionó un proxy válido');
 
-    // Extraer hostname y puerto para Puppeteer, y credenciales si las hay
-    const proxyRegex = /^(?:http:\/\/)?(?:(.+:.+?)@)?(.+:\d+)$/;
-    const match = proxy.match(proxyRegex);
-    if (!match) throw new Error(`Formato de proxy inválido: ${proxy}`);
+        // Anonimizar proxy
+        proxyAnon = await proxyChain.anonymizeProxy(proxy);
+        console.error(`🔍 Proxy anonimizado: ${proxyAnon}`);
 
-    const [, credentials, hostPort] = match;
-    proxyAnon = await proxyChain.anonymizeProxy(proxy);
-    console.error(`🔍 Proxy anonimizado: ${proxyAnon}`);
+        const proxyUrl = new URL(proxy);
+        const hostPort = `${proxyUrl.hostname}:${proxyUrl.port}`;
+        const credentials = proxyUrl.username ? {
+            username: proxyUrl.username,
+            password: proxyUrl.password
+        } : null;
 
-    const args = ['--no-sandbox', '--disable-setuid-sandbox', `--proxy-server=${hostPort}`];
+        console.error(`🔁 Usando proxy: ${hostPort}`);
 
-    browser = await puppeteer.launch({
-      headless: true,
-      args,
-      executablePath: '/usr/bin/chromium-browser'
-    });
+        // Configurar navegador
+        const browserOptions = {
+            headless: true,
+            args: [
+                '--no-sandbox',
+                '--disable-setuid-sandbox',
+                '--disable-dev-shm-usage',
+                '--disable-gpu',
+                '--disable-infobars',
+                '--window-size=1400,900',
+                '--lang=es-ES',
+                `--proxy-server=${hostPort}`
+            ],
+            executablePath: '/usr/bin/chromium-browser'
+        };
 
-    const page = await browser.newPage();
-    await page.setUserAgent('Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/117.0.0.0 Safari/537.36');
+        browser = await puppeteer.launch(browserOptions);
+        page = await browser.newPage();
 
-    // Autenticar credenciales del proxy si existen
-    if (credentials) {
-      const [username, password] = credentials.split(':');
-      await page.authenticate({ username, password });
+        // Autenticar credenciales del proxy
+        if (credentials) {
+            await page.authenticate(credentials);
+        }
+
+        await page.setUserAgent('Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/117.0.0.0 Safari/537.36');
+        await page.setExtraHTTPHeaders({ 'Accept-Language': 'es-ES,es;q=0.9' });
+
+        // Navegar a Instagram
+        console.error('🌐 Navegando a Instagram...');
+        await page.goto(INSTAGRAM_SIGNUP_URL, { waitUntil: 'networkidle2', timeout: 60000 });
+        accountData.screenshots.push(await saveScreenshot(page, 'inicio'));
+
+        // Verificar formulario
+        const emailInput = await page.$('input[name="emailOrPhone"]');
+        if (!emailInput) {
+            accountData.screenshots.push(await saveScreenshot(page, 'no_formulario'));
+            throw new Error('No se encontró el formulario de registro');
+        }
+
+        // Generar datos
+        let username = generar_usuario();
+        const fullName = generar_nombre();
+        const password = uuidv4().slice(0, 12);
+        const email = await generateTempEmail();
+
+        console.error(`📝 Datos generados: email=${email}, username=${username}, fullName=${fullName}, password=${password}`);
+
+        // Verificar disponibilidad de usuario con reintentos
+        let attempts = 0;
+        const maxUsernameAttempts = 3;
+        while (attempts < maxUsernameAttempts) {
+            const isAvailable = await verifyUsernameAvailability(page, username);
+            if (isAvailable) break;
+            attempts++;
+            console.error(`⚠️ Intento ${attempts}/${maxUsernameAttempts}: ${username} no disponible, generando nuevo...`);
+            username = generar_usuario();
+            if (attempts === maxUsernameAttempts) {
+                accountData.screenshots.push(await saveScreenshot(page, 'username_failed'));
+                throw new Error(`No se encontró nombre de usuario disponible tras ${maxUsernameAttempts} intentos`);
+            }
+        }
+
+        // Llenar formulario
+        console.error('📝 Llenando formulario...');
+        await humanType(page, 'input[name="emailOrPhone"]', email);
+        await humanType(page, 'input[name="fullName"]', fullName);
+        await humanType(page, 'input[name="username"]', username);
+        await humanType(page, 'input[name="password"]', password);
+        accountData.screenshots.push(await saveScreenshot(page, 'formulario_llenado'));
+
+        // Enviar formulario
+        console.error('🚀 Enviando formulario...');
+        await page.click('button[type="submit"]');
+        await delay(5000);
+
+        // Verificar errores
+        const error = await page.$('div[role="alert"], p[id*="error"], span[class*="error"]');
+        if (error) {
+            const errorText = await page.evaluate(el => el.textContent, error);
+            accountData.screenshots.push(await saveScreenshot(page, 'form_error'));
+            throw new Error(`Error en formulario: ${errorText}`);
+        }
+
+        // Verificar si requiere código
+        const requiresVerification = await page.$('input[name="email_confirmation_code"]');
+        if (requiresVerification) {
+            console.error('📬 Requiere verificación por email');
+            accountData.screenshots.push(await saveScreenshot(page, 'pre_verificacion'));
+            const code = await getVerificationCode(email);
+            if (!code) {
+                accountData.screenshots.push(await saveScreenshot(page, 'no_code'));
+                throw new Error('No se recibió el código de verificación');
+            }
+            console.error(`🔑 Código recibido: ${code}`);
+            await humanType(page, 'input[name="email_confirmation_code"]', code);
+            await page.click('button[type="button"]');
+            await delay(5000);
+        }
+
+        // Confirmar creación
+        console.error('✅ Verificando creación de cuenta...');
+        const successSelector = await page.waitForSelector('a[href="/"]', { timeout: 10000 }).catch(() => null);
+        if (!successSelector) {
+            accountData.screenshots.push(await saveScreenshot(page, 'no_success'));
+            throw new Error('No se pudo confirmar la creación de la cuenta');
+        }
+
+        // Guardar cookies y datos
+        await saveCookies(page, username);
+        accountData.status = 'success';
+        accountData.usuario = username;
+        accountData.email = email;
+        accountData.password = password;
+        accountData.screenshots.push(await saveScreenshot(page, 'exito'));
+        console.error(`🎉 Cuenta creada exitosamente: @${username}`);
+    } catch (error) {
+        accountData.error = error.message;
+        console.error(`❌ Error: ${error.message}`);
+        if (page) accountData.screenshots.push(await saveScreenshot(page, 'error'));
+    } finally {
+        if (browser) await browser.close();
+        if (proxyAnon) await proxyChain.closeAnonymizedProxy(proxyAnon, true);
+        await saveAccount(accountData);
+        console.log(JSON.stringify(accountData));
     }
-
-    await page.goto(INSTAGRAM_SIGNUP_URL, { waitUntil: 'networkidle2', timeout: 60000 });
-
-    // Verificar si hay CAPTCHA o página de error
-    if (await checkForCaptcha(page)) {
-      account.screenshots.push(await saveScreenshot(page, 'captcha_detected'));
-      throw new Error('CAPTCHA detectado en la página');
-    }
-
-    // Verificar si la página contiene el formulario esperado
-    const emailInput = await page.$('input[name="emailOrPhone"]');
-    if (!emailInput) {
-      account.screenshots.push(await saveScreenshot(page, 'no_email_input'));
-      throw new Error('No se encontró el campo emailOrPhone. Página no cargada correctamente.');
-    }
-
-    // Generar datos de la cuenta
-    const username = generar_usuario();
-    const fullName = generar_nombre();
-    const password = uuidv4().slice(0, 12); // Corrección del typo
-    const email = await generateTempEmail();
-
-    console.error(`🔍 Datos generados: email=${email}, username=${username}, fullName=${fullName}, password=${password}`);
-
-    await moveMouseToElement(page, 'input[name="emailOrPhone"]');
-    await humanType(page, 'input[name="emailOrPhone"]', email);
-    await moveMouseToElement(page, 'input[name="fullName"]');
-    await humanType(page, 'input[name="fullName"]', fullName);
-    await moveMouseToElement(page, 'input[name="username"]');
-    await humanType(page, 'input[name="username"]', username);
-    await moveMouseToElement(page, 'input[name="password"]');
-    await humanType(page, 'input[name="password"]', password);
-
-    await page.click('button[type="submit"]');
-    await delay(5000);
-
-    const error = await detectInstagramErrors(page);
-    if (error) {
-      account.screenshots.push(await saveScreenshot(page, 'form_error'));
-      throw new Error(error);
-    }
-
-    if (await page.$('input[name="email_confirmation_code"]')) {
-      const code = await getVerificationCode(email);
-      if (!code) {
-        account.screenshots.push(await saveScreenshot(page, 'no_code'));
-        throw new Error('No se recibió el código');
-      }
-      await humanType(page, 'input[name="email_confirmation_code"]', code);
-      await page.click('button[type="button"]');
-      await delay(3000);
-    }
-
-    account.status = 'success';
-    account.usuario = username;
-    account.email = email;
-    account.password = password;
-    await saveCookies(page, username);
-  } catch (e) {
-    account.error = e.message;
-    console.error(`❌ Falló: ${e.message}`);
-  } finally {
-    if (browser) await browser.close();
-    if (proxyAnon) await proxyChain.closeAnonymizedProxy(proxyAnon, true);
-    await saveAccount(account);
-    console.log(JSON.stringify(account));
-  }
 }
 
 createInstagramAccount();
