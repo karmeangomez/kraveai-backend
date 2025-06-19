@@ -66,7 +66,28 @@ def obtener_cuentas():
         logger.error(f"Error leyendo cuentas_creadas.json: {str(e)}")
         raise HTTPException(status_code=500, detail="Error leyendo archivo de cuentas")
 
-# Resto de tu backend se mantiene igual...
+@app.get("/create-accounts-sse")
+async def crear_cuentas_sse(request: Request, count: int = 1):
+    async def event_stream():
+        import uuid
+        for i in range(count):
+            try:
+                result = subprocess.run([
+                    "node", "crearCuentaInstagram.js"
+                ], capture_output=True, text=True, timeout=180)
+
+                if result.returncode == 0:
+                    cuenta = json.loads(result.stdout)
+                    yield f"event: account-created\ndata: {json.dumps(cuenta)}\n\n"
+                else:
+                    error = result.stderr or result.stdout or "Error desconocido"
+                    yield f"event: error\ndata: {{\"message\": \"{error[:100]}\"}}\n\n"
+            except Exception as e:
+                yield f"event: error\ndata: {{\"message\": \"{str(e)[:100]}\"}}\n\n"
+            await asyncio.sleep(1)
+        yield "event: complete\ndata: Proceso terminado\n\n"
+
+    return StreamingResponse(event_stream(), media_type="text/event-stream")
 
 if __name__ == "__main__":
     import uvicorn
