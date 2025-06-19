@@ -4,13 +4,14 @@ After=network.target
 
 [Service]
 User=karmean
+Group=karmean
 WorkingDirectory=/home/karmean/kraveai-backend
+Environment=PATH=/usr/bin:/bin:/usr/local/bin
 ExecStart=/usr/bin/node main.js
 Restart=always
 RestartSec=5
 StandardOutput=append:/home/karmean/kraveai-backend/logs/crear-cuentas.log
 StandardError=append:/home/karmean/kraveai-backend/logs/crear-cuentas.log
-Environment=NODE_ENV=production
 
 [Install]
 WantedBy=multi-user.target
