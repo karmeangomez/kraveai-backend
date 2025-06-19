@@ -1,25 +1,26 @@
+// saveAccount.js - Guardar cuentas generadas en JSON persistente
+
 const fs = require('fs');
 const path = require('path');
 
-const filePath = path.join(__dirname, '..', 'cuentas_creadas.json');
+const archivo = path.join(__dirname, 'cuentas_creadas.json');
 
-function guardarCuenta(nuevaCuenta) {
+function guardarCuenta(cuenta) {
   let cuentas = [];
 
-  if (fs.existsSync(filePath)) {
-    try {
-      const data = fs.readFileSync(filePath, 'utf8');
+  try {
+    if (fs.existsSync(archivo)) {
+      const data = fs.readFileSync(archivo, 'utf8');
       cuentas = JSON.parse(data);
-    } catch (err) {
-      console.warn('⚠️ Error leyendo archivo de cuentas, se creará nuevo');
     }
+  } catch (err) {
+    console.error('⚠️ Error leyendo cuentas existentes:', err.message);
   }
 
-  cuentas.push(nuevaCuenta);
+  cuentas.push(cuenta);
 
   try {
-    fs.writeFileSync(filePath, JSON.stringify(cuentas, null, 2));
-    console.log(`✅ Cuenta guardada: ${nuevaCuenta.usuario}`);
+    fs.writeFileSync(archivo, JSON.stringify(cuentas, null, 2), 'utf8');
   } catch (err) {
     console.error('❌ Error guardando cuenta:', err.message);
   }
