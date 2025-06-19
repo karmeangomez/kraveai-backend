@@ -37,7 +37,7 @@ except Exception as e:
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["*"],  # Puedes cambiar esto a ["https://kraveai.netlify.app"] si prefieres restringir
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -93,7 +93,9 @@ async def crear_cuentas_sse(request: Request, count: int = 1):
                         yield f"event: error\ndata: {json.dumps({
                             'status': 'error',
                             'message': str(error),
-                            'proxy': cuenta.get('proxy', 'N/A')
+                            'proxy': cuenta.get('proxy', 'N/A'),
+                            'usuario': cuenta.get('usuario', ''),
+                            'email': cuenta.get('email', '')
                         })}\n\n"
                 else:
                     error = result.stderr or result.stdout or "Error desconocido"
