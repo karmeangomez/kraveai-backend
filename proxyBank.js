@@ -1,20 +1,19 @@
-// proxyBank.js - rotador de proxies con formato correcto para proxy-chain
+// proxyBank.js - rotador de proxies autenticados con http://
 
 const proxies = require('./proxies.json');
-
 let index = 0;
 
 function getNextProxy() {
-  if (!Array.isArray(proxies) || proxies.length === 0) {
-    console.warn('⚠️ No hay proxies disponibles en proxies.json');
+  if (!proxies.length) {
+    console.warn('⚠️ Lista de proxies vacía');
     return null;
   }
 
-  const rawProxy = proxies[index % proxies.length];
+  const raw = proxies[index % proxies.length];
   index++;
 
-  // Asegurar que tenga el formato correcto para proxy-chain
-  return `http://${rawProxy}`;
+  // Devuelve el proxy con prefijo http:// requerido por proxy-chain
+  return `http://${raw}`;
 }
 
 module.exports = { getNextProxy };
