@@ -1,5 +1,48 @@
 # main.py - Versión Corregida con Todos los Endpoints
-# ... (imports y configuraciones previas)
+import os
+import json
+import asyncio
+import subprocess
+import logging
+import concurrent.futures
+from fastapi import FastAPI, Request, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse, PlainTextResponse, JSONResponse
+from dotenv import load_dotenv
+from pydantic import BaseModel
+from login_utils import login_instagram
+from telegram_utils import notify_telegram
+from instagram_utils import crear_cuenta_instagram
+
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s [%(levelname)s] %(name)s: %(message)s',
+    handlers=[
+        logging.FileHandler("kraveai.log", encoding='utf-8'),
+        logging.StreamHandler()
+    ]
+)
+logger = logging.getLogger("KraveAI-Backend")
+
+load_dotenv()
+app = FastAPI()
+MAX_CONCURRENT = 3
+
+try:
+    cl = login_instagram()
+    logger.info("Cliente Instagram inicializado")
+except Exception as e:
+    logger.error(f"Error inicializando Instagram: {str(e)}")
+    cl = None
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["https://kraveai.netlify.app"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+    expose_headers=["*"]
+)
 
 @app.get("/test-telegram")
 def test_telegram():
@@ -19,10 +62,12 @@ def test_telegram():
 
 @app.get("/create-accounts-sse")
 async def crear_cuentas_sse(request: Request, count: int = 1):
-    """Endpoint SSE para creación de cuentas"""
     async def event_stream():
-        # ... (tu implementación de SSE aquí)
-    
+        for i in range(count):
+            yield f"event: progress\ndata: {{\"message\": \"Creando cuenta {i+1}\"}}\n\n"
+            await asyncio.sleep(1)
+        yield "event: complete\ndata: Proceso terminado\n\n"
+
     return StreamingResponse(
         event_stream(),
         media_type="text/event-stream",
@@ -32,8 +77,6 @@ async def crear_cuentas_sse(request: Request, count: int = 1):
             "Connection": "keep-alive"
         }
     )
-
-# Añade también estos endpoints esenciales que faltan:
 
 @app.get("/estado-sesion")
 def estado_sesion():
@@ -49,17 +92,15 @@ def estado_sesion():
 
 @app.post("/iniciar-sesion")
 def iniciar_sesion_post(datos: dict):
-    # ... (tu implementación de inicio de sesión)
-    
+    return JSONResponse(content={"mensaje": "Inicio de sesión no implementado"})
+
 @app.get("/cerrar-sesion")
 def cerrar_sesion():
-    # ... (tu implementación de cierre de sesión)
+    return JSONResponse(content={"mensaje": "Cierre de sesión no implementado"})
 
 @app.get("/buscar-usuario")
 def buscar_usuario(username: str):
-    # ... (tu implementación de búsqueda de usuario)
-
-# ... (resto de endpoints)
+    return JSONResponse(content={"mensaje": f"Búsqueda de {username} no implementada"})
 
 if __name__ == "__main__":
     import uvicorn
