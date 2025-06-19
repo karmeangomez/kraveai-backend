@@ -66,6 +66,14 @@ def obtener_cuentas():
         logger.error(f"Error leyendo cuentas_creadas.json: {str(e)}")
         raise HTTPException(status_code=500, detail="Error leyendo archivo de cuentas")
 
+@app.get("/test-telegram")
+def test_telegram():
+    try:
+        notify_telegram("📲 Prueba de conexión con Telegram desde /test-telegram")
+        return {"mensaje": "Telegram notificado correctamente"}
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
 @app.get("/create-accounts-sse")
 async def crear_cuentas_sse(request: Request, count: int = 1):
     async def event_stream():
