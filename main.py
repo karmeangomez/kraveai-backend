@@ -90,13 +90,22 @@ async def crear_cuentas_sse(request: Request, count: int = 1):
                         yield f"event: account-created\ndata: {json.dumps(cuenta)}\n\n"
                     else:
                         error = cuenta.get("error", "Error desconocido")
-                        cuenta['message'] = f"Error: {error}"
-                        yield f"event: error\ndata: {json.dumps(cuenta)}\n\n"
+                        yield f"event: error\ndata: {json.dumps({
+                            'status': 'error',
+                            'message': str(error),
+                            'proxy': cuenta.get('proxy', 'N/A')
+                        })}\n\n"
                 else:
                     error = result.stderr or result.stdout or "Error desconocido"
-                    yield f"event: error\ndata: {{\"message\": \"{error[:100]}\"}}\n\n"
+                    yield f"event: error\ndata: {json.dumps({
+                        'status': 'error',
+                        'message': error[:100]
+                    })}\n\n"
             except Exception as e:
-                yield f"event: error\ndata: {{\"message\": \"{str(e)[:100]}\"}}\n\n"
+                yield f"event: error\ndata: {json.dumps({
+                    'status': 'error',
+                    'message': str(e)[:100]
+                })}\n\n"
             await asyncio.sleep(1)
         yield "event: complete\ndata: Proceso terminado\n\n"
 
