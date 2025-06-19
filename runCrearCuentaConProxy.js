@@ -1,61 +1,49 @@
-// runCrearCuentaConProxy.js - Ejecuta múltiples cuentas usando proxies rotativos
-
+// runCrearCuentaConProxy.js
 const { getNextProxy } = require('./proxyBank');
 const { exec } = require('child_process');
+const util = require('util');
+const execPromise = util.promisify(exec);
 
-const TOTAL = parseInt(process.argv[2], 10) || 20;
+const TOTAL = parseInt(process.argv[2], 10) || 5;
 
 console.log(`🚀 Creando ${TOTAL} cuentas con proxies reales...\n`);
 
-let count = 0;
-
 async function crearCuenta() {
-  return new Promise(resolve => {
-    const proxy = getNextProxy();
+  const proxy = getNextProxy();
+  if (!proxy) {
+    console.log('❌ Sin proxy válido, se salta este intento');
+    return;
+  }
 
-    if (!proxy) {
-      console.log('⚠️ No hay proxy disponible, se omite intento.\n');
-      resolve();
-      return;
+  console.log(`🔁 Proxy usado: ${proxy.replace('http://', '')}`);
+  try {
+    const { stdout, stderr } = await execPromise(`node crearCuentaInstagram.js "${proxy}"`);
+    try {
+      const account = JSON.parse(stdout);
+      if (account.status === 'success') {
+        console.log(`✅ Cuenta creada: @${account.usuario} (${account.email})`);
+      } else {
+        console.log(`❌ Falló: ${account.error}`);
+      }
+    } catch {
+      console.log(`⚠️ Salida no válida del script: ${stdout}`);
     }
-
-    console.log(`🔁 Proxy usado: ${proxy.replace('http://', '')}`);
-
-    const proceso = exec(`node crearCuentaInstagram.js "${proxy}"`);
-
-    let stdoutBuffer = '';
-    proceso.stdout.on('data', data => {
-      stdoutBuffer += data;
-      try {
-        const result = JSON.parse(stdoutBuffer);
-        if (result.status === 'success') {
-          console.log(`✅ Cuenta creada: @${result.usuario} (${result.email})`);
-        } else {
-          console.log(`❌ Falló: ${result.error || 'Error desconocido'}`);
-        }
-        resolve();
-      } catch {
-        // Esperar a que termine el JSON completo
-      }
-    });
-
-    proceso.stderr.on('data', err => {
-      console.log(`❌ Error de ejecución: ${err}`);
-      resolve();
-    });
-
-    proceso.on('exit', code => {
-      if (code !== 0) {
-        console.log(`⚠️ Proceso finalizó con código ${code}`);
-      }
-    });
-  });
+    if (stderr) console.log(`⚠️ Error de ejecución: ${stderr}`);
+  } catch (e) {
+    console.log(`❌ Error al ejecutar el script: ${e.message}`);
+  }
 }
 
 (async () => {
+  let count = 0;
   for (let i = 0; i < TOTAL; i++) {
     await crearCuenta();
     count++;
+    await delay(2000); // Retraso entre intentos para evitar saturación
   }
   console.log(`🎉 Proceso finalizado. Total intentos: ${count}`);
 })();
+
+function delay(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
