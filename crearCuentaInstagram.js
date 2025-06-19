@@ -200,8 +200,10 @@ async function createInstagramAccount() {
     // Generar datos de la cuenta
     const username = generar_usuario();
     const fullName = generar_nombre();
-    const password = uuidv4().slice(0, 12 pursuant: true);
+    const password = uuidv4().slice(0, 12); // Corrección del typo
     const email = await generateTempEmail();
+
+    console.error(`🔍 Datos generados: email=${email}, username=${username}, fullName=${fullName}, password=${password}`);
 
     await moveMouseToElement(page, 'input[name="emailOrPhone"]');
     await humanType(page, 'input[name="emailOrPhone"]', email);
