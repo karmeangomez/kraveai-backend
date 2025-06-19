@@ -1,5 +1,3 @@
-// crearCuentaInstagram.js - con soporte de fallback visual
-
 const puppeteer = require('puppeteer-extra');
 const StealthPlugin = require('puppeteer-extra-plugin-stealth');
 puppeteer.use(StealthPlugin());
@@ -14,6 +12,8 @@ const MAX_ATTEMPTS = 7;
 const INSTAGRAM_SIGNUP_URL = 'https://www.instagram.com/accounts/emailsignup/';
 const proxy = process.argv[2] || null;
 const ACCOUNTS_FILE = path.join(__dirname, 'cuentas_creadas.json');
+const COOKIES_DIR = path.join(__dirname, 'cookies');
+
 const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
 
 async function humanType(page, selector, text) {
@@ -26,42 +26,24 @@ async function humanType(page, selector, text) {
 
 async function moveMouseToElement(page, selector) {
     const rect = await page.evaluate(selector => {
-        const element = document.querySelector(selector);
-        if (!element) return null;
-        const { x, y, width, height } = element.getBoundingClientRect();
+        const el = document.querySelector(selector);
+        if (!el) return null;
+        const { x, y, width, height } = el.getBoundingClientRect();
         return { x: x + width / 2, y: y + height / 2 };
     }, selector);
-    if (rect) {
-        await page.mouse.move(rect.x, rect.y, { steps: Math.floor(Math.random() * 10) + 5 });
-    }
+    if (rect) await page.mouse.move(rect.x, rect.y, { steps: 10 });
 }
 
 async function detectInstagramErrors(page) {
-    const errorSelectors = ['#ssfErrorAlert', 'div[role="alert"]', 'p[id*="error"]', 'span[class*="error"]', '.x1sxyh'];
-    for (const selector of errorSelectors) {
-        const errorElement = await page.$(selector);
-        if (errorElement) {
-            const errorText = await page.evaluate(el => el.textContent, errorElement);
-            if (errorText) return errorText.trim();
+    const selectors = ['#ssfErrorAlert', 'div[role="alert"]', 'p[id*="error"]', 'span[class*="error"]'];
+    for (const sel of selectors) {
+        const el = await page.$(sel);
+        if (el) {
+            const text = await page.evaluate(el => el.textContent, el);
+            if (text) return text.trim();
         }
     }
     return null;
-}
-
-async function saveAccount(accountData) {
-    try {
-        let accounts = [];
-        if (fs.existsSync(ACCOUNTS_FILE)) {
-            const data = fs.readFileSync(ACCOUNTS_FILE, 'utf8');
-            accounts = JSON.parse(data);
-        }
-        accounts.push({ ...accountData, creation_time: new Date().toISOString() });
-        fs.writeFileSync(ACCOUNTS_FILE, JSON.stringify(accounts, null, 2));
-        return true;
-    } catch (error) {
-        console.error('Error guardando cuenta:', error.message);
-        return false;
-    }
 }
 
 async function generateTempEmail() {
@@ -78,15 +60,15 @@ async function getVerificationCode(email) {
     const [login, domain] = email.split('@');
     for (let i = 0; i < MAX_ATTEMPTS; i++) {
         try {
-            const response = await fetch(`${TEMP_EMAIL_API}/v1/?action=getMessages&login=${login}&domain=${domain}`);
-            const messages = await response.json();
+            const res = await fetch(`${TEMP_EMAIL_API}/v1/?action=getMessages&login=${login}&domain=${domain}`);
+            const messages = await res.json();
             for (const msg of messages) {
                 if (msg.subject.toLowerCase().includes('instagram')) {
-                    const contentRes = await fetch(`${TEMP_EMAIL_API}/v1/?action=readMessage&login=${login}&domain=${domain}&id=${msg.id}`);
-                    const content = await contentRes.json();
-                    const regex = /\b(\d{6})\b/;
+                    const msgRes = await fetch(`${TEMP_EMAIL_API}/v1/?action=readMessage&login=${login}&domain=${domain}&id=${msg.id}`);
+                    const content = await msgRes.json();
+                    const regex = /\b\d{6}\b/;
                     const match = regex.exec(content.textBody || content.htmlBody);
-                    if (match) return match[1];
+                    if (match) return match[0];
                 }
             }
         } catch (e) {
@@ -94,41 +76,34 @@ async function getVerificationCode(email) {
         }
         await delay(4000);
     }
-    return await getVerificationCodeFallback(login, domain);
+    return null;
 }
 
-async function getVerificationCodeFallback(mailName, domain) {
-    const fallbackURL = `https://email-fake.com/${domain}/${mailName}`;
-    let browser;
+async function saveCookies(page, username) {
+    const cookies = await page.cookies();
+    if (!fs.existsSync(COOKIES_DIR)) fs.mkdirSync(COOKIES_DIR);
+    const filePath = path.join(COOKIES_DIR, `${username}.json`);
+    fs.writeFileSync(filePath, JSON.stringify(cookies, null, 2));
+}
+
+async function saveAccount(accountData) {
     try {
-        browser = await puppeteer.launch({
-            headless: true,
-            args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-gpu'],
-            executablePath: '/usr/bin/chromium-browser'
-        });
-        const page = await browser.newPage();
-        await page.goto(fallbackURL, { waitUntil: 'domcontentloaded' });
-        for (let i = 0; i < MAX_ATTEMPTS; i++) {
-            const title = await page.title();
-            const match = title.match(/(\d{6})/);
-            if (match) return match[1];
-            await page.reload({ waitUntil: 'domcontentloaded' });
-            await delay(3000);
-        }
-        return null;
+        const accounts = fs.existsSync(ACCOUNTS_FILE)
+            ? JSON.parse(fs.readFileSync(ACCOUNTS_FILE, 'utf8'))
+            : [];
+        accounts.push({ ...accountData, creation_time: new Date().toISOString() });
+        fs.writeFileSync(ACCOUNTS_FILE, JSON.stringify(accounts, null, 2));
     } catch (e) {
-        console.error('Error en fallback visual:', e.message);
-        return null;
-    } finally {
-        if (browser) await browser.close();
+        console.error('Error guardando cuenta:', e.message);
     }
 }
 
 async function createInstagramAccount() {
-    const accountData = {
-        usuario: '', email: '', password: '', proxy: proxy || 'none', status: 'error',
-        error: '', timestamp: new Date().toISOString(), screenshots: []
+    const account = {
+        usuario: '', email: '', password: '', proxy: proxy || 'none',
+        status: 'error', error: '', timestamp: new Date().toISOString(), screenshots: []
     };
+
     let browser;
     try {
         const username = generar_usuario();
@@ -136,13 +111,18 @@ async function createInstagramAccount() {
         const password = uuidv4().slice(0, 12);
         const email = await generateTempEmail();
 
-        const args = ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--disable-gpu'];
+        const args = ['--no-sandbox', '--disable-setuid-sandbox', '--disable-gpu'];
         if (proxy && proxy !== 'none') args.push(`--proxy-server=${proxy}`);
 
-        browser = await puppeteer.launch({ headless: true, args, executablePath: '/usr/bin/chromium-browser' });
-        const page = await browser.newPage();
+        browser = await puppeteer.launch({
+            headless: true,
+            args,
+            executablePath: '/usr/bin/chromium-browser'
+        });
 
-        await page.goto(INSTAGRAM_SIGNUP_URL, { waitUntil: 'networkidle2', timeout: 60000 });
+        const page = await browser.newPage();
+        await page.setUserAgent('Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/117.0.0.0 Safari/537.36');
+        await page.goto(INSTAGRAM_SIGNUP_URL, { waitUntil: 'networkidle2' });
 
         await moveMouseToElement(page, 'input[name="emailOrPhone"]');
         await humanType(page, 'input[name="emailOrPhone"]', email);
@@ -162,24 +142,27 @@ async function createInstagramAccount() {
         const inputSelector = 'input[name="email_confirmation_code"]';
         if (await page.$(inputSelector)) {
             const code = await getVerificationCode(email);
-            if (!code) throw new Error('No se recibió código');
+            if (!code) throw new Error('No se recibió código de verificación');
             await humanType(page, inputSelector, code);
             await delay(2000);
             await page.click('button[type="button"]');
         }
 
-        accountData.status = 'success';
-        accountData.usuario = username;
-        accountData.email = email;
-        accountData.password = password;
-    } catch (error) {
-        accountData.error = error.message;
+        account.status = 'success';
+        account.usuario = username;
+        account.email = email;
+        account.password = password;
+
+        await saveCookies(page, username);
+    } catch (e) {
+        account.error = e.message;
     } finally {
         if (browser) await browser.close();
-        await saveAccount(accountData);
-        console.log(JSON.stringify(accountData));
-        process.exit(accountData.status === 'success' ? 0 : 1);
+        await saveAccount(account);
+        console.log(JSON.stringify(account));
+        process.exit(account.status === 'success' ? 0 : 1);
     }
 }
 
 createInstagramAccount();
+
