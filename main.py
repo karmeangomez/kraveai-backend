@@ -86,7 +86,12 @@ async def crear_cuentas_sse(request: Request, count: int = 1):
 
                 if result.returncode == 0:
                     cuenta = json.loads(result.stdout)
-                    yield f"event: account-created\ndata: {json.dumps(cuenta)}\n\n"
+                    if cuenta.get("status") == "success":
+                        yield f"event: account-created\ndata: {json.dumps(cuenta)}\n\n"
+                    else:
+                        error = cuenta.get("error", "Error desconocido")
+                        cuenta['message'] = f"Error: {error}"
+                        yield f"event: error\ndata: {json.dumps(cuenta)}\n\n"
                 else:
                     error = result.stderr or result.stdout or "Error desconocido"
                     yield f"event: error\ndata: {{\"message\": \"{error[:100]}\"}}\n\n"
