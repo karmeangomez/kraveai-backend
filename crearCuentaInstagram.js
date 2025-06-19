@@ -15,6 +15,7 @@ const MAX_ATTEMPTS = 7;
 const INSTAGRAM_SIGNUP_URL = 'https://www.instagram.com/accounts/emailsignup/';
 const COOKIES_DIR = path.join(__dirname, 'cookies');
 const ACCOUNTS_FILE = path.join(__dirname, 'cuentas_creadas.json');
+const SCREENSHOTS_DIR = path.join(__dirname, 'screenshots');
 const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
 
 // Obtener el proxy desde los argumentos de línea de comandos
@@ -50,6 +51,23 @@ async function detectInstagramErrors(page) {
   return null;
 }
 
+async function checkForCaptcha(page) {
+  const captchaSelectors = ['iframe[src*="captcha"]', 'div[id*="recaptcha"]', 'form[action*="/challenge"]'];
+  for (const sel of captchaSelectors) {
+    if (await page.$(sel)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+async function saveScreenshot(page, username) {
+  if (!fs.existsSync(SCREENSHOTS_DIR)) fs.mkdirSync(SCREENSHOTS_DIR);
+  const screenshotPath = path.join(SCREENSHOTS_DIR, `${username}_${Date.now()}.png`);
+  await page.screenshot({ path: screenshotPath });
+  return screenshotPath;
+}
+
 async function generateTempEmail() {
   try {
     const res = await fetch(`${TEMP_EMAIL_API}/v1/?action=genRandomMailbox&count=1`);
@@ -75,7 +93,7 @@ async function getVerificationCode(email) {
         }
       }
     } catch (e) {
-      console.log(`Intento ${i + 1} fallido: ${e.message}`);
+      console.error(`Intento ${i + 1} fallido: ${e.message}`);
     }
     await delay(4000);
   }
@@ -145,7 +163,7 @@ async function createInstagramAccount() {
 
     const [, credentials, hostPort] = match;
     proxyAnon = await proxyChain.anonymizeProxy(proxy);
-    console.log(`🔍 Proxy anonimizado: ${proxyAnon}`);
+    console.error(`🔍 Proxy anonimizado: ${proxyAnon}`);
 
     const args = ['--no-sandbox', '--disable-setuid-sandbox', `--proxy-server=${hostPort}`];
 
@@ -166,10 +184,23 @@ async function createInstagramAccount() {
 
     await page.goto(INSTAGRAM_SIGNUP_URL, { waitUntil: 'networkidle2', timeout: 60000 });
 
+    // Verificar si hay CAPTCHA o página de error
+    if (await checkForCaptcha(page)) {
+      account.screenshots.push(await saveScreenshot(page, 'captcha_detected'));
+      throw new Error('CAPTCHA detectado en la página');
+    }
+
+    // Verificar si la página contiene el formulario esperado
+    const emailInput = await page.$('input[name="emailOrPhone"]');
+    if (!emailInput) {
+      account.screenshots.push(await saveScreenshot(page, 'no_email_input'));
+      throw new Error('No se encontró el campo emailOrPhone. Página no cargada correctamente.');
+    }
+
     // Generar datos de la cuenta
     const username = generar_usuario();
     const fullName = generar_nombre();
-    const password = uuidv4().slice(0, 12);
+    const password = uuidv4().slice(0, 12 pursuant: true);
     const email = await generateTempEmail();
 
     await moveMouseToElement(page, 'input[name="emailOrPhone"]');
@@ -185,11 +216,17 @@ async function createInstagramAccount() {
     await delay(5000);
 
     const error = await detectInstagramErrors(page);
-    if (error) throw new Error(error);
+    if (error) {
+      account.screenshots.push(await saveScreenshot(page, 'form_error'));
+      throw new Error(error);
+    }
 
     if (await page.$('input[name="email_confirmation_code"]')) {
       const code = await getVerificationCode(email);
-      if (!code) throw new Error('No se recibió el código');
+      if (!code) {
+        account.screenshots.push(await saveScreenshot(page, 'no_code'));
+        throw new Error('No se recibió el código');
+      }
       await humanType(page, 'input[name="email_confirmation_code"]', code);
       await page.click('button[type="button"]');
       await delay(3000);
@@ -208,7 +245,6 @@ async function createInstagramAccount() {
     if (proxyAnon) await proxyChain.closeAnonymizedProxy(proxyAnon, true);
     await saveAccount(account);
     console.log(JSON.stringify(account));
-    process.exit(account.status === 'success' ? 0 : 1);
   }
 }
 
