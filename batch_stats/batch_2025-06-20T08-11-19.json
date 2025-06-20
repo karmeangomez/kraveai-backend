@@ -1,0 +1,15 @@
+{
+  "timestamp": "2025-06-20T08:11:19.293Z",
+  "totalIntentadas": 0,
+  "totalCreadas": 0,
+  "totalShadowban": 0,
+  "totalErrores": 3,
+  "duracionSegundos": 129,
+  "promedioPorCuenta": 0,
+  "ratioExito": "0%",
+  "errores": [
+    "faker.name.findName is not a function",
+    "faker.name.findName is not a function",
+    "faker.name.findName is not a function"
+  ]
+}
