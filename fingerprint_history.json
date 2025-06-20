@@ -21,5 +21,29 @@
     "error": 0,
     "shadowban": 1,
     "lastUsed": "2025-06-20T08:26:22.048Z"
+  },
+  "5e095b7fb21716c5d1f7db759a3e94a3": {
+    "fingerprint": {
+      "name": "Xiaomi Redmi Note 11",
+      "userAgent": "Mozilla/5.0 (Linux; Android 13; Redmi Note 11) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Mobile Safari/537.36",
+      "viewport": {
+        "width": 393,
+        "height": 873,
+        "deviceScaleFactor": 2.75
+      },
+      "platform": "Linux armv8l",
+      "mobile": true,
+      "webglVendor": "Qualcomm",
+      "webglRenderer": "Adreno 610",
+      "maxTouchPoints": 5,
+      "language": "de-DE",
+      "timezoneId": "Europe/Berlin",
+      "connectionType": "4g"
+    },
+    "used": 1,
+    "success": 0,
+    "error": 1,
+    "shadowban": 0,
+    "lastUsed": "2025-06-20T08:26:49.456Z"
   }
 }
