@@ -1,24 +1,29 @@
-module.exports = async (page, fingerprint) => {
-  await page.setUserAgent(fingerprint.userAgent);
-  await page.setViewport(fingerprint.viewport);
-  await page.setExtraHTTPHeaders({
-    'Accept-Language': fingerprint.headers['Accept-Language']
-  });
-  
-  // Sobrescribir propiedades críticas
-  await page.evaluateOnNewDocument((timezone) => {
-    // Ocultar WebDriver
-    Object.defineProperty(navigator, 'webdriver', { get: () => false });
-    
-    // Enmascarar plugins
-    Object.defineProperty(navigator, 'plugins', { 
-      get: () => [1, 2, 3, 4, 5] 
+// cambiarIdentidad.js
+const injectNoise = require('./noiseInjector');
+
+module.exports = async function cambiarIdentidad(page, fingerprint) {
+  try {
+    // Aplicar user agent
+    await page.setUserAgent(fingerprint.userAgent);
+
+    // Aplicar resolución / viewport
+    await page.setViewport({
+      width: fingerprint.viewport.width,
+      height: fingerprint.viewport.height,
+      deviceScaleFactor: fingerprint.viewport.deviceScaleFactor || 1,
+      isMobile: fingerprint.mobile || false,
+      hasTouch: fingerprint.maxTouchPoints > 0
     });
-    
-    // Modificar huso horario
-    Intl.DateTimeFormat = () => {};
-    Object.defineProperty(Date.prototype, 'toString', {
-      value: () => `Date mocked for ${timezone}`
+
+    // Encabezados adicionales
+    await page.setExtraHTTPHeaders({
+      'Accept-Language': fingerprint.language || 'en-US'
     });
-  }, fingerprint.timezoneId);
+
+    // Inyección de ruido ruso (spoof de propiedades sospechosas)
+    await injectNoise(page, fingerprint);
+  } catch (error) {
+    console.error(`❌ Error aplicando fingerprint: ${error.message}`);
+    throw error;
+  }
 };
