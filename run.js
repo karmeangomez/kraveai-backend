@@ -1,4 +1,4 @@
-// run.js
+import fs from 'fs';
 import crearCuentaInstagram from './src/accounts/crearCuentaInstagram.js';
 import AccountManager from './src/accounts/accountManager.js';
 import UltimateProxyMaster from './src/proxies/ultimateProxyMaster.js';
@@ -30,6 +30,15 @@ const DELAY_BETWEEN_ACCOUNTS = 30000; // 30 segundos
         console.log(`   Usuario: @${result.username}`);
         console.log(`   Email: ${result.email}`);
         console.log(`   Proxy usado: ${result.proxy}`);
+        
+        // Guardar cuenta en el manager
+        AccountManager.addAccount({
+          id: AccountManager.getAccounts().length + 1,
+          username: result.username,
+          email: result.email,
+          proxy: result.proxy,
+          status: 'created'
+        });
       } else {
         console.error(`❌ Error: ${result.error || 'Desconocido'}`);
       }
@@ -67,6 +76,7 @@ const DELAY_BETWEEN_ACCOUNTS = 30000; // 30 segundos
         proxy: a.proxy
       }))
     }, null, 2));
+    console.log('📝 Reporte guardado en creacion_cuentas_report.json');
     
   } catch (error) {
     console.error(`🔥 Error fatal: ${error.message}`);
