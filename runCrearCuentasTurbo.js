@@ -1,7 +1,13 @@
 const { crearCuentaInstagram } = require('./crearCuentaInstagram');
 const { generarFingerprint } = require('./fingerprint_utils');
 const { generarDatosUsuario } = require('./dataGenerator');
-const logger = require('./logger');
+// Solución al problema del logger
+const logger = {
+    info: console.log,
+    error: console.error,
+    warn: console.warn,
+    success: console.log // Para mensajes de éxito
+};
 const fs = require('fs');
 const path = require('path');
 
@@ -13,7 +19,7 @@ const MEMORY_LIMIT = 500 * 1024 * 1024; // 500MB (reiniciar si se excede)
 
 // Crear carpetas necesarias
 ['cookies', 'screenshots', 'logs'].forEach(dir => {
-  if (!fs.existsSync(dir)) fs.mkdirSync(dir);
+  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
 });
 
 // Monitoreo de memoria
@@ -48,7 +54,7 @@ async function ejecutarLote(numLote, totalCuentas) {
         const resultado = await crearCuentaInstagram(datosUsuario, fingerprint);
         
         if (resultado.status === 'success') {
-          logger.success(`✅ Cuenta @${datosUsuario.username} creada!`);
+          logger.info(`✅ Cuenta @${datosUsuario.username} creada!`);
           cuentasExitosas++;
           
           // Guardar en JSON
@@ -78,7 +84,7 @@ async function ejecutarLote(numLote, totalCuentas) {
         logger.error(`⚠️ Fallo: ${error.message}`);
         
         if (reintentos > MAX_REINTENTOS) {
-          logger.warning(`🚫 Cuenta abandonada después de ${MAX_REINTENTOS} intentos`);
+          logger.warn(`🚫 Cuenta abandonada después de ${MAX_REINTENTOS} intentos`);
         }
       }
     }
