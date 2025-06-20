@@ -1,4 +1,3 @@
-// 📂 dataGenerator.js
 const { faker } = require('@faker-js/faker/locale/es_MX');
 
 module.exports.generarDatosUsuario = () => {
