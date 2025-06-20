@@ -1,98 +1,126 @@
 const puppeteer = require('puppeteer-extra');
 const StealthPlugin = require('puppeteer-extra-plugin-stealth');
-puppeteer.use(StealthPlugin());
-const { cambiarIdentidad } = require('./cambiarIdentidad');
-const { verificarEmail } = require('./instaddr');
-const logger = require('./logger');
+const { generateFingerprint } = require('./fingerprint_utils');
+const cambiarIdentidad = require('./cambiarIdentidad');
+const { getEmail, getVerificationCode } = require('./imapVerifier');
+const { shadowbanChecker } = require('./shadowbanChecker');
+const { postCreationBot } = require('./postCreationBot');
+const { logFingerprintResult } = require('./fingerprintTracker');
+const Logger = require('./logger');
 const fs = require('fs');
 const path = require('path');
+const { v4: uuidv4 } = require('uuid');
+const faker = require('faker');
 
-module.exports = async (datosUsuario, fingerprint) => {
-  const browser = await puppeteer.launch({
-    headless: "new",
-    args: [
-      '--no-sandbox',
-      '--disable-setuid-sandbox',
-      '--disable-web-security',
-      '--disable-features=IsolateOrigins,site-per-process'
-    ]
-  });
+puppeteer.use(StealthPlugin());
+const logger = new Logger();
 
-  const page = await browser.newPage();
-  await cambiarIdentidad(page, fingerprint);
+const COOKIES_DIR = path.join(__dirname, 'cookies');
+const SCREENSHOTS_DIR = path.join(__dirname, 'screenshots');
+const ACCOUNTS_FILE = path.join(__dirname, 'cuentas_creadas.json');
+
+const delay = ms => new Promise(res => setTimeout(res, ms));
+
+async function saveScreenshot(page, username, etapa) {
+  if (!fs.existsSync(SCREENSHOTS_DIR)) fs.mkdirSync(SCREENSHOTS_DIR, { recursive: true });
+  const pathFile = path.join(SCREENSHOTS_DIR, `${username}_${etapa}_${Date.now()}.png`);
+  await page.screenshot({ path: pathFile });
+}
+
+async function saveCookies(page, username) {
+  if (!fs.existsSync(COOKIES_DIR)) fs.mkdirSync(COOKIES_DIR, { recursive: true });
+  const cookies = await page.cookies();
+  fs.writeFileSync(path.join(COOKIES_DIR, `${username}.json`), JSON.stringify(cookies, null, 2));
+}
+
+async function saveAccount(data) {
+  const line = JSON.stringify(data);
+  fs.appendFileSync(ACCOUNTS_FILE, line + '\n');
+}
+
+async function humanType(page, selector, text) {
+  await page.focus(selector);
+  for (const char of text) {
+    await page.type(selector, char, { delay: 50 + Math.random() * 40 });
+    if (Math.random() > 0.7) await delay(Math.random() * 120);
+  }
+}
+
+async function crearCuentaInstagramTurbo() {
+  const fingerprint = generateFingerprint();
+  const username = faker.internet.userName().toLowerCase().replace(/[^a-z0-9_]/g, '') + Math.floor(Math.random() * 10000);
+  const fullName = faker.name.findName();
+  const password = uuidv4().slice(0, 12);
+  const email = getEmail();
+
+  const accountData = {
+    usuario: username,
+    email,
+    password,
+    fingerprint,
+    status: 'error',
+    screenshots: [],
+    timestamp: new Date().toISOString()
+  };
+
+  let browser;
 
   try {
-    // Técnica rusa: Patrón de navegación errático
-    await page.goto('https://instagram.com', { waitUntil: 'networkidle2', timeout: 0 });
-    await page.waitForTimeout(2000 + Math.random() * 3000);
-    
-    // Movimientos de mouse no lineales
-    await page.mouse.move(100, 100);
-    await page.mouse.move(300, 150, { steps: 20 });
-    await page.mouse.click(350, 200);
-    
-    // Registro con errores humanos simulados
-    await page.type('input[name="emailOrPhone"]', datosUsuario.email, { delay: 80 + Math.random() * 120 });
-    await page.keyboard.press('Tab');
-    await page.waitForTimeout(500 + Math.random() * 800);
-    
-    // Escritura de contraseña con variabilidad
-    for (const char of datosUsuario.password) {
-      await page.keyboard.type(char, { delay: 60 + Math.random() * 100 });
-      if (Math.random() > 0.8) await page.waitForTimeout(200);
+    browser = await puppeteer.launch({
+      headless: true,
+      executablePath: '/usr/bin/chromium-browser',
+      args: ['--no-sandbox', '--disable-setuid-sandbox']
+    });
+
+    const page = await browser.newPage();
+    await cambiarIdentidad(page, fingerprint);
+    await page.goto('https://www.instagram.com/accounts/emailsignup/', { waitUntil: 'networkidle2' });
+
+    logger.info(`📝 Llenando formulario para @${username}`);
+    await humanType(page, 'input[name="emailOrPhone"]', email);
+    await humanType(page, 'input[name="fullName"]', fullName);
+    await humanType(page, 'input[name="username"]', username);
+    await humanType(page, 'input[name="password"]', password);
+    await page.click('button[type="submit"]');
+    await delay(5000);
+
+    const codeInput = await page.$('input[name="email_confirmation_code"]');
+    if (codeInput) {
+      logger.info('📬 Esperando código de verificación...');
+      const code = await getVerificationCode(email);
+      if (!code) throw new Error('No se recibió código de verificación');
+      await humanType(page, 'input[name="email_confirmation_code"]', code);
+      await page.click('button[type="button"]');
+      await delay(5000);
     }
 
-    // Técnica anti-captcha: Cambio de campo repentino
-    await page.click('input[name="fullName"]');
-    await page.waitForTimeout(1000);
-    await page.type('input[name="fullName"]', datosUsuario.nombre, { delay: 70 });
-    
-    // Username con correcciones simuladas
-    await page.type('input[name="username"]', datosUsuario.username + 'aa');
-    await page.waitForTimeout(800);
-    await page.keyboard.press('Backspace');
-    await page.keyboard.press('Backspace');
-    
-    // Scroll humano
-    await page.evaluate(() => window.scrollBy(0, 150));
-    await page.waitForTimeout(1500);
+    await saveCookies(page, username);
+    await saveScreenshot(page, username, 'registrado');
 
-    // Click aleatorizado
-    const signupBtn = await page.$x("//button[contains(., 'Sign up')]");
-    await signupBtn[0].click({ delay: 150 });
-    
-    // Espera táctica para verificación
-    await page.waitForTimeout(8000 + Math.random() * 5000);
-    
-    // Verificación automática de email
-    await verificarEmail(datosUsuario.email);
-    
-    // Guardado de cookies cifradas
-    const cookies = await page.cookies();
-    const cookieData = Buffer.from(JSON.stringify(cookies)).toString('base64');
-    fs.writeFileSync(`cookies/${datosUsuario.username}.enc`, cookieData);
+    const isShadowbanned = await shadowbanChecker(username);
+    if (isShadowbanned !== true) {
+      accountData.status = 'shadowbanned';
+      accountData.shadowban = true;
+      logger.warn(`⚠️ Cuenta @${username} fue shadowbaneada`);
+    } else {
+      accountData.status = 'success';
+      logger.success(`✅ Cuenta @${username} creada y visible`);
+    }
 
-    // Validación final
-    await page.goto(`https://instagram.com/${datosUsuario.username}`);
-    await page.screenshot({ path: `screenshots/${datosUsuario.username}.png` });
-
-    // Registro en JSON cifrado
-    const cuentaData = {
-      ...datosUsuario,
-      created: new Date().toISOString(),
-      fingerprint: fingerprint.userAgent.substring(0, 40)
-    };
-    
-    fs.appendFileSync('cuentas_creadas.enc', 
-      Buffer.from(JSON.stringify(cuentaData)).toString('base64') + '\n'
-    );
+    const postActiva = await postCreationBot({ username, password });
+    if (postActiva) {
+      accountData.postCreation = true;
+    }
 
   } catch (error) {
-    logger.error(`🔥 Falla crítica: ${error.message}`);
-    // Captura de emergencia
-    await page.screenshot({ path: `logs/error_${Date.now()}.png` });
-    throw error;
+    accountData.error = error.message;
+    logger.error(`❌ Error en cuenta @${username}: ${error.message}`);
   } finally {
-    await browser.close();
+    if (browser) await browser.close();
+    await saveAccount(accountData);
+    logFingerprintResult(fingerprint, accountData.status);
+    console.log(JSON.stringify(accountData));
   }
-};
+}
+
+crearCuentaInstagramTurbo();
