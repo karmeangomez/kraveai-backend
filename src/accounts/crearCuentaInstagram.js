@@ -155,7 +155,7 @@ async function crearCuentaInstagram() {
   }
 }
 
-// Funciones auxiliares
+// Funciones auxiliares CORREGIDAS
 async function saveCookies(page, username) {
   const cookies = await page.cookies();
   const cookiePath = path.join(COOKIES_DIR, `${username}_cookies.json`);
@@ -167,7 +167,7 @@ function generatePassword(length = 12) {
   const charset = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()';
   return Array.from({ length }, () => 
     charset.charAt(Math.floor(Math.random() * charset.length))
-    .join('');
+  ).join('');
 }
 
 export default crearCuentaInstagram;
