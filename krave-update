@@ -1,0 +1,32 @@
+#!/bin/bash
+# 📂 ~/kraveai-backend/krave-update
+
+# 1. Ir al directorio correcto automáticamente
+cd /home/karmean/kraveai-backend
+
+# 2. Actualizar desde GitHub
+echo "🔁 Actualizando KraveAI desde GitHub..."
+git fetch origin
+git reset --hard origin/main
+
+# 3. Instalar dependencias si es necesario
+if [ -f "package.json" ]; then
+  echo "📦 Instalando dependencias..."
+  npm install --production
+fi
+
+# 4. Reconstruir módulos nativos
+echo "⚙️ Reconstruyendo módulos nativos..."
+npm rebuild
+
+# 5. Reiniciar servicio
+echo "🚀 Reiniciando servicios..."
+sudo systemctl restart crear-cuentas.service
+
+# 6. Verificar estado
+echo "✅ Actualización completada. Estado:"
+sudo systemctl status crear-cuentas.service --no-pager
+
+# 7. Mostrar últimas cuentas
+echo "📂 Últimas cuentas:"
+tail -n 5 cuentas_creadas.json
