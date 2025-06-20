@@ -1,10 +1,7 @@
-// runCrearCuentasTurbo.js
 const { Worker } = require('worker_threads');
 const { saveBatchStats } = require('./batchStats');
 const { sendTelegramMessage } = require('./monitorTelegram');
 const Logger = require('./logger');
-const fs = require('fs');
-const path = require('path');
 
 const logger = new Logger();
 const TOTAL = parseInt(process.argv[2], 10) || 5;
@@ -28,13 +25,22 @@ async function crearCuentaConReintentos(intento = 1) {
 
     worker.once('message', (data) => {
       try {
-        const resultado = typeof data === 'string' ? JSON.parse(data) : data;
-        intentadas.push(resultado.usuario || `anon_${Date.now()}`);
+        let resultado;
+        try {
+          resultado = typeof data === 'string' ? JSON.parse(data) : data;
+        } catch (err) {
+          logger.error(`❌ Error al interpretar la respuesta del worker: ${err.message}`);
+          errores.push('respuesta inválida');
+          return resolve(false);
+        }
+
+        const usuario = resultado.usuario || `anon_${Date.now()}`;
+        intentadas.push(usuario);
 
         if (resultado.status === 'success') {
-          exitosas.push(resultado.usuario);
+          exitosas.push(usuario);
         } else if (resultado.status === 'shadowbanned') {
-          shadowban.push(resultado.usuario);
+          shadowban.push(usuario);
         } else {
           errores.push(resultado.error || 'desconocido');
           if (intento < MAX_REINTENTOS) {
@@ -45,8 +51,8 @@ async function crearCuentaConReintentos(intento = 1) {
 
         resolve(true);
       } catch (err) {
-        logger.error(`❌ Error analizando mensaje del worker: ${err.message}`);
-        errores.push(`worker parse fail`);
+        logger.error(`❌ Error procesando resultado: ${err.message}`);
+        errores.push('fallo inesperado');
         resolve(false);
       }
     });
