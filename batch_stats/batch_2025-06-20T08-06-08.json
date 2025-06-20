@@ -1,0 +1,15 @@
+{
+  "timestamp": "2025-06-20T08:06:08.198Z",
+  "totalIntentadas": 0,
+  "totalCreadas": 0,
+  "totalShadowban": 0,
+  "totalErrores": 3,
+  "duracionSegundos": 129,
+  "promedioPorCuenta": 0,
+  "ratioExito": "0%",
+  "errores": [
+    "Cannot find module 'faker'\nRequire stack:\n- /home/karmean/kraveai-backend/crearCuentaInstagram.js",
+    "Cannot find module 'faker'\nRequire stack:\n- /home/karmean/kraveai-backend/crearCuentaInstagram.js",
+    "Cannot find module 'faker'\nRequire stack:\n- /home/karmean/kraveai-backend/crearCuentaInstagram.js"
+  ]
+}
