@@ -1,0 +1,25 @@
+{
+  "5ad8eb2254c984f756a3a2d3b898bbd6": {
+    "fingerprint": {
+      "userAgent": "Mozilla/5.0 (Windows; U; Windows NT 6.0; en-US) AppleWebKit/527  (KHTML, like Gecko, Safari/419.3) Arora/0.6 (Change: )",
+      "viewport": {
+        "width": 1366,
+        "height": 768,
+        "deviceScaleFactor": 1
+      },
+      "language": "pt-BR",
+      "timezoneId": "America/Sao_Paulo",
+      "platform": "Win32",
+      "mobile": false,
+      "webglVendor": "AMD",
+      "webglRenderer": "Radeon RX Vega",
+      "maxTouchPoints": 0,
+      "connectionType": "ethernet"
+    },
+    "used": 1,
+    "success": 0,
+    "error": 0,
+    "shadowban": 1,
+    "lastUsed": "2025-06-20T08:26:22.048Z"
+  }
+}
