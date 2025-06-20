@@ -1,23 +1,15 @@
 {
-  "name": "instagram-russian-farm",
+  "name": "kraveai-granja-rusa",
   "version": "1.0.0",
-  "main": "runCrearCuentasTurbo.js",
+  "type": "module",
   "scripts": {
-    "start": "node runCrearCuentasTurbo.js 5"
+    "start:proxy": "node src/proxies/ultimateProxyMaster.js",
+    "test:proxy": "node src/proxies/proxyTester.js"
   },
   "dependencies": {
-    "@faker-js/faker": "^8.4.1",
-    "axios": "^1.7.2",
-    "buffer": "^6.0.3",
-    "dotenv": "^16.3.1",
-    "iconv-lite": "^0.6.3",
-    "imap": "^0.8.19",
-    "mailparser": "^3.7.3",
-    "node-fetch": "^2.6.7",
-    "puppeteer": "^22.7.1",
+    "axios": "^1.6.8",
+    "puppeteer": "^22.6.0",
     "puppeteer-extra": "^3.3.6",
-    "puppeteer-extra-plugin-stealth": "^2.11.2",
-    "random-useragent": "^0.5.0",
-    "uuid": "^9.0.1"
+    "puppeteer-extra-plugin-stealth": "^2.11.2"
   }
 }
