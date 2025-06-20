@@ -9,6 +9,10 @@
     "puppeteer": "^22.7.1",
     "puppeteer-extra": "^3.3.6",
     "puppeteer-extra-plugin-stealth": "^2.11.2",
-    "faker": "^7.6.0"
+    "@faker-js/faker": "^8.1.0",
+    "imap": "^1.0.0",
+    "mailparser": "^3.6.5",
+    "buffer": "^6.0.3",
+    "iconv-lite": "^0.6.3"
   }
 }
