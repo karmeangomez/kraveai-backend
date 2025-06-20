@@ -188,5 +188,29 @@
     "error": 1,
     "shadowban": 0,
     "lastUsed": "2025-06-20T08:37:11.017Z"
+  },
+  "482dd4947694c90b9b35b464923a671f": {
+    "fingerprint": {
+      "name": "Galaxy S21",
+      "userAgent": "Mozilla/5.0 (Linux; Android 14; SM-G991B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Mobile Safari/537.36",
+      "viewport": {
+        "width": 412,
+        "height": 915,
+        "deviceScaleFactor": 3
+      },
+      "platform": "Linux armv8l",
+      "mobile": true,
+      "webglVendor": "ARM",
+      "webglRenderer": "Mali-G78 MP14",
+      "maxTouchPoints": 5,
+      "language": "fr-FR",
+      "timezoneId": "Europe/Paris",
+      "connectionType": "4g"
+    },
+    "used": 1,
+    "success": 0,
+    "error": 1,
+    "shadowban": 0,
+    "lastUsed": "2025-06-20T08:37:18.199Z"
   }
 }
