@@ -1,5 +1,10 @@
+// crearCuentaInstagram.js actualizado con selectores parcheados y lógica rusa
+
 const puppeteer = require('puppeteer-extra');
 const StealthPlugin = require('puppeteer-extra-plugin-stealth');
+const fs = require('fs');
+const path = require('path');
+const { v4: uuidv4 } = require('uuid');
 const { generateFingerprint } = require('./fingerprint_utils');
 const cambiarIdentidad = require('./cambiarIdentidad');
 const { getEmail, getVerificationCode } = require('./imapVerifier');
@@ -7,10 +12,7 @@ const { shadowbanChecker } = require('./shadowbanChecker');
 const { postCreationBot } = require('./postCreationBot');
 const { logFingerprintResult } = require('./fingerprintTracker');
 const Logger = require('./logger');
-const fs = require('fs');
-const path = require('path');
-const { v4: uuidv4 } = require('uuid');
-const { faker } = require('@faker-js/faker');
+const { generar_usuario, generar_nombre } = require('./nombre_utils');
 
 puppeteer.use(StealthPlugin());
 const logger = new Logger();
@@ -48,17 +50,16 @@ async function humanType(page, selector, text) {
 
 async function crearCuentaInstagram() {
   const fingerprint = generateFingerprint();
-  const username = faker.internet.userName().toLowerCase().replace(/[^a-z0-9_]/g, '') + Math.floor(Math.random() * 10000);
-  const fullName = faker.person.fullName();
+  const username = generar_usuario();
+  const fullName = generar_nombre();
   const password = uuidv4().slice(0, 12);
-  const email = getEmail();
+  const email = await getEmail();
 
   const accountData = {
     usuario: username,
     email,
     password,
     fingerprint,
-    proxy: "none",
     status: 'error',
     screenshots: [],
     timestamp: new Date().toISOString()
@@ -77,14 +78,48 @@ async function crearCuentaInstagram() {
     await cambiarIdentidad(page, fingerprint);
     await page.goto('https://www.instagram.com/accounts/emailsignup/', { waitUntil: 'networkidle2' });
 
+    // EMAIL input
+    const emailSelectors = [
+      'input[name="emailOrPhone"]',
+      'input[name="email"]',
+      'input[aria-label*="Correo"]',
+      'input[aria-label*="Email"]'
+    ];
+    let emailSelectorUsado = null;
+    for (const selector of emailSelectors) {
+      try {
+        await page.waitForSelector(selector, { timeout: 6000 });
+        emailSelectorUsado = selector;
+        break;
+      } catch {}
+    }
+    if (!emailSelectorUsado) {
+      accountData.screenshots.push(await saveScreenshot(page, username, 'no_email'));
+      throw new Error('No se encontró input para email');
+    }
+
+    // FULL NAME input
+    const fullNameSelector = 'input[name="fullName"]';
+    await page.waitForSelector(fullNameSelector, { timeout: 5000 });
+
+    // USERNAME input
+    const usernameSelector = 'input[name="username"]';
+    await page.waitForSelector(usernameSelector, { timeout: 5000 });
+
+    // PASSWORD input
+    const passwordSelector = 'input[name="password"]';
+    await page.waitForSelector(passwordSelector, { timeout: 5000 });
+
+    // Llenado
     logger.info(`📝 Llenando formulario para @${username}`);
-    await humanType(page, 'input[name="emailOrPhone"]', email);
-    await humanType(page, 'input[name="fullName"]', fullName);
-    await humanType(page, 'input[name="username"]', username);
-    await humanType(page, 'input[name="password"]', password);
+    await humanType(page, emailSelectorUsado, email);
+    await humanType(page, fullNameSelector, fullName);
+    await humanType(page, usernameSelector, username);
+    await humanType(page, passwordSelector, password);
     await page.click('button[type="submit"]');
     await delay(5000);
 
+    // Código de verificación
     const codeInput = await page.$('input[name="email_confirmation_code"]');
     if (codeInput) {
       logger.info('📬 Esperando código de verificación...');
@@ -109,9 +144,7 @@ async function crearCuentaInstagram() {
     }
 
     const postActiva = await postCreationBot({ username, password });
-    if (postActiva) {
-      accountData.postCreation = true;
-    }
+    if (postActiva) accountData.postCreation = true;
 
   } catch (error) {
     accountData.error = error.message;
