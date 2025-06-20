@@ -236,5 +236,29 @@
     "error": 1,
     "shadowban": 0,
     "lastUsed": "2025-06-20T08:37:24.300Z"
+  },
+  "eb9a0dbf62647e9be7f97985ad3b76bc": {
+    "fingerprint": {
+      "name": "iPhone 13 Pro",
+      "userAgent": "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1",
+      "viewport": {
+        "width": 390,
+        "height": 844,
+        "deviceScaleFactor": 3
+      },
+      "platform": "iPhone",
+      "mobile": true,
+      "webglVendor": "Apple Inc.",
+      "webglRenderer": "Apple A16 GPU",
+      "maxTouchPoints": 5,
+      "language": "en-US",
+      "timezoneId": "America/New_York",
+      "connectionType": "3g"
+    },
+    "used": 1,
+    "success": 0,
+    "error": 1,
+    "shadowban": 0,
+    "lastUsed": "2025-06-20T08:37:45.059Z"
   }
 }
