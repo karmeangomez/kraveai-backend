@@ -4,7 +4,8 @@
   "type": "module",
   "scripts": {
     "start:proxy": "node src/proxies/ultimateProxyMaster.js",
-    "test:proxy": "node src/proxies/proxyTester.js"
+    "test:proxy": "node src/proxies/proxyTester.js",
+    "start": "node server.js"
   },
   "dependencies": {
     "axios": "^1.10.0",
@@ -15,5 +16,22 @@
     "puppeteer-extra": "^3.3.6",
     "puppeteer-extra-plugin-stealth": "^2.11.2",
     "uuid": "^11.1.0"
-  }
+  },
+  "main": "main.js",
+  "directories": {
+    "lib": "lib"
+  },
+  "devDependencies": {},
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/karmeangomez/kraveai-backend.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/karmeangomez/kraveai-backend/issues"
+  },
+  "homepage": "https://github.com/karmeangomez/kraveai-backend#readme",
+  "description": ""
 }
