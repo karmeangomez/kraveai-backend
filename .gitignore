@@ -1,11 +1,6 @@
-.env
-sessions/
-logs/
 node_modules/
-cuentas_creadas.json
+.env
 *.log
-*.pid
-error_screenshots/
-*.pyc
-__pycache__/
-env/
+screenshots/
+proxies.json
+session_data/
