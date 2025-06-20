@@ -10,7 +10,7 @@ const Logger = require('./logger');
 const fs = require('fs');
 const path = require('path');
 const { v4: uuidv4 } = require('uuid');
-const faker = require('faker');
+const { faker } = require('@faker-js/faker');
 
 puppeteer.use(StealthPlugin());
 const logger = new Logger();
@@ -46,7 +46,7 @@ async function humanType(page, selector, text) {
   }
 }
 
-async function crearCuentaInstagramTurbo() {
+async function crearCuentaInstagram() {
   const fingerprint = generateFingerprint();
   const username = faker.internet.userName().toLowerCase().replace(/[^a-z0-9_]/g, '') + Math.floor(Math.random() * 10000);
   const fullName = faker.name.findName();
@@ -123,4 +123,4 @@ async function crearCuentaInstagramTurbo() {
   }
 }
 
-crearCuentaInstagramTurbo();
+crearCuentaInstagram();
