@@ -1,30 +1,14 @@
-// logger.js
-const fs = require('fs');
-const path = require('path');
-const winston = require('winston');
+const colors = {
+  info: '\x1b[36m',
+  success: '\x1b[32m',
+  warning: '\x1b[33m',
+  error: '\x1b[31m',
+  reset: '\x1b[0m'
+};
 
-// Asegurarse que el directorio "logs" exista
-const logDir = path.join(__dirname, 'logs');
-if (!fs.existsSync(logDir)) {
-  fs.mkdirSync(logDir, { recursive: true });
-}
-
-const logger = winston.createLogger({
-  level: process.env.LOG_LEVEL || 'debug',
-  format: winston.format.combine(
-    winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
-    winston.format.printf(info => `${info.timestamp} [${info.level.toUpperCase()}]: ${info.message}`)
-  ),
-  transports: [
-    // Consola para ver en vivo
-    new winston.transports.Console(),
-
-    // Log archivo principal general
-    new winston.transports.File({ filename: path.join(logDir, 'creacion.log') }),
-
-    // Log de errores separado (solo errores)
-    new winston.transports.File({ filename: path.join(logDir, 'error.log'), level: 'error' })
-  ]
-});
-
-module.exports = logger;
+module.exports = {
+  info: (msg) => console.log(`${colors.info}[RUSO-SYS] ${msg}${colors.reset}`),
+  success: (msg) => console.log(`${colors.success}[✅] ${msg}${colors.reset}`),
+  warning: (msg) => console.log(`${colors.warning}[⚠️] ${msg}${colors.reset}`),
+  error: (msg) => console.log(`${colors.error}[🔥] ${msg}${colors.reset}`)
+};
