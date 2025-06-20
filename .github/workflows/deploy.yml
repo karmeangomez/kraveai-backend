@@ -1,4 +1,4 @@
-name: 🚀 Despliegue Automático KraveAI
+name: 🚀 Despliegue Seguro KraveAI
 
 on:
   push:
@@ -7,10 +7,35 @@ on:
 
 jobs:
   deploy:
-    name: Despliegue en Raspberry Pi
+    name: Despliegue Seguro en Raspberry Pi
     runs-on: ubuntu-latest
 
     steps:
+      - name: 🛠️ Configuración Inicial
+        run: |
+          mkdir -p secure_config
+          echo "IONOS_USER=${{ secrets.IONOS_USER }}" > secure_config/.env.temp
+          echo "IONOS_PASS=${{ secrets.IONOS_PASS }}" >> secure_config/.env.temp
+          echo "CRYPTO_KEY=${{ secrets.CRYPTO_KEY }}" >> secure_config/.env.temp
+          echo "CRYPTO_IV=${{ secrets.CRYPTO_IV }}" >> secure_config/.env.temp
+
+      - name: 🔐 Cifrar Credenciales
+        run: |
+          node src/utils/secureEnv.js encrypt \
+            --input secure_config/.env.temp \
+            --output secure_config/.env.enc \
+            --key "${{ secrets.CRYPTO_KEY }}" \
+            --iv "${{ secrets.CRYPTO_IV }}"
+          
+          rm secure_config/.env.temp
+          echo "✅ Credenciales cifradas"
+
+      - name: 📤 Subir Archivo Cifrado
+        uses: actions/upload-artifact@v3
+        with:
+          name: env-secure
+          path: secure_config/.env.enc
+
       - name: 📡 Despliegue vía SSH
         uses: appleboy/ssh-action@v1
         with:
@@ -19,12 +44,26 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           port: ${{ secrets.SSH_PORT }}
           script: |
-            echo "📦 Iniciando despliegue KraveAI..."
-
+            echo "📦 Iniciando despliegue seguro KraveAI..."
+            
+            # Descargar archivo cifrado
+            wget https://github.com/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/artifacts/env-secure \
+              -O ~/kraveai-backend/.env.enc
+            
             cd ~/kraveai-backend
             git fetch --all
             git reset --hard origin/main
-
+            
+            echo "🔓 Descifrando credenciales..."
+            node src/utils/secureEnv.js decrypt \
+              --input .env.enc \
+              --output .env \
+              --key "${{ secrets.CRYPTO_KEY }}" \
+              --iv "${{ secrets.CRYPTO_IV }}"
+            
+            echo "🔍 Verificando entorno..."
+            node src/utils/checkEnv.js
+            
             echo "🐍 Activando entorno..."
             source env/bin/activate
             pip install -r requirements.txt
@@ -39,7 +78,7 @@ jobs:
               echo "Túnel inactivo, reiniciando..."
               sudo systemctl restart cloudflared.service
             else
-              echo "Túnel Cloudflare ya estaba activo ✅"
+              echo "Túnel Cloudflare activo ✅"
             fi
 
             echo "🩺 Verificando estado del backend..."
@@ -47,10 +86,10 @@ jobs:
             echo "Respuesta /health: $respuesta"
 
             if echo "$respuesta" | grep -q "\"status\": \"OK\""; then
-              mensaje="✅ *KraveAI actualizado con éxito*\n📅 $(date '+%Y-%m-%d %H:%M')\n🟢 Backend responde en /health"
+              mensaje="✅ *KraveAI actualizado con éxito*\n📅 $(date '+%Y-%m-%d %H:%M')\n🔒 Configuración segura activa\n🟢 Backend operativo"
               status=0
             else
-              mensaje="⚠️ *Error en despliegue KraveAI*\n📅 $(date '+%Y-%m-%d %H:%M')\n🔴 /health no respondió"
+              mensaje="⚠️ *Error en despliegue KraveAI*\n📅 $(date '+%Y-%m-%d %H:%M')\n🔴 /health no respondió\n🔍 Verificar logs: journalctl -u kraveai-python.service"
               status=1
             fi
 
