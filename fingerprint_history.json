@@ -69,5 +69,28 @@
     "error": 1,
     "shadowban": 0,
     "lastUsed": "2025-06-20T08:27:06.899Z"
+  },
+  "a570bc21e8407825d20c0c60278cfbd7": {
+    "fingerprint": {
+      "userAgent": "Opera/9.80 (Android 4.0.4; Linux; Opera Mobi/ADR-1205181138; U; pl) Presto/2.10.254 Version/12.00",
+      "viewport": {
+        "width": 1366,
+        "height": 768,
+        "deviceScaleFactor": 1
+      },
+      "language": "pt-BR",
+      "timezoneId": "America/Sao_Paulo",
+      "platform": "Win32",
+      "mobile": false,
+      "webglVendor": "Intel Inc.",
+      "webglRenderer": "Intel Iris OpenGL",
+      "maxTouchPoints": 0,
+      "connectionType": "ethernet"
+    },
+    "used": 1,
+    "success": 0,
+    "error": 1,
+    "shadowban": 0,
+    "lastUsed": "2025-06-20T08:27:20.954Z"
   }
 }
