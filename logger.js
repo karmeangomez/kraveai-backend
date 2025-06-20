@@ -1,14 +1,22 @@
-const colors = {
-  info: '\x1b[36m',
-  success: '\x1b[32m',
-  warning: '\x1b[33m',
-  error: '\x1b[31m',
-  reset: '\x1b[0m'
-};
+class Logger {
+  log(level, message) {
+    const timestamp = new Date().toISOString();
+    const colors = {
+      info: '\x1b[36m',
+      success: '\x1b[32m',
+      warn: '\x1b[33m',
+      error: '\x1b[31m',
+      reset: '\x1b[0m'
+    };
 
-module.exports = {
-  info: (msg) => console.log(`${colors.info}[RUSO-SYS] ${msg}${colors.reset}`),
-  success: (msg) => console.log(`${colors.success}[✅] ${msg}${colors.reset}`),
-  warning: (msg) => console.log(`${colors.warning}[⚠️] ${msg}${colors.reset}`),
-  error: (msg) => console.log(`${colors.error}[🔥] ${msg}${colors.reset}`)
-};
+    const logLine = `[${timestamp}] ${level.toUpperCase()}: ${message}`;
+    console.log(`${colors[level] || ''}${logLine}${colors.reset}`);
+  }
+
+  info(msg) { this.log('info', msg); }
+  success(msg) { this.log('success', msg); }
+  warn(msg) { this.log('warn', msg); }
+  error(msg) { this.log('error', msg); }
+}
+
+module.exports = Logger;
