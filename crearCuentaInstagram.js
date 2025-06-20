@@ -49,7 +49,7 @@ async function humanType(page, selector, text) {
 async function crearCuentaInstagram() {
   const fingerprint = generateFingerprint();
   const username = faker.internet.userName().toLowerCase().replace(/[^a-z0-9_]/g, '') + Math.floor(Math.random() * 10000);
-  const fullName = faker.name.findName();
+  const fullName = faker.person.fullName(); // ✅ faker v8+
   const password = uuidv4().slice(0, 12);
   const email = getEmail();
 
@@ -119,7 +119,7 @@ async function crearCuentaInstagram() {
     if (browser) await browser.close();
     await saveAccount(accountData);
     logFingerprintResult(fingerprint, accountData.status);
-    console.log(JSON.stringify(accountData));
+    console.log(JSON.stringify(accountData)); // usado por runCrearCuentasTurbo.js
   }
 }
 
