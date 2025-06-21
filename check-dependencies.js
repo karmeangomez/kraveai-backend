@@ -1,15 +1,16 @@
-import { dependencies } from './package.json' assert { type: 'json' };
+// check-dependencies.js
+import pkg from './package.json' assert { type: 'json' };
+const { dependencies } = pkg;
 
-const requiredDeps = [
-  'puppeteer', 'axios', 'imap', 'mailparser', 'jsdom'
-];
+console.log('🔍 Revisando dependencias...');
 
-console.log('🔍 Verificando dependencias:');
-requiredDeps.forEach(dep => {
-  const installed = dependencies[dep];
-  console.log(`   ${dep}: ${installed ? '✅' : '❌'}`);
-  
-  if (!installed) {
-    console.warn(`   ⚠️ Ejecuta: npm install ${dep}`);
-  }
-});
+const required = ['axios', 'imap', 'puppeteer', 'user-agents', 'jsdom', 'mailparser'];
+const missing = required.filter(dep => !dependencies.hasOwnProperty(dep));
+
+if (missing.length > 0) {
+  console.error('❌ Dependencias faltantes en package.json:');
+  missing.forEach(d => console.error(`• ${d}`));
+  process.exit(1);
+} else {
+  console.log('✅ Todas las dependencias requeridas están en package.json');
+}
