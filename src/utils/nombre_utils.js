@@ -45,7 +45,7 @@ function generateEmail() {
 }
 
 export {
-  getRandomName,            // <-- Esta es la que espera crearCuentaInstagram.js
+  getRandomName,
   generateRussianName,
   generateUsername,
   generateEmail
