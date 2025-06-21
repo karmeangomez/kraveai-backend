@@ -1,4 +1,6 @@
+// src/proxies/proxyRotationSystem.js
 import UltimateProxyMaster from './ultimateProxyMaster.js';
+import axios from 'axios';
 
 class ProxyRotationSystem {
   constructor() {
@@ -18,9 +20,8 @@ class ProxyRotationSystem {
         premium: UltimateProxyMaster.proxySources.premium.includes(p.string)
       }));
 
-    if (available.length === 0) throw new Error('❌ No hay proxies disponibles');
+    if (available.length === 0) throw new Error('No hay proxies disponibles');
 
-    // Prioriza proxies premium y con menos fallos/uso
     return available.sort((a, b) => {
       if (a.premium !== b.premium) return b.premium - a.premium;
       return a.stats.failures - b.stats.failures || a.stats.usageCount - b.stats.usageCount;
@@ -57,6 +58,31 @@ class ProxyRotationSystem {
       buenos: [...this.proxyStats.entries()].filter(([_, s]) => s.failures < this.config.MAX_FAILS).length,
       malos: this.blacklist.size
     };
+  }
+
+  async initHealthChecks() {
+    console.log('🔄 Iniciando chequeos de salud de proxies...');
+    const proxies = UltimateProxyMaster.getWorkingProxies();
+
+    for (const proxy of proxies) {
+      try {
+        const response = await axios.get('http://httpbin.org/ip', {
+          proxy: {
+            host: proxy.ip,
+            port: proxy.port,
+            auth: proxy.auth || undefined
+          },
+          timeout: 5000
+        });
+        if (response.status === 200) {
+          this.recordSuccess(proxy.string);
+        } else {
+          this.recordFailure(proxy.string);
+        }
+      } catch (err) {
+        this.recordFailure(proxy.string);
+      }
+    }
   }
 }
 
