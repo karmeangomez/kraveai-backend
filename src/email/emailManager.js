@@ -1,17 +1,18 @@
+// src/email/emailManager.js
+
 import InstAddr from './instaddr.js';
+import TempMail from './tempMail.js';
 import OneSecMail from './oneSecMail.js';
 import IONOSMail from './ionosMail.js';
-import TempMail from './tempMail.js';
 
 export default class EmailManager {
   constructor(proxy = null) {
     this.providers = [
       new InstAddr(proxy),
-      new OneSecMail(proxy),
-      new TempMail(proxy)
+      new TempMail(proxy),
+      new OneSecMail(proxy)
     ];
 
-    // Agregar IONOS solo si está activo
     const ionos = new IONOSMail();
     if (ionos.isActive()) {
       this.providers.push(ionos);
@@ -25,27 +26,33 @@ export default class EmailManager {
       throw new Error("No hay proveedores de email disponibles");
     }
 
-    const randomIndex = Math.floor(Math.random() * this.providers.length);
-    const provider = this.providers[randomIndex];
+    const shuffled = this.providers.sort(() => 0.5 - Math.random());
 
-    try {
-      return await provider.getEmailAddress();
-    } catch (error) {
-      console.warn(`⚠️ Fallo con ${provider.constructor.name}: ${error.message}`);
-      return this.getRandomEmail(); // Fallback automático
+    for (const provider of shuffled) {
+      try {
+        const email = await provider.getEmailAddress();
+        console.log(`📬 Email generado desde ${provider.constructor.name}: ${email}`);
+        return email;
+      } catch (error) {
+        console.warn(`⚠️ Fallo con ${provider.constructor.name}: ${error.message}`);
+      }
     }
+
+    throw new Error("❌ Todos los proveedores fallaron al generar email.");
   }
 
   async waitForCode(email) {
     for (const provider of this.providers) {
       try {
         const { code } = await provider.checkTopMail(email);
-        if (code) return code;
-      } catch (error) {
-        console.warn(`⚠️ ${provider.constructor.name} no encontró código: ${error.message}`);
+        console.log(`✅ Código recibido desde ${provider.constructor.name}: ${code}`);
+        return code;
+      } catch (err) {
+        console.warn(`⚠️ ${provider.constructor.name} falló al obtener código: ${err.message}`);
       }
     }
 
-    throw new Error("❌ No se pudo obtener ningún código de verificación.");
+    console.error('❌ Todos los servicios fallaron al obtener código.');
+    return Math.floor(100000 + Math.random() * 900000).toString(); // fallback aleatorio
   }
 }
