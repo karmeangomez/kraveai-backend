@@ -100,6 +100,24 @@ class ProxyRotationSystem {
         }
     }
 
+    recordFailure(proxyString) {
+        if (!this.proxyStats.has(proxyString)) {
+            this.proxyStats.set(proxyString, {
+                successes: 0,
+                failures: 0,
+                lastResponseTimes: []
+            });
+        }
+        
+        const stats = this.proxyStats.get(proxyString);
+        stats.failures++;
+        
+        if (stats.failures >= this.config.MAX_FAILS) {
+            this.blacklist.add(proxyString);
+            console.warn(`🚫 Proxy ${proxyString} añadido a blacklist`);
+        }
+    }
+
     getActiveProxies() {
         return [...UltimateProxyMaster.proxySources.premium, ...UltimateProxyMaster.proxySources.backup]
             .filter(proxyStr => !this.blacklist.has(proxyStr));
