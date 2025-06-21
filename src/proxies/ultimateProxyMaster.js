@@ -25,21 +25,21 @@ class UltimateProxyMaster {
 
   async loadProxies() {
     try {
-      // 1. Cargar proxies desde proxies.json
       const proxiesJsonPath = path.resolve('./src/proxies/proxies.json');
-      const jsonData = await fs.readFile(proxiesJsonPath, 'utf8');
+      const jsonData = await await fs.readFile(proxiesJsonPath, 'utf8');
       const proxiesData = JSON.parse(jsonData);
-      
+
       this.proxySources.premium = proxiesData.premium || [];
+      this.proxySources.backup = proxiesData.backup || [];
+
       console.log(`📁 ${this.proxySources.premium.length} proxies cargados desde proxies.json`);
-      
-      // 2. Filtrar proxies funcionales con autenticación
-      this.workingProxies = await this.filterWorkingProxies(this.proxySources.premium);
-      
+
+      const combinedProxies = [...this.proxySources.premium, ...this.proxySources.backup];
+      this.workingProxies = await this.filterWorkingProxies(combinedProxies);
+
       console.log(`🧪 ${this.workingProxies.length} proxies funcionales encontrados`);
-      
-      // 3. Inicializar contadores
-      this.workingProxies.forEach(proxy => this.proxyUsageCount.set(proxy, 0));
+
+      this.workingProxies.forEach(proxy => this.proxyUsageCount.set(proxy.string, 0));
     } catch (error) {
       console.error('❌ Error crítico cargando proxies:', error);
       throw new Error('No se pudieron cargar los proxies');
@@ -48,7 +48,7 @@ class UltimateProxyMaster {
 
   async filterWorkingProxies(proxyList) {
     if (!proxyList || proxyList.length === 0) return [];
-    
+
     const testPromises = proxyList.map(async proxyStr => {
       try {
         const proxy = this.formatProxy(proxyStr);
@@ -63,17 +63,17 @@ class UltimateProxyMaster {
           },
           timeout: 5000
         });
-        
+
         if (response.data && response.data.origin) {
           console.log(`✅ Proxy activo: ${proxyStr} (${response.data.origin})`);
-          return proxyStr;
+          return proxy;
         }
       } catch (error) {
         console.warn(`❌ Proxy fallido: ${proxyStr} - ${error.message}`);
       }
       return null;
     });
-    
+
     const results = await Promise.all(testPromises);
     return results.filter(p => p !== null);
   }
@@ -83,7 +83,7 @@ class UltimateProxyMaster {
     if (parts.length < 4) {
       throw new Error(`Formato de proxy inválido: ${proxyStr}`);
     }
-    
+
     return {
       ip: parts[0],
       port: parseInt(parts[1]),
@@ -101,6 +101,11 @@ class UltimateProxyMaster {
 
   getProxy(proxyStr) {
     return this.formatProxy(proxyStr);
+  }
+
+  markProxyUsed(proxyStr) {
+    const count = this.proxyUsageCount.get(proxyStr) || 0;
+    this.proxyUsageCount.set(proxyStr, count + 1);
   }
 }
 
