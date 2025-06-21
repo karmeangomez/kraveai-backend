@@ -1,3 +1,5 @@
+// src/proxies/proxyRotationSystem.js
+
 import UltimateProxyMaster from './ultimateProxyMaster.js';
 
 class ProxyRotationSystem {
@@ -21,9 +23,7 @@ class ProxyRotationSystem {
     if (available.length === 0) throw new Error('❌ No hay proxies disponibles');
 
     return available.sort((a, b) => {
-      // Prioriza proxies premium
       if (a.premium !== b.premium) return b.premium - a.premium;
-      // Luego menos fallos y menos uso
       return a.stats.failures - b.stats.failures || a.stats.usageCount - b.stats.usageCount;
     })[0].proxy;
   }
