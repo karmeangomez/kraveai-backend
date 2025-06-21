@@ -1,17 +1,27 @@
 export default class IONOSMail {
   constructor() {
-    this.config = {
-      user: process.env.IONOS_EMAIL,
-      password: process.env.IONOS_PASSWORD,
-      host: 'imap.ionos.mx',
-      port: 993,
-      tls: true,
-      authTimeout: 10000
-    };
-
-    // Validación básica
-    if (!this.config.user || !this.config.password) {
-      throw new Error('IONOS credentials not configured');
+    this.username = process.env.IONOS_USER || '';
+    this.password = process.env.IONOS_PASSWORD || '';
+    
+    // Verifica si las credenciales están vacías
+    if (!this.username || !this.password) {
+      console.warn("⚠️ Credenciales IONOS no configuradas - Proveedor desactivado");
+      this.active = false;
+      return;
     }
+    
+    this.active = true;
+    console.log("✅ Proveedor IONOSMail activado");
+  }
+  
+  isActive() {
+    return this.active;
+  }
+
+  async getEmailAddress() {
+    if (!this.active) {
+      throw new Error("IONOSMail no activo");
+    }
+    // ... resto de tu implementación ...
   }
 }
