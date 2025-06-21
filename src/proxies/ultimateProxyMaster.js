@@ -1,5 +1,6 @@
 import axios from 'axios';
 import fs from 'fs/promises';
+import path from 'path';
 
 class UltimateProxyMaster {
   constructor() {
@@ -7,14 +8,14 @@ class UltimateProxyMaster {
       premium: [],
       backup: []
     };
-    this.MAX_PROXY_REQUESTS = 50;
     this.proxyUsageCount = new Map();
+    this.workingProxies = [];
   }
 
   async init() {
     try {
       await this.loadProxies();
-      console.log(`✅ Proxy Master iniciado con ${this.proxySources.premium.length} proxies premium y ${this.proxySources.backup.length} de backup`);
+      console.log(`✅ Proxy Master iniciado con ${this.workingProxies.length} proxies funcionales`);
       return this;
     } catch (error) {
       console.error('❌ Error al iniciar Proxy Master:', error);
@@ -24,121 +25,82 @@ class UltimateProxyMaster {
 
   async loadProxies() {
     try {
-      // Carga proxies de archivos
-      const premiumData = await fs.readFile('./config/premium_proxies.txt', 'utf8');
-      const rawPremium = premiumData.split('\n').filter(Boolean);
+      // 1. Cargar proxies desde proxies.json
+      const proxiesJsonPath = path.resolve('./src/proxies/proxies.json');
+      const jsonData = await fs.readFile(proxiesJsonPath, 'utf8');
+      const proxiesData = JSON.parse(jsonData);
       
-      const backupData = await fs.readFile('./config/backup_proxies.txt', 'utf8');
-      const rawBackup = backupData.split('\n').filter(Boolean);
+      this.proxySources.premium = proxiesData.premium || [];
+      console.log(`📁 ${this.proxySources.premium.length} proxies cargados desde proxies.json`);
       
-      // Filtrar proxies funcionales
-      this.proxySources.premium = [];
-      for (const proxyStr of rawPremium) {
-        if (await this.testProxy(proxyStr)) {
-          this.proxySources.premium.push(proxyStr);
-          console.log(`✅ Proxy premium verificado: ${proxyStr}`);
-        } else {
-          console.warn(`❌ Proxy premium no funcional: ${proxyStr}`);
-        }
-      }
+      // 2. Filtrar proxies funcionales con autenticación
+      this.workingProxies = await this.filterWorkingProxies(this.proxySources.premium);
       
-      this.proxySources.backup = [];
-      for (const proxyStr of rawBackup) {
-        if (await this.testProxy(proxyStr)) {
-          this.proxySources.backup.push(proxyStr);
-          console.log(`✅ Proxy backup verificado: ${proxyStr}`);
-        } else {
-          console.warn(`❌ Proxy backup no funcional: ${proxyStr}`);
-        }
-      }
-
-      // Si no hay suficientes proxies, usar respaldo online
-      if (this.proxySources.premium.length < 3) {
-        console.log('⚠️ Usando proxies de respaldo online');
-        const onlineProxies = await this.getOnlineProxies();
-        this.proxySources.premium = [...this.proxySources.premium, ...onlineProxies.slice(0, 5)];
-      }
+      console.log(`🧪 ${this.workingProxies.length} proxies funcionales encontrados`);
       
-      // Inicializa contadores
-      this.proxySources.premium.forEach(proxy => this.proxyUsageCount.set(proxy, 0));
-      this.proxySources.backup.forEach(proxy => this.proxyUsageCount.set(proxy, 0));
+      // 3. Inicializar contadores
+      this.workingProxies.forEach(proxy => this.proxyUsageCount.set(proxy, 0));
     } catch (error) {
-      console.warn('⚠️ Usando proxies por defecto');
-      this.proxySources = {
-        premium: [
-          '45.95.96.187:8446',
-          '45.95.96.188:8446',
-          '45.95.96.189:8446'
-        ],
-        backup: [
-          '45.95.96.190:8446',
-          '45.95.96.191:8446'
-        ]
-      };
+      console.error('❌ Error crítico cargando proxies:', error);
+      throw new Error('No se pudieron cargar los proxies');
     }
   }
 
-  async testProxy(proxyStr) {
-    const proxy = this.formatProxy(proxyStr, 'test');
-    try {
-      const response = await axios.get('https://www.google.com', {
-        proxy: {
-          host: proxy.ip,
-          port: proxy.port,
-          ...(proxy.auth && {
+  async filterWorkingProxies(proxyList) {
+    if (!proxyList || proxyList.length === 0) return [];
+    
+    const testPromises = proxyList.map(async proxyStr => {
+      try {
+        const proxy = this.formatProxy(proxyStr);
+        const response = await axios.get('http://httpbin.org/ip', {
+          proxy: {
+            host: proxy.ip,
+            port: proxy.port,
             auth: {
               username: proxy.auth.username,
               password: proxy.auth.password
             }
-          })
-        },
-        timeout: 5000
-      });
-      return response.status === 200;
-    } catch (error) {
-      return false;
-    }
-  }
-
-  async getOnlineProxies() {
-    try {
-      const response = await axios.get('https://api.proxyscrape.com/v2/?request=getproxies&protocol=http&timeout=5000&country=all');
-      return response.data.split('\r\n').filter(p => p);
-    } catch (error) {
-      console.error('Error obteniendo proxies online:', error.message);
-      return [];
-    }
-  }
-
-  formatProxy(proxyStr, type) {
-    const parts = proxyStr.split(':');
-    const port = parseInt(parts[1]);
+          },
+          timeout: 5000
+        });
+        
+        if (response.data && response.data.origin) {
+          console.log(`✅ Proxy activo: ${proxyStr} (${response.data.origin})`);
+          return proxyStr;
+        }
+      } catch (error) {
+        console.warn(`❌ Proxy fallido: ${proxyStr} - ${error.message}`);
+      }
+      return null;
+    });
     
-    if (isNaN(port) || port < 1 || port > 65535) {
-      throw new Error(`Puerto inválido en proxy: ${proxyStr}`);
-    }
+    const results = await Promise.all(testPromises);
+    return results.filter(p => p !== null);
+  }
 
+  formatProxy(proxyStr) {
+    const parts = proxyStr.split(':');
+    if (parts.length < 4) {
+      throw new Error(`Formato de proxy inválido: ${proxyStr}`);
+    }
+    
     return {
       ip: parts[0],
-      port,
-      ...(parts[2] && parts[3] ? {
-        auth: {
-          username: parts[2],
-          password: parts[3]
-        }
-      } : {}),
-      type,
-      string: proxyStr,
-      usageCount: this.proxyUsageCount.get(proxyStr) || 0
+      port: parseInt(parts[1]),
+      auth: {
+        username: parts[2],
+        password: parts[3]
+      },
+      string: proxyStr
     };
   }
 
-  getProxyStats() {
-    return {
-      premium: this.proxySources.premium.length,
-      backup: this.proxySources.backup.length,
-      usage: Object.fromEntries(this.proxyUsageCount)
-    };
+  getWorkingProxies() {
+    return this.workingProxies;
+  }
+
+  getProxy(proxyStr) {
+    return this.formatProxy(proxyStr);
   }
 }
 
