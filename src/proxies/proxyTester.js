@@ -1,11 +1,23 @@
-import UltimateProxyMaster from './ultimateProxyMaster.js';
+import axios from 'axios';
 
-// Esperar inicialización
-setTimeout(() => {
-  console.log('\n✅ Proxy System Test');
-  console.log('Premium Proxy:', UltimateProxyMaster.proxySources.premium[0]);
-  console.log('SwiftShadow Proxy:', UltimateProxyMaster.proxySources.swiftShadow[0] || 'Loading...');
-  console.log('multiProxies Proxy:', UltimateProxyMaster.proxySources.multiProxies[0] || 'Loading...');
-  
-  UltimateProxyMaster.logStats();
-}, 5000);
+export default class SwiftShadowLoader {
+  static async getProxies() {
+    try {
+      console.log('⚡ Cargando proxies desde SwiftShadow...');
+
+      const { data } = await axios.get('https://raw.githubusercontent.com/mertguvencli/http-proxy-list/main/proxy-list/data.txt');
+
+      const proxies = data
+        .split('\n')
+        .filter(line => line.includes(':'))
+        .slice(0, 50)
+        .map(ipPort => `${ipPort}:user:pass`);
+
+      console.log(`✅ ${proxies.length} proxies de SwiftShadow cargados`);
+      return proxies;
+    } catch (error) {
+      console.error('❌ Error al cargar proxies desde SwiftShadow:', error.message);
+      return [];
+    }
+  }
+}
