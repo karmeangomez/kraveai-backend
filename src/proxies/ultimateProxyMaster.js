@@ -1,163 +1,166 @@
+import UltimateProxyMaster from './ultimateProxyMaster.js';
 import axios from 'axios';
-import fs from 'fs/promises';
-import path from 'path';
 
-class UltimateProxyMaster {
+class ProxyRotationSystem {
   constructor() {
-    this.proxySources = {
-      premium: [],
-      public: []
+    this.proxyStats = new Map();
+    this.blacklist = new Set();
+    this.config = {
+      MAX_FAILS: 3
     };
-    this.proxyUsageCount = new Map();
-    this.workingProxies = [];
-    this.cachePath = path.resolve('./config/public_proxies_cache.txt');
   }
 
-  async init() {
+  getBestProxy() {
+    const available = UltimateProxyMaster.getWorkingProxies()
+      .filter(p => !this.blacklist.has(p.string))
+      .map(p => ({
+        proxy: p,
+        stats: this.proxyStats.get(p.string) || { usageCount: 0, failures: 0 },
+        premium: UltimateProxyMaster.proxySources.premium.includes(p.string)
+      }));
+
+    if (available.length === 0) throw new Error('No hay proxies disponibles');
+
+    return available.sort((a, b) => {
+      if (a.premium !== b.premium) return b.premium - a.premium;
+      return a.stats.failures - b.stats.failures || a.stats.usageCount - b.stats.usageCount;
+    })[0].proxy;
+  }
+
+  recordFailure(proxyString) {
+    const stats = this.proxyStats.get(proxyString) || { usageCount: 0, failures: 0 };
+    stats.usageCount++;
+    stats.failures++;
+    this.proxyStats.set(proxyString, stats);
+
+    if (stats.failures >= this.config.MAX_FAILS) {
+      this.blacklist.add(proxyString);
+      console.warn(`🚫 Proxy blacklisted: ${proximport puppeteer from 'puppeteer-extra';
+import StealthPlugin from 'puppeteer-extra-plugin-stealth';
+import { v4 as uuidv4 } from 'uuid';
+import { getRandomName } from '../utils/nombre_utils.js';
+import { humanType, randomDelay, simulateMouseMovement, humanInteraction } from '../utils/humanActions.js';
+import ProxyRotationSystem from '../proxies/proxyRotationSystem.js';
+import AccountManager from './accountManager.js';
+import { getTempMail } from '../email/tempMail.js';
+
+puppeteer.use(StealthPlugin());
+
+const logger = {
+    info: (msg) => console.log(`[INFO] ${new Date().toISOString()} - ${msg}`),
+    error: (msg) => console.error(`[ERROR] ${new Date().toISOString()} - ${msg}`)
+};
+
+export async function crearCuentaInstagram() {
+    const browser = await puppeteer.launch({
+        headless: true,
+        args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-gpu'],
+        executablePath: '/usr/bin/chromium-browser'
+    });
+    const page = await browser.newPage();
+
+    let proxyObj = ProxyRotationSystem.getBestProxy();
+    let proxyStr = proxyObj ? proxyObj.string : 'none';
+    
     try {
-      await this.loadPremiumProxies();
-      await this.loadPublicProxies();
-      const combinedProxies = [...this.proxySources.premium, ...this.proxySources.public];
-      this.workingProxies = await this.filterWorkingProxies(combinedProxies);
+        logger.info(`🛡️ Usando proxy: ${proxyStr}`);
 
-      console.log(`✅ Proxy Master iniciado con ${this.workingProxies.length} proxies funcionales`);
-      this.workingProxies.forEach(proxy => this.proxyUsageCount.set(proxy.string, 0));
-      await this.savePublicProxiesCache();
-      await this.saveFunctionalProxies();
-    } catch (error) {
-      console.error('❌ Error al iniciar Proxy Master:', error);
-      throw error;
-    }
-  }
-
-  async loadPremiumProxies() {
-    try {
-      const proxyJsonPath = path.resolve('./src/proxies/proxies.json');
-      const jsonData = await fs.readFile(proxyJsonPath, 'utf8');
-      const parsed = JSON.parse(jsonData);
-      this.proxySources.premium = parsed.premium || [];
-      console.log(`🔐 ${this.proxySources.premium.length} proxies premium cargados`);
-    } catch (error) {
-      console.warn('⚠️ No se pudo cargar proxies premium:', error.message);
-      this.proxySources.premium = [];
-    }
-  }
-
-  async loadPublicProxies() {
-    try {
-      const sources = [
-        'https://api.proxyscrape.com/v2/?request=getproxies&protocol=http&timeout=5000&country=all&simplified=true',
-        'https://raw.githubusercontent.com/TheSpeedX/SOCKS-List/master/http.txt',
-        'https://raw.githubusercontent.com/jetkai/proxy-list/main/online-proxies/txt/proxies-http.txt'
-      ];
-
-      const results = await Promise.allSettled(
-        sources.map(url => axios.get(url, { timeout: 7000 }))
-      );
-
-      const combined = results
-        .filter(res => res.status === 'fulfilled')
-        .map(res => res.value.data)
-        .flatMap(data => data.split(/\r?\n/).filter(p => p.includes(':')))
-        .map(p => `${p}:user:pass`);
-
-      this.proxySources.public = combined;
-      console.log(`🌐 ${combined.length} proxies públicos extraídos de múltiples fuentes`);
-    } catch (error) {
-      console.warn('⚠️ Error al cargar proxies públicos:', error.message);
-      this.proxySources.public = [];
-    }
-  }
-
-  async savePublicProxiesCache() {
-    try {
-      const functionalProxies = this.workingProxies
-        .filter(p => !this.proxySources.premium.includes(p.string))
-        .map(p => p.string);
-      await fs.writeFile(this.cachePath, functionalProxies.join('\n'));
-      console.log(`📂 ${functionalProxies.length} proxies públicos guardados en caché`);
-    } catch (error) {
-      console.warn('⚠️ Error al guardar caché de proxies:', error.message);
-    }
-  }
-
-  async saveFunctionalProxies() {
-    try {
-      const premiumList = this.workingProxies
-        .filter(p => this.proxySources.premium.includes(p.string))
-        .map(p => p.string);
-      const publicList = this.workingProxies
-        .filter(p => !this.proxySources.premium.includes(p.string))
-        .map(p => p.string);
-
-      await fs.writeFile('./config/proxies_funcionales_premium.txt', premiumList.join('\n'));
-      await fs.writeFile('./config/proxies_funcionales_publicos.txt', publicList.join('\n'));
-      console.log(`📁 Proxies funcionales guardados en config/ (premium: ${premiumList.length}, públicos: ${publicList.length})`);
-    } catch (error) {
-      console.warn('⚠️ Error al guardar proxies funcionales:', error.message);
-    }
-  }
-
-  async filterWorkingProxies(proxyList) {
-    if (!proxyList || proxyList.length === 0) return [];
-
-    const testPromises = proxyList.map(async proxyStr => {
-      try {
-        const proxy = this.formatProxy(proxyStr);
-        const response = await axios.get('http://httpbin.org/ip', {
-          proxy: {
-            host: proxy.ip,
-            port: proxy.port,
-            auth: proxy.auth || undefined
-          },
-          timeout: 5000
-        });
-
-        if (response.data && response.data.origin) {
-          console.log(`✅ Proxy activo: ${proxyStr}`);
-          return proxy;
+        if (proxyObj) {
+            await page.authenticate({
+                username: proxyObj.auth ? proxyObj.auth.username : undefined,
+                password: proxyObj.auth ? proxyObj.auth.password : undefined
+            });
         }
-      } catch (_) {}
-      return null;
-    });
 
-    const results = await Promise.all(testPromises);
-    return results.filter(p => p !== null);
+        await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36');
+        await page.goto('https://www.instagram.com/accounts/emailsignup/', { waitUntil: 'networkidle2' });
+
+        await randomDelay(2000, 5000);
+        await simulateMouseMovement(page);
+
+        const { firstName, lastName } = getRandomName();
+        const username = `${firstName.toLowerCase()}${lastName.toLowerCase()}${Math.floor(Math.random() * 1000)}`;
+        const password = `${firstName}${lastName}${Math.random().toString(36).slice(-4)}!`;
+        const { email, token } = await getTempMail();
+
+        await humanInteraction(page);
+
+        await humanType(page, 'input[name="emailOrPhone"]', email);
+        await humanType(page, 'input[name="fullName"]', `${firstName} ${lastName}`);
+        await humanType(page, 'input[name="username"]', username);
+        await humanType(page, 'input[name="password"]', password);
+
+        await randomDelay(1000, 3000);
+        const signUpButton = await page.$('button[type="submit"]');
+        await signUpButton.click();
+
+        await page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 10000 }).catch(() => {});
+
+        const account = {
+            id: uuidv4(),
+            username,
+            email,
+            password,
+            proxy: proxyStr,
+            status: 'created'
+        };
+        AccountManager.addAccount(account);
+
+        ProxyRotationSystem.markProxyUsed(proxyStr);
+
+        await browser.close();
+        return {
+            status: 'created',
+            username,
+            email,
+            proxy: proxyStr
+        };
+    } catch (error) {
+        logger.error(`❌ Error creando cuenta: ${error.message}`);
+        ProxyRotationSystem.recordFailure(proxyStr);
+
+        const account = {
+            id: uuidv4(),
+            username: '',
+            email: '',
+            password: '',
+            proxy: proxyStr,
+            status: 'failed',
+            error: error.message
+        };
+        AccountManager.addAccount(account);
+
+        await browser.close();
+        return {
+            status: 'failed',
+            error: error.message,
+            proxy: proxyStr
+        };
+    }
+}yString}`);
+    }
   }
 
-  formatProxy(proxyStr) {
-    const parts = proxyStr.trim().split(':');
-    if (parts.length < 2) throw new Error(`Formato inválido: ${proxyStr}`);
+  recordSuccess(proxyString) {
+    const stats = this.proxyStats.get(proxyString) || { usageCount: 0, failures: 0 };
+    stats.usageCount++;
+    this.proxyStats.set(proxyString, stats);
+  }
+
+  markProxyUsed(proxyString) {
+    const stats = this.proxyStats.get(proxyString) || { usageCount: 0, failures: 0 };
+    stats.usageCount++;
+    this.proxyStats.set(proxyString, stats);
+  }
+
+  getProxyStats() {
     return {
-      ip: parts[0],
-      port: parseInt(parts[1]),
-      auth: (parts.length === 4)
-        ? { username: parts[2], password: parts[3] }
-        : null,
-      string: proxyStr
+      total: this.proxyStats.size,
+      buenos: [...this.proxyStats.entries()].filter(([_, s]) => s.failures < this.config.MAX_FAILS).length,
+      malos: this.blacklist.size
     };
-  }
-
-  getWorkingProxies() {
-    return this.workingProxies;
-  }
-
-  getProxy(proxyStr) {
-    return this.formatProxy(proxyStr);
-  }
-
-  markProxyUsed(proxyStr) {
-    const count = this.proxyUsageCount.get(proxyStr) || 0;
-    this.proxyUsageCount.set(proxyStr, count + 1);
-  }
-
-  logStats() {
-    console.log('\n📊 Estadísticas de Proxies:');
-    Object.entries(this.proxySources).forEach(([tipo, lista]) => {
-      console.log(`• ${tipo}: ${lista.length} proxies`);
-    });
   }
 }
 
-const proxyMaster = new UltimateProxyMaster();
-export default proxyMaster;
+const proxyRotationSystem = new ProxyRotationSystem();
+export default proxyRotationSystem;
