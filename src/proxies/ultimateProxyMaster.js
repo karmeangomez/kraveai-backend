@@ -1,166 +1,185 @@
-import UltimateProxyMaster from './ultimateProxyMaster.js';
 import axios from 'axios';
+import fs from 'fs/promises';
+import path from 'path';
 
-class ProxyRotationSystem {
+class UltimateProxyMaster {
   constructor() {
-    this.proxyStats = new Map();
-    this.blacklist = new Set();
-    this.config = {
-      MAX_FAILS: 3
+    this.proxySources = {
+      premium: [],
+      public: []
     };
+    this.proxyUsageCount = new Map();
+    this.workingProxies = [];
+    this.cachePath = path.resolve('./config/public_proxies_cache.txt');
   }
 
-  getBestProxy() {
-    const available = UltimateProxyMaster.getWorkingProxies()
-      .filter(p => !this.blacklist.has(p.string))
-      .map(p => ({
-        proxy: p,
-        stats: this.proxyStats.get(p.string) || { usageCount: 0, failures: 0 },
-        premium: UltimateProxyMaster.proxySources.premium.includes(p.string)
-      }));
-
-    if (available.length === 0) throw new Error('No hay proxies disponibles');
-
-    return available.sort((a, b) => {
-      if (a.premium !== b.premium) return b.premium - a.premium;
-      return a.stats.failures - b.stats.failures || a.stats.usageCount - b.stats.usageCount;
-    })[0].proxy;
-  }
-
-  recordFailure(proxyString) {
-    const stats = this.proxyStats.get(proxyString) || { usageCount: 0, failures: 0 };
-    stats.usageCount++;
-    stats.failures++;
-    this.proxyStats.set(proxyString, stats);
-
-    if (stats.failures >= this.config.MAX_FAILS) {
-      this.blacklist.add(proxyString);
-      console.warn(`🚫 Proxy blacklisted: ${proximport puppeteer from 'puppeteer-extra';
-import StealthPlugin from 'puppeteer-extra-plugin-stealth';
-import { v4 as uuidv4 } from 'uuid';
-import { getRandomName } from '../utils/nombre_utils.js';
-import { humanType, randomDelay, simulateMouseMovement, humanInteraction } from '../utils/humanActions.js';
-import ProxyRotationSystem from '../proxies/proxyRotationSystem.js';
-import AccountManager from './accountManager.js';
-import { getTempMail } from '../email/tempMail.js';
-
-puppeteer.use(StealthPlugin());
-
-const logger = {
-    info: (msg) => console.log(`[INFO] ${new Date().toISOString()} - ${msg}`),
-    error: (msg) => console.error(`[ERROR] ${new Date().toISOString()} - ${msg}`)
-};
-
-export async function crearCuentaInstagram() {
-    const browser = await puppeteer.launch({
-        headless: true,
-        args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-gpu'],
-        executablePath: '/usr/bin/chromium-browser'
-    });
-    const page = await browser.newPage();
-
-    let proxyObj = ProxyRotationSystem.getBestProxy();
-    let proxyStr = proxyObj ? proxyObj.string : 'none';
-    
+  async init() {
     try {
-        logger.info(`🛡️ Usando proxy: ${proxyStr}`);
+      await this.loadPremiumProxies();
+      await this.loadPublicProxies();
+      const combinedProxies = [...this.proxySources.premium, ...this.proxySources.public];
+      this.workingProxies = await this.filterWorkingProxies(combinedProxies);
 
-        if (proxyObj) {
-            await page.authenticate({
-                username: proxyObj.auth ? proxyObj.auth.username : undefined,
-                password: proxyObj.auth ? proxyObj.auth.password : undefined
-            });
-        }
-
-        await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36');
-        await page.goto('https://www.instagram.com/accounts/emailsignup/', { waitUntil: 'networkidle2' });
-
-        await randomDelay(2000, 5000);
-        await simulateMouseMovement(page);
-
-        const { firstName, lastName } = getRandomName();
-        const username = `${firstName.toLowerCase()}${lastName.toLowerCase()}${Math.floor(Math.random() * 1000)}`;
-        const password = `${firstName}${lastName}${Math.random().toString(36).slice(-4)}!`;
-        const { email, token } = await getTempMail();
-
-        await humanInteraction(page);
-
-        await humanType(page, 'input[name="emailOrPhone"]', email);
-        await humanType(page, 'input[name="fullName"]', `${firstName} ${lastName}`);
-        await humanType(page, 'input[name="username"]', username);
-        await humanType(page, 'input[name="password"]', password);
-
-        await randomDelay(1000, 3000);
-        const signUpButton = await page.$('button[type="submit"]');
-        await signUpButton.click();
-
-        await page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 10000 }).catch(() => {});
-
-        const account = {
-            id: uuidv4(),
-            username,
-            email,
-            password,
-            proxy: proxyStr,
-            status: 'created'
-        };
-        AccountManager.addAccount(account);
-
-        ProxyRotationSystem.markProxyUsed(proxyStr);
-
-        await browser.close();
-        return {
-            status: 'created',
-            username,
-            email,
-            proxy: proxyStr
-        };
+      console.log(`✅ Proxy Master iniciado con ${this.workingProxies.length} proxies funcionales`);
+      this.workingProxies.forEach(proxy => this.proxyUsageCount.set(proxy.string, 0));
+      await this.savePublicProxiesCache();
     } catch (error) {
-        logger.error(`❌ Error creando cuenta: ${error.message}`);
-        ProxyRotationSystem.recordFailure(proxyStr);
-
-        const account = {
-            id: uuidv4(),
-            username: '',
-            email: '',
-            password: '',
-            proxy: proxyStr,
-            status: 'failed',
-            error: error.message
-        };
-        AccountManager.addAccount(account);
-
-        await browser.close();
-        return {
-            status: 'failed',
-            error: error.message,
-            proxy: proxyStr
-        };
-    }
-}yString}`);
+      console.error('❌ Error al iniciar Proxy Master:', error);
+      throw error;
     }
   }
 
-  recordSuccess(proxyString) {
-    const stats = this.proxyStats.get(proxyString) || { usageCount: 0, failures: 0 };
-    stats.usageCount++;
-    this.proxyStats.set(proxyString, stats);
+  async loadPremiumProxies() {
+    try {
+      const proxyJsonPath = path.resolve('./src/proxies/proxies.json');
+      const jsonData = await fs.readFile(proxyJsonPath, 'utf8');
+      const parsed = JSON.parse(jsonData);
+      this.proxySources.premium = parsed.premium || [];
+      console.log(`🔐 ${this.proxySources.premium.length} proxies premium cargados`);
+    } catch (error) {
+      console.warn('⚠️ No se pudo cargar proxies premium:', error.message);
+      this.proxySources.premium = [];
+    }
   }
 
-  markProxyUsed(proxyString) {
-    const stats = this.proxyStats.get(proxyString) || { usageCount: 0, failures: 0 };
-    stats.usageCount++;
-    this.proxyStats.set(proxyString, stats);
+  async loadPublicProxies() {
+    try {
+      try {
+        const cacheData = await fs.readFile(this.cachePath, 'utf8');
+        this.proxySources.public = cacheData.split('\n').filter(Boolean);
+        console.log(`📂 ${this.proxySources.public.length} proxies públicos cargados desde caché`);
+        if (this.proxySources.public.length >= 50) return;
+      } catch {
+        console.log('📂 Sin caché de proxies públicos, extrayendo nuevos...');
+      }
+
+      const sources = [
+        'https://www.proxy-list.download/api/v1/get?type=http&country=MX',
+        'https://www.proxy-list.download/api/v1/get?type=http&country=AR',
+        'https://www.proxy-list.download/api/v1/get?type=http&country=CO',
+        'https://www.proxy-list.download/api/v1/get?type=http&country=CL',
+        'https://www.proxy-list.download/api/v1/get?type=http&country=PE',
+        'https://api.proxyscrape.com/v2/?request=getproxies&protocol=http&timeout=5000&country=ES',
+        'https://www.proxy-list.download/api/v1/get?type=http&country=ES',
+        'https://raw.githubusercontent.com/proxy4parsing/proxy-list/main/http.txt',
+        'https://proxylist.geonode.com/api/proxy-list?limit=50&sort_by=lastChecked&sort_type=desc&protocols=http&country=US,MX,BR,AR,CO,CL,PE',
+        'https://api.proxyscrape.com/v2/?request=getproxies&protocol=http&timeout=5000&country=all&simplified=true',
+        'https://raw.githubusercontent.com/TheSpeedX/SOCKS-List/master/http.txt',
+        'https://raw.githubusercontent.com/jetkai/proxy-list/main/online-proxies/txt/proxies-http.txt',
+        'https://raw.githubusercontent.com/monosans/proxy-list/main/proxies/http.txt',
+        'https://raw.githubusercontent.com/clarketm/proxy-list/master/proxy-list-raw.txt',
+        'https://raw.githubusercontent.com/roosterkid/openproxylist/main/HTTP_RAW.txt',
+        'https://raw.githubusercontent.com/MuRongPiaoXue/ProxyList/main/http.txt',
+        'https://raw.githubusercontent.com/shiftytr/proxy-list/master/proxy.txt',
+        'https://raw.githubusercontent.com/hendrikbgr/Free-Proxy-List/main/proxies.txt'
+      ];
+
+      const results = await Promise.allSettled(
+        sources.map(async url => {
+          for (let retry = 0; retry < 2; retry++) {
+            try {
+              const response = await axios.get(url, { timeout: 7000 });
+              return response.data;
+            } catch {
+              if (retry === 1) throw new Error(`Fallo en ${url}`);
+              await new Promise(resolve => setTimeout(resolve, 1000));
+            }
+          }
+        })
+      );
+
+      const combined = results
+        .filter(res => res.status === 'fulfilled')
+        .map(res => {
+          if (typeof res.value === 'object') {
+            return res.value.data ? res.value.data.map(p => `${p.ip}:${p.port}`) : [];
+          }
+          return res.value;
+        })
+        .flatMap(data => data.split(/\r?\n/).filter(p => p.includes(':')))
+        .map(p => `${p}:user:pass`)
+        .filter((p, i, arr) => arr.indexOf(p) === i);
+
+      this.proxySources.public = combined;
+      console.log(`🌐 ${combined.length} proxies públicos extraídos de múltiples fuentes`);
+    } catch (error) {
+      console.warn('⚠️ Error al cargar proxies públicos:', error.message);
+      this.proxySources.public = [];
+    }
   }
 
-  getProxyStats() {
+  async savePublicProxiesCache() {
+    try {
+      const functionalProxies = this.workingProxies
+        .filter(p => !this.proxySources.premium.includes(p.string))
+        .map(p => p.string);
+      await fs.writeFile(this.cachePath, functionalProxies.join('\n'));
+      console.log(`📂 ${functionalProxies.length} proxies públicos guardados en caché`);
+    } catch (error) {
+      console.warn('⚠️ Error al guardar caché de proxies:', error.message);
+    }
+  }
+
+  async filterWorkingProxies(proxyList) {
+    if (!proxyList || proxyList.length === 0) return [];
+
+    const testPromises = proxyList.map(async proxyStr => {
+      try {
+        const proxy = this.formatProxy(proxyStr);
+        const response = await axios.get('http://httpbin.org/ip', {
+          proxy: {
+            host: proxy.ip,
+            port: proxy.port,
+            auth: proxy.auth || undefined
+          },
+          timeout: 5000
+        });
+
+        if (response.data && response.data.origin) {
+          console.log(`✅ Proxy activo: ${proxyStr}`);
+          return proxy;
+        }
+      } catch (_) {}
+      return null;
+    });
+
+    const results = await Promise.all(testPromises);
+    return results.filter(p => p !== null);
+  }
+
+  formatProxy(proxyStr) {
+    const parts = proxyStr.trim().split(':');
+    if (parts.length < 2) throw new Error(`Formato inválido: ${proxyStr}`);
     return {
-      total: this.proxyStats.size,
-      buenos: [...this.proxyStats.entries()].filter(([_, s]) => s.failures < this.config.MAX_FAILS).length,
-      malos: this.blacklist.size
+      ip: parts[0],
+      port: parseInt(parts[1]),
+      auth: (parts.length === 4)
+        ? { username: parts[2], password: parts[3] }
+        : null,
+      string: proxyStr
     };
+  }
+
+  getWorkingProxies() {
+    return this.workingProxies;
+  }
+
+  getProxy(proxyStr) {
+    return this.formatProxy(proxyStr);
+  }
+
+  markProxyUsed(proxyStr) {
+    const count = this.proxyUsageCount.get(proxyStr) || 0;
+    this.proxyUsageCount.set(proxyStr, count + 1);
+  }
+
+  logStats() {
+    console.log('\n📊 Estadísticas de Proxies:');
+    Object.entries(this.proxySources).forEach(([tipo, lista]) => {
+      console.log(`• ${tipo}: ${lista.length} proxies`);
+    });
   }
 }
 
-const proxyRotationSystem = new ProxyRotationSystem();
-export default proxyRotationSystem;
+const proxyMaster = new UltimateProxyMaster();
+export default proxyMaster;
