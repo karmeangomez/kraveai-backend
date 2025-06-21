@@ -15,3 +15,11 @@ export async function simulateMouseMovement(page) {
         100 + Math.random() * 100
     );
 }
+// Exportación por defecto para compatibilidad
+const actions = {
+  humanType,
+  randomDelay,
+  simulateMouseMovement
+};
+
+export default actions;
