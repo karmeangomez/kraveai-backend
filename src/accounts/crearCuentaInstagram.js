@@ -6,7 +6,6 @@ import path from 'path';
 import fs from 'fs';
 import axios from 'axios';
 
-// Importaciones corregidas
 import ProxyRotationSystem from '../proxies/proxyRotationSystem.js';
 import EmailManager from '../email/emailManager.js';
 import AccountManager from './accountManager.js';
@@ -18,18 +17,13 @@ import {
 import { generateRussianFingerprint } from '../fingerprints/generator.js';
 import { humanType, randomDelay, simulateMouseMovement } from '../utils/humanActions.js';
 
-// Configuración de entorno
 dotenv.config();
-
-// Activar plugin Stealth
 puppeteer.use(StealthPlugin());
 
-// Configuración global
 const SCREENSHOTS_DIR = path.resolve('screenshots');
 const LOGS_DIR = path.resolve('logs');
 const COOKIES_DIR = path.resolve('cookies');
 
-// Crear directorios si no existen
 [SCREENSHOTS_DIR, LOGS_DIR, COOKIES_DIR].forEach(dir => {
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
 });
@@ -61,22 +55,35 @@ async function crearCuentaInstagram(retryCount = 0) {
   };
 
   try {
-    // 1. Obtener proxy
-    const proxy = ProxyRotationSystem.getBestProxy();
-    if (!proxy) throw new Error('No hay proxies disponibles');
-    accountData.proxy = proxy.string;
+    // 1. Obtener proxy solo si hay disponibles
+    let proxy = null;
+    if (ProxyRotationSystem.getActiveProxies().length > 0) {
+      proxy = ProxyRotationSystem.getBestProxy();
+      accountData.proxy = proxy.string;
 
-    // 2. Verificar proxy
-    logger.debug(`🧪 Verificando proxy: ${proxy.string}`);
-    await verifyProxyConnection(proxy);
-    logger.info(`🛡️ Proxy verificado: ${proxy.string}`);
+      try {
+        logger.debug(`🧪 Verificando proxy: ${proxy.string}`);
+        await verifyProxyConnection(proxy);
+        logger.info(`🛡️ Proxy verificado: ${proxy.string}`);
+      } catch (error) {
+        logger.error(`❌ Error verificando proxy: ${error.message}`);
+        ProxyRotationSystem.recordFailure(proxy.string);
+        proxy = null;
+      }
+    }
 
-    // 3. Generar datos de usuario
+    // Si no hay proxy válido, continuar sin proxy
+    if (!proxy) {
+      logger.warn('⚠️ Continuando sin proxy');
+      accountData.proxy = 'none';
+    }
+
+    // 2. Generar datos de usuario
     accountData.username = generarNombreUsuario();
     const fullName = generarNombreCompleto();
     accountData.email = generarEmail(accountData.username);
 
-    // 4. Configurar fingerprint
+    // 3. Configurar fingerprint
     const fingerprint = {
       ...generateRussianFingerprint(),
       fullName,
@@ -84,8 +91,8 @@ async function crearCuentaInstagram(retryCount = 0) {
       email: accountData.email
     };
 
-    // 5. Configurar navegador
-    browser = await puppeteer.launch({
+    // 4. Configurar navegador
+    const launchOptions = {
       headless: true,
       executablePath: '/usr/bin/chromium-browser',
       args: [
@@ -94,13 +101,18 @@ async function crearCuentaInstagram(retryCount = 0) {
         '--disable-dev-shm-usage',
         '--disable-accelerated-2d-canvas',
         '--disable-gpu',
-        `--proxy-server=${proxy.string}`,
         `--user-agent=${fingerprint.userAgent}`,
         '--single-process'
       ],
       ignoreHTTPSErrors: true
-    });
+    };
 
+    // Añadir configuración de proxy si está disponible
+    if (proxy) {
+      launchOptions.args.push(`--proxy-server=${proxy.string}`);
+    }
+
+    browser = await puppeteer.launch(launchOptions);
     page = await browser.newPage();
     
     // Configurar timeouts
@@ -118,15 +130,15 @@ async function crearCuentaInstagram(retryCount = 0) {
       }
     });
 
-    // 6. Autenticación proxy si es necesario
-    if (proxy.auth) {
+    // 5. Autenticación proxy si es necesario
+    if (proxy && proxy.auth) {
       await page.authenticate({
         username: proxy.auth.username,
         password: proxy.auth.password
       });
     }
 
-    // 7. Navegar a Instagram con manejo de timeout
+    // 6. Navegar a Instagram con manejo de timeout
     try {
       await page.goto('https://www.instagram.com/accounts/emailsignup/', {
         waitUntil: 'domcontentloaded',
@@ -140,7 +152,7 @@ async function crearCuentaInstagram(retryCount = 0) {
       }
     }
 
-    // 8. Rellenar formulario
+    // 7. Rellenar formulario
     await humanType(page, 'input[name="emailOrPhone"]', accountData.email);
     await randomDelay(1000, 2000);
     
@@ -153,24 +165,30 @@ async function crearCuentaInstagram(retryCount = 0) {
     await humanType(page, 'input[name="password"]', accountData.password);
     await randomDelay(2000, 3000);
 
-    // 9. Hacer clic en Registrarse
+    // 8. Hacer clic en Registrarse
     await simulateMouseMovement(page);
     await page.click('button[type="submit"]');
     await randomDelay(3000, 5000);
 
-    // 10. Manejar verificación de email
+    // 9. Manejar verificación de email
     const emailManager = new EmailManager(proxy);
+    const email = await emailManager.createEmail();
+    accountData.email = email;
+    accountData.emailService = emailManager.currentService;
+    
+    logger.info(`📧 Email generado: ${email} (${accountData.emailService})`);
+    
     const verificationCode = await emailManager.getVerificationCode();
     if (!verificationCode) throw new Error('No se recibió código de verificación');
     
     await humanType(page, 'input[name="email_confirmation_code"]', verificationCode);
     await randomDelay(2000, 4000);
 
-    // 11. Verificar creación exitosa
+    // 10. Verificar creación exitosa
     await page.waitForSelector('nav[role="navigation"]', { timeout: 15000 });
     accountData.status = 'created';
 
-    // 12. Guardar datos
+    // 11. Guardar datos
     accountData.cookiesFile = await saveCookies(page, accountData.username);
     AccountManager.addAccount(accountData);
 
@@ -192,7 +210,7 @@ async function crearCuentaInstagram(retryCount = 0) {
       logger.error(`❌ Error: ${error.message}`);
     }
     
-    if (accountData.proxy) {
+    if (accountData.proxy && accountData.proxy !== 'none') {
       ProxyRotationSystem.recordFailure(accountData.proxy);
     }
     
@@ -242,7 +260,6 @@ async function verifyProxyConnection(proxy) {
     logger.debug(`🧪 Proxy verificado: ${response.data.origin}`);
     return true;
   } catch (error) {
-    ProxyRotationSystem.recordFailure(proxy.string);
     throw new Error(`Proxy inválido: ${proxy.string} - ${error.message}`);
   }
 }
