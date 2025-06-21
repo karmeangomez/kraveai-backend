@@ -6,7 +6,9 @@ class UltimateProxyMaster {
   constructor() {
     this.proxySources = {
       premium: [],
-      backup: []
+      backup: [],
+      swiftShadow: [],
+      multiProxies: []
     };
     this.proxyUsageCount = new Map();
     this.workingProxies = [];
@@ -26,15 +28,23 @@ class UltimateProxyMaster {
   async loadProxies() {
     try {
       const proxiesJsonPath = path.resolve('./src/proxies/proxies.json');
-      const jsonData = await await fs.readFile(proxiesJsonPath, 'utf8');
+      const jsonData = await fs.readFile(proxiesJsonPath, 'utf8');
       const proxiesData = JSON.parse(jsonData);
 
       this.proxySources.premium = proxiesData.premium || [];
       this.proxySources.backup = proxiesData.backup || [];
+      this.proxySources.swiftShadow = proxiesData.swiftShadow || [];
+      this.proxySources.multiProxies = proxiesData.multiProxies || [];
 
-      console.log(`📁 ${this.proxySources.premium.length} proxies cargados desde proxies.json`);
+      console.log(`📁 ${this.proxySources.premium.length} proxies premium cargados`);
 
-      const combinedProxies = [...this.proxySources.premium, ...this.proxySources.backup];
+      const combinedProxies = [
+        ...this.proxySources.premium,
+        ...this.proxySources.backup,
+        ...this.proxySources.swiftShadow,
+        ...this.proxySources.multiProxies
+      ];
+
       this.workingProxies = await this.filterWorkingProxies(combinedProxies);
 
       console.log(`🧪 ${this.workingProxies.length} proxies funcionales encontrados`);
@@ -106,6 +116,13 @@ class UltimateProxyMaster {
   markProxyUsed(proxyStr) {
     const count = this.proxyUsageCount.get(proxyStr) || 0;
     this.proxyUsageCount.set(proxyStr, count + 1);
+  }
+
+  logStats() {
+    console.log('\n📊 Estadísticas de Proxies:');
+    Object.entries(this.proxySources).forEach(([tipo, lista]) => {
+      console.log(`• ${tipo}: ${lista.length} proxies`);
+    });
   }
 }
 
