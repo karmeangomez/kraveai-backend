@@ -3,7 +3,13 @@ import crearCuentaInstagram from './src/accounts/crearCuentaInstagram.js';
 import UltimateProxyMaster from './src/proxies/ultimateProxyMaster.js';
 import ProxyRotationSystem from './src/proxies/proxyRotationSystem.js';
 import fs from 'fs';
-import { notifyTelegram } from './src/utils/telegram_utils.js';
+import {
+  notifyTelegram,
+  notifyCuentaExitosa,
+  notifyErrorCuenta,
+  notifyResumenFinal,
+  notifyInstanciaIniciada
+} from './src/utils/telegram_utils.js';
 
 const CONFIG = {
     ACCOUNTS_TO_CREATE: 5,
@@ -12,6 +18,13 @@ const CONFIG = {
 
 (async () => {
     try {
+        // 👋 Notificar inicio
+        const inicio = new Date();
+        await notifyInstanciaIniciada({ 
+            hora: inicio.toLocaleTimeString(), 
+            entorno: 'Producción' 
+        });
+
         // 1. Inicialización
         AccountManager.clearAccounts();
         await UltimateProxyMaster.init();
@@ -27,8 +40,10 @@ const CONFIG = {
             
             if (result.status === 'created') {
                 console.log(`✅ Cuenta creada: @${result.username}`);
+                await notifyCuentaExitosa(result);
             } else {
                 console.error(`❌ Fallo: ${result.error}`);
+                await notifyErrorCuenta(result, result.error);
             }
 
             if (i < CONFIG.ACCOUNTS_TO_CREATE - 1) {
@@ -42,14 +57,24 @@ const CONFIG = {
 
         // 4. Resultados finales
         const successCount = allAccounts.filter(a => a.status === 'created').length;
+        const failCount = allAccounts.length - successCount;
+        const fin = new Date();
+        const tiempo = ((fin - inicio) / 1000).toFixed(1) + 's';
+
         console.log('\n🎉 Proceso completado!');
         console.log('Cuentas creadas:', successCount);
 
-        // 5. Notificación Telegram (opcional)
-        await notifyTelegram(`✅ Se crearon ${successCount} cuentas exitosamente 🚀`);
+        // 5. Notificación final
+        await notifyResumenFinal({ 
+            total: allAccounts.length, 
+            success: successCount, 
+            fail: failCount,
+            tiempo 
+        });
 
     } catch (error) {
         console.error('🔥 Error crítico:', error);
+        await notifyTelegram(`🔥 Error crítico en ejecución:\n${error.message}`);
         process.exit(1);
     }
 })();
