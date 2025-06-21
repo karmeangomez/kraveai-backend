@@ -18,3 +18,8 @@
     "node": ">=18.0.0"
   }
 }
+"scripts": {
+  "prestart": "node check-exports.js && node check-dependencies.js && node full-check.js",
+  "start": "node run.js",
+  "verify": "node full-check.js"
+}
