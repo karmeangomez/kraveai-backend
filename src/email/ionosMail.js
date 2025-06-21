@@ -10,6 +10,7 @@ export default class IONOSMail {
     }
 
     this.active = true;
+    console.log("✅ Proveedor IONOSMail activado");
   }
 
   isActive() {
@@ -17,9 +18,7 @@ export default class IONOSMail {
   }
 
   async getEmailAddress() {
-    if (!this.active) {
-      throw new Error("IONOSMail no activo");
-    }
+    if (!this.active) throw new Error("IONOSMail no activo");
     const prefix = Math.random().toString(36).substring(2, 10);
     return `${prefix}@kraveapi.xyz`;
   }
