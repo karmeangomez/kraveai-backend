@@ -1,19 +1,20 @@
+// src/email/ionosMail.js
+
 export default class IONOSMail {
   constructor() {
-    this.username = process.env.IONOS_USER || '';
+    this.username = process.env.IONOS_EMAIL || '';
     this.password = process.env.IONOS_PASSWORD || '';
-    
-    // Verifica si las credenciales están vacías
+
     if (!this.username || !this.password) {
       console.warn("⚠️ Credenciales IONOS no configuradas - Proveedor desactivado");
       this.active = false;
       return;
     }
-    
+
     this.active = true;
     console.log("✅ Proveedor IONOSMail activado");
   }
-  
+
   isActive() {
     return this.active;
   }
@@ -22,6 +23,6 @@ export default class IONOSMail {
     if (!this.active) {
       throw new Error("IONOSMail no activo");
     }
-    // ... resto de tu implementación ...
+    // ... implementar aquí tu lógica de generación de correo ...
   }
 }
