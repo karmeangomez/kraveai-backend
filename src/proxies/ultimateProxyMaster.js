@@ -24,7 +24,7 @@ class UltimateProxyMaster {
 
   async loadProxies() {
     try {
-      // Carga proxies de archivos o APIs
+      // Carga proxies de archivos
       const premiumData = await fs.readFile('./config/premium_proxies.txt', 'utf8');
       this.proxySources.premium = premiumData.split('\n').filter(Boolean);
       
@@ -33,6 +33,7 @@ class UltimateProxyMaster {
       
       // Inicializa contadores
       this.proxySources.premium.forEach(proxy => this.proxyUsageCount.set(proxy, 0));
+      this.proxySources.backup.forEach(proxy => this.proxyUsageCount.set(proxy, 0));
     } catch (error) {
       console.warn('⚠️ Usando proxies por defecto');
       this.proxySources = {
@@ -87,7 +88,10 @@ class UltimateProxyMaster {
             host: proxy.ip,
             port: proxy.port,
             ...(proxy.auth ? {
-              auth: proxy.auth
+              auth: {
+                username: proxy.auth.username,
+                password: proxy.auth.password
+              }
             } : {})
           },
           timeout: 8000
@@ -117,4 +121,5 @@ class UltimateProxyMaster {
   }
 }
 
-export default new UltimateProxyMaster();
+const proxyMaster = new UltimateProxyMaster();
+export default proxyMaster;
