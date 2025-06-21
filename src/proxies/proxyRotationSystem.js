@@ -47,7 +47,7 @@ class ProxyRotationSystem {
     async testProxy(proxy, retryCount = 0) {
         try {
             const start = Date.now();
-            const response = await axios.get('https://www.instagram.com', {
+            const response = await axios.get('https://www.google.com', {
                 proxy: {
                     host: proxy.ip,
                     port: proxy.port,
@@ -123,12 +123,16 @@ class ProxyRotationSystem {
             .filter(proxyStr => !this.blacklist.has(proxyStr));
     }
 
+    hasWorkingProxies() {
+        return this.getActiveProxies().length > 0;
+    }
+
     getBestProxy() {
         const activeProxies = this.getActiveProxies()
             .map(proxyStr => UltimateProxyMaster.formatProxy(proxyStr, 'active'));
 
         if (activeProxies.length === 0) {
-            throw new Error('No hay proxies disponibles');
+            return null;
         }
 
         activeProxies.sort((a, b) => {
