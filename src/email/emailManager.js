@@ -1,7 +1,7 @@
-import InstAddr from './providers/instaddr.js';
-import TempMail from './providers/tempmail.js';
-import OneSecMail from './providers/onesecmail.js';
-import IONOSMail from './providers/ionosMail.js';
+import InstAddr from './instaddr.js';
+import TempMail from './tempmail.js';
+import OneSecMail from './onesecmail.js';
+import IONOSMail from './ionosMail.js';
 
 export default class EmailManager {
   constructor() {
@@ -15,13 +15,12 @@ export default class EmailManager {
       const ionos = new IONOSMail();
       if (ionos.isActive()) {
         this.providers.push(ionos);
-        console.log("✅ Proveedor IONOSMail activado");
       }
-    } catch (error) {
-      console.warn("⚠️ IONOSMail desactivado:", error.message);
+    } catch (err) {
+      console.warn("❌ IONOSMail no disponible:", err.message);
     }
 
-    console.log(`📧 Proveedores activos: ${this.providers.map(p => p.constructor.name).join(', ')}`);
+    console.log("📧 Proveedores activos:", this.providers.map(p => p.constructor.name).join(', '));
   }
 
   async getRandomEmail() {
@@ -29,16 +28,14 @@ export default class EmailManager {
       try {
         if (typeof provider.getEmailAddress === 'function') {
           const email = await provider.getEmailAddress();
-          console.log(`📧 Email obtenido con ${provider.constructor.name}: ${email}`);
-          return { email };
+          return email;
+        } else {
+          throw new Error(`${provider.constructor.name} no implementa getEmailAddress()`);
         }
-      } catch (error) {
-        console.warn(`⚠️ Fallo con ${provider.constructor.name}: ${error.message}`);
+      } catch (err) {
+        console.warn(`⚠️ Fallo con ${provider.constructor.name}: ${err.message}`);
       }
     }
-
-    const fallback = `fallback_${Date.now()}@example.com`;
-    console.warn(`⚠️ Todos los proveedores fallaron. Usando email de respaldo: ${fallback}`);
-    return { email: fallback };
+    throw new Error("❌ Todos los proveedores fallaron al generar email.");
   }
 }
