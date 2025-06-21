@@ -56,24 +56,56 @@ export default async function crearCuentaInstagram(proxySystem, retryCount = 0) 
             await page.authenticate(proxy.auth);
         }
 
-        // ... (resto de tu lógica de creación de cuenta)
+        // 4. Navegar a Instagram y llenar formulario
+        await page.goto('https://www.instagram.com/accounts/emailsignup/', { waitUntil: 'networkidle2' });
+        await humanActions.waitRandomDelay();
+
+        await humanActions.typeLikeHuman(page, 'input[name="emailOrPhone"]', accountData.email);
+        await humanActions.typeLikeHuman(page, 'input[name="fullName"]', accountData.fullName);
+        await humanActions.typeLikeHuman(page, 'input[name="username"]', accountData.username);
+        await humanActions.typeLikeHuman(page, 'input[name="password"]', accountData.password);
+
+        await humanActions.waitRandomDelay();
+        await Promise.all([
+            page.waitForNavigation({ waitUntil: 'networkidle2' }),
+            humanActions.clickLikeHuman(page, 'button[type="submit"]')
+        ]);
+
+        // 5. Esperar código de verificación y enviarlo
+        const code = await emailManager.waitForCode(accountData.email);
+        await humanActions.typeLikeHuman(page, 'input[name="email_confirmation_code"]', code);
+        await humanActions.clickLikeHuman(page, 'button[type="submit"]');
+        await humanActions.waitRandomDelay();
+
+        // 6. Validar cuenta creada correctamente
+        await page.waitForTimeout(5000);
+        const currentUrl = page.url();
+        if (currentUrl.includes('/accounts/')) {
+            throw new Error('Redirigido a página de error');
+        }
 
         accountData.status = 'created';
+        accountData.cookiesPath = `cookies/${accountData.username}.json`;
+
+        const cookies = await page.cookies();
+        fs.writeFileSync(accountData.cookiesPath, JSON.stringify(cookies, null, 2));
+        await page.screenshot({ path: `screenshots/${accountData.username}_final.png` });
+
         return accountData;
 
     } catch (error) {
         accountData.status = 'failed';
         accountData.error = error.message;
-        
+
         if (proxy) {
             proxySystem.recordFailure(proxy.string);
         }
-        
+
         if (retryCount < 2) {
             console.log(`🔄 Reintentando (${retryCount + 1}/3)...`);
             return crearCuentaInstagram(proxySystem, retryCount + 1);
         }
-        
+
         return accountData;
     } finally {
         if (browser) await browser.close();
