@@ -1,62 +1,100 @@
 import axios from 'axios';
 import fs from 'fs/promises';
 import path from 'path';
-import MultiProxiesRunner from './multiProxiesRunner.js';
-import SwiftShadowLoader from './swiftShadowLoader.js';
 
 class UltimateProxyMaster {
   constructor() {
     this.proxySources = {
       premium: [],
-      backup: [],
-      swiftShadow: [],
-      multiProxies: []
+      public: []
     };
     this.proxyUsageCount = new Map();
     this.workingProxies = [];
+    this.cachePath = path.resolve('./config/public_proxies_cache.txt');
   }
 
   async init() {
     try {
-      await this.loadProxies();
+      await this.loadPremiumProxies();
+      await this.loadPublicProxies();
+      const combinedProxies = [...this.proxySources.premium, ...this.proxySources.public];
+      this.workingProxies = await this.filterWorkingProxies(combinedProxies);
+
       console.log(`✅ Proxy Master iniciado con ${this.workingProxies.length} proxies funcionales`);
-      return this;
+      this.workingProxies.forEach(proxy => this.proxyUsageCount.set(proxy.string, 0));
+      await this.savePublicProxiesCache();
+      await this.saveFunctionalProxies();
     } catch (error) {
       console.error('❌ Error al iniciar Proxy Master:', error);
       throw error;
     }
   }
 
-  async loadProxies() {
+  async loadPremiumProxies() {
     try {
-      const proxiesJsonPath = path.resolve('./src/proxies/proxies.json');
-      const jsonData = await fs.readFile(proxiesJsonPath, 'utf8');
-      const proxiesData = JSON.parse(jsonData);
+      const proxyJsonPath = path.resolve('./src/proxies/proxies.json');
+      const jsonData = await fs.readFile(proxyJsonPath, 'utf8');
+      const parsed = JSON.parse(jsonData);
+      this.proxySources.premium = parsed.premium || [];
+      console.log(`🔐 ${this.proxySources.premium.length} proxies premium cargados`);
+    } catch (error) {
+      console.warn('⚠️ No se pudo cargar proxies premium:', error.message);
+      this.proxySources.premium = [];
+    }
+  }
 
-      this.proxySources.premium = proxiesData.premium || [];
-      this.proxySources.backup = proxiesData.backup || [];
-      this.proxySources.swiftShadow = await SwiftShadowLoader.getProxies();
-      this.proxySources.multiProxies = await MultiProxiesRunner.getProxies();
-
-      console.log(`📁 ${this.proxySources.premium.length} proxies premium cargados`);
-      console.log(`⚡ ${this.proxySources.swiftShadow.length} proxies de SwiftShadow cargados`);
-      console.log(`🌐 ${this.proxySources.multiProxies.length} proxies de multiProxies cargados`);
-
-      const combinedProxies = [
-        ...this.proxySources.premium,
-        ...this.proxySources.backup,
-        ...this.proxySources.swiftShadow,
-        ...this.proxySources.multiProxies
+  async loadPublicProxies() {
+    try {
+      const sources = [
+        'https://api.proxyscrape.com/v2/?request=getproxies&protocol=http&timeout=5000&country=all&simplified=true',
+        'https://raw.githubusercontent.com/TheSpeedX/SOCKS-List/master/http.txt',
+        'https://raw.githubusercontent.com/jetkai/proxy-list/main/online-proxies/txt/proxies-http.txt'
       ];
 
-      this.workingProxies = await this.filterWorkingProxies(combinedProxies);
+      const results = await Promise.allSettled(
+        sources.map(url => axios.get(url, { timeout: 7000 }))
+      );
 
-      console.log(`🧪 ${this.workingProxies.length} proxies funcionales encontrados`);
+      const combined = results
+        .filter(res => res.status === 'fulfilled')
+        .map(res => res.value.data)
+        .flatMap(data => data.split(/\r?\n/).filter(p => p.includes(':')))
+        .map(p => `${p}:user:pass`);
 
-      this.workingProxies.forEach(proxy => this.proxyUsageCount.set(proxy.string, 0));
+      this.proxySources.public = combined;
+      console.log(`🌐 ${combined.length} proxies públicos extraídos de múltiples fuentes`);
     } catch (error) {
-      console.error('❌ Error crítico cargando proxies:', error);
-      throw new Error('No se pudieron cargar los proxies');
+      console.warn('⚠️ Error al cargar proxies públicos:', error.message);
+      this.proxySources.public = [];
+    }
+  }
+
+  async savePublicProxiesCache() {
+    try {
+      const functionalProxies = this.workingProxies
+        .filter(p => !this.proxySources.premium.includes(p.string))
+        .map(p => p.string);
+      await fs.writeFile(this.cachePath, functionalProxies.join('\n'));
+      console.log(`📂 ${functionalProxies.length} proxies públicos guardados en caché`);
+    } catch (error) {
+      console.warn('⚠️ Error al guardar caché de proxies:', error.message);
+    }
+  }
+
+  async saveFunctionalProxies() {
+    try {
+      const premiumList = this.workingProxies
+        .filter(p => this.proxySources.premium.includes(p.string))
+        .map(p => p.string);
+      const publicList = this.workingProxies
+        .filter(p => !this.proxySources.premium.includes(p.string))
+        .map(p => p.string);
+
+      await fs.writeFile('./config/proxies_funcionales_premium.txt', premiumList.join('\n'));
+      await fs.writeFile('./config/proxies_funcionales_publicos.txt', publicList.join('\n'));
+      console.log(`📁 Proxies funcionales guardados en config/ (premium: ${premiumList.length}, públicos: ${publicList.length})`);
+    } catch (error) {
+      console.warn('⚠️ Error al guardar proxies funcionales:', error.message);
     }
   }
 
@@ -70,21 +108,16 @@ class UltimateProxyMaster {
           proxy: {
             host: proxy.ip,
             port: proxy.port,
-            auth: {
-              username: proxy.auth.username,
-              password: proxy.auth.password
-            }
+            auth: proxy.auth || undefined
           },
           timeout: 5000
         });
 
         if (response.data && response.data.origin) {
-          console.log(`✅ Proxy activo: ${proxyStr} (${response.data.origin})`);
+          console.log(`✅ Proxy activo: ${proxyStr}`);
           return proxy;
         }
-      } catch (error) {
-        console.warn(`❌ Proxy fallido: ${proxyStr} - ${error.message}`);
-      }
+      } catch (_) {}
       return null;
     });
 
@@ -93,18 +126,14 @@ class UltimateProxyMaster {
   }
 
   formatProxy(proxyStr) {
-    const parts = proxyStr.split(':');
-    if (parts.length < 4) {
-      throw new Error(`Formato de proxy inválido: ${proxyStr}`);
-    }
-
+    const parts = proxyStr.trim().split(':');
+    if (parts.length < 2) throw new Error(`Formato inválido: ${proxyStr}`);
     return {
       ip: parts[0],
       port: parseInt(parts[1]),
-      auth: {
-        username: parts[2],
-        password: parts[3]
-      },
+      auth: (parts.length === 4)
+        ? { username: parts[2], password: parts[3] }
+        : null,
       string: proxyStr
     };
   }
