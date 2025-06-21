@@ -1,137 +1,100 @@
-import puppeteer from 'puppeteer';
-import emailManager from '../email/emailManager.js';
-import nombreUtils from '../utils/nombre_utils.js';
-import humanActions from '../utils/humanActions.js';
-import { generateRussianFingerprint } from '../fingerprints/generator.js';
-import fs from 'fs';
-import path from 'path';
+import puppeteer from 'puppeteer-extra';
+import StealthPlugin from 'puppeteer-extra-plugin-stealth';
+import { v4 as uuidv4 } from 'uuid';
+import { getRandomName } from '../utils/nombre_utils.js';
+import { humanType, randomDelay, simulateMouseMovement, humanInteraction } from '../utils/humanActions.js';
+import ProxyRotationSystem from '../proxies/proxyRotationSystem.js';
+import AccountManager from './accountManager.js';
+import { getTempMail } from '../email/tempMail.js';
 
-const __dirname = path.resolve();
+puppeteer.use(StealthPlugin());
 
-export default async function crearCuentaInstagram(proxySystem, retryCount = 0) {
-    const accountData = {
-        id: Date.now().toString(),
-        status: 'pending',
-        attempts: retryCount + 1
-    };
+const logger = {
+    info: (msg) => console.log(`[INFO] ${new Date().toISOString()} - ${msg}`),
+    error: (msg) => console.error(`[ERROR] ${new Date().toISOString()} - ${msg}`)
+};
 
-    let browser;
+async function crearCuentaInstagram() {
+    const browser = await puppeteer.launch({
+        headless: true,
+        args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-gpu'],
+        executablePath: '/usr/bin/chromium-browser'
+    });
+    const page = await browser.newPage();
+
+    let proxyObj = ProxyRotationSystem.getBestProxy();
+    let proxyStr = proxyObj ? proxyObj.string : 'none';
+
     try {
-        // 1. Obtener proxy
-        let proxy = null;
-        try {
-            proxy = proxySystem.getBestProxy();
-            accountData.proxy = proxy.string;
-            console.log(`🛡️ Usando proxy: ${proxy.string}`);
-        } catch (error) {
-            console.warn('⚠️ Continuando sin proxy');
-            accountData.proxy = 'none';
+        logger.info(`🛡️ Usando proxy: ${proxyStr}`);
+
+        if (proxyObj) {
+            await page.authenticate({
+                username: proxyObj.auth?.username,
+                password: proxyObj.auth?.password
+            });
         }
 
-        // 2. Generar datos de usuario
-        accountData.fullName = nombreUtils.generateRussianName();
-        accountData.username = generateUsername(accountData.fullName);
-        accountData.password = generatePassword();
-        accountData.email = await emailManager.getRandomEmail();
-
-        // 3. Configurar navegador
-        const fingerprint = generateRussianFingerprint();
-        const launchOptions = {
-            headless: true,
-            executablePath: '/usr/bin/chromium-browser',
-            args: [
-                '--no-sandbox',
-                '--disable-setuid-sandbox',
-                '--disable-dev-shm-usage',
-                '--disable-gpu'
-            ]
-        };
-
-        if (proxy) {
-            launchOptions.args.push(`--proxy-server=${proxy.ip}:${proxy.port}`);
-        }
-
-        browser = await puppeteer.launch(launchOptions);
-        const page = await browser.newPage();
-
-        if (proxy?.auth) {
-            await page.authenticate(proxy.auth);
-        }
-
-        await page.setUserAgent(fingerprint.userAgent);
-        await page.setViewport(fingerprint.resolution);
-        await page.setExtraHTTPHeaders({ 'Accept-Language': fingerprint.language });
-
-        // 4. Navegar a Instagram y llenar formulario
+        await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36');
         await page.goto('https://www.instagram.com/accounts/emailsignup/', { waitUntil: 'networkidle2' });
-        await humanActions.waitRandomDelay?.();
-        await humanActions.simulateMouseMovement(page);
 
-        await humanActions.humanType(page, 'input[name="emailOrPhone"]', accountData.email);
-        await humanActions.humanType(page, 'input[name="fullName"]', accountData.fullName);
-        await humanActions.humanType(page, 'input[name="username"]', accountData.username);
-        await humanActions.humanType(page, 'input[name="password"]', accountData.password);
+        await randomDelay(2000, 5000);
+        await simulateMouseMovement(page);
 
-        await humanActions.waitRandomDelay?.();
-        await humanActions.simulateMouseMovement(page);
+        const { firstName, lastName } = getRandomName();
+        const username = `${firstName.toLowerCase()}${lastName.toLowerCase()}${Math.floor(Math.random() * 1000)}`;
+        const password = `${firstName}${lastName}${Math.random().toString(36).slice(-4)}!`;
+        const { email } = await getTempMail();
 
-        await Promise.all([
-            page.waitForNavigation({ waitUntil: 'networkidle2' }),
-            humanActions.clickLikeHuman?.(page, 'button[type="submit"]') || page.click('button[type="submit"]')
-        ]);
+        await humanInteraction(page);
 
-        // 5. Esperar código de verificación y enviarlo
-        const code = await emailManager.waitForCode(accountData.email);
-        await humanActions.humanType(page, 'input[name="email_confirmation_code"]', code);
-        await humanActions.simulateMouseMovement(page);
-        await humanActions.clickLikeHuman?.(page, 'button[type="submit"]') || page.click('button[type="submit"]');
-        await humanActions.waitRandomDelay?.();
+        const emailInput = await page.$('input[name="emailOrPhone"]');
+        if (!emailInput) throw new Error('No se encontró el campo de email');
 
-        // 6. Validar cuenta creada correctamente
-        await page.waitForTimeout(5000);
-        const currentUrl = page.url();
-        if (currentUrl.includes('/accounts/')) {
-            throw new Error('Redirigido a página de error');
-        }
+        await humanType(page, 'input[name="emailOrPhone"]', email);
+        await humanType(page, 'input[name="fullName"]', `${firstName} ${lastName}`);
+        await humanType(page, 'input[name="username"]', username);
+        await humanType(page, 'input[name="password"]', password);
 
-        accountData.status = 'created';
-        accountData.cookiesPath = `cookies/${accountData.username}.json`;
+        await randomDelay(1000, 3000);
+        const signUpButton = await page.$('button[type="submit"]');
+        if (!signUpButton) throw new Error('No se encontró el botón de registro');
+        await signUpButton.click();
 
-        const cookies = await page.cookies();
-        fs.writeFileSync(accountData.cookiesPath, JSON.stringify(cookies, null, 2));
-        const screenshotPath = `screenshots/${accountData.username}_final.png`;
-        await page.screenshot({ path: screenshotPath });
-        accountData.screenshotPath = screenshotPath;
+        await page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 10000 }).catch(() => {});
 
-        if (proxy) {
-            proxySystem.recordSuccess(proxy.string);
-        }
+        const account = {
+            id: uuidv4(),
+            username,
+            email,
+            password,
+            proxy: proxyStr,
+            status: 'created'
+        };
+        AccountManager.addAccount(account);
+        ProxyRotationSystem.markProxyUsed(proxyStr);
 
-        return accountData;
+        await browser.close();
+        return account;
 
     } catch (error) {
-        accountData.status = 'failed';
-        accountData.error = error.message;
+        logger.error(`❌ Error creando cuenta: ${error.message}`);
+        ProxyRotationSystem.recordFailure(proxyStr);
 
-        if (proxy) {
-            proxySystem.recordFailure(proxy.string);
-        }
+        const account = {
+            id: uuidv4(),
+            username: '',
+            email: '',
+            password: '',
+            proxy: proxyStr,
+            status: 'failed',
+            error: error.message
+        };
+        AccountManager.addAccount(account);
 
-        if (retryCount < 2) {
-            console.log(`🔄 Reintentando (${retryCount + 1}/3)...`);
-            return crearCuentaInstagram(proxySystem, retryCount + 1);
-        }
-
-        return accountData;
-    } finally {
-        if (browser) await browser.close();
+        await browser.close();
+        return account;
     }
 }
 
-function generateUsername(fullName) {
-    return fullName.toLowerCase().replace(/\s+/g, '') + Math.floor(Math.random() * 1000);
-}
-
-function generatePassword() {
-    return Math.random().toString(36).slice(-10);
-}
+export { crearCuentaInstagram };
