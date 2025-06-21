@@ -2,6 +2,7 @@ import puppeteer from 'puppeteer';
 import emailManager from '../email/emailManager.js';
 import nombreUtils from '../utils/nombre_utils.js';
 import humanActions from '../utils/humanActions.js';
+import { generateRussianFingerprint } from '../fingerprints/generator.js';
 import fs from 'fs';
 import path from 'path';
 
@@ -34,6 +35,7 @@ export default async function crearCuentaInstagram(proxySystem, retryCount = 0) 
         accountData.email = await emailManager.getRandomEmail();
 
         // 3. Configurar navegador
+        const fingerprint = generateRussianFingerprint();
         const launchOptions = {
             headless: true,
             executablePath: '/usr/bin/chromium-browser',
@@ -56,26 +58,34 @@ export default async function crearCuentaInstagram(proxySystem, retryCount = 0) 
             await page.authenticate(proxy.auth);
         }
 
+        await page.setUserAgent(fingerprint.userAgent);
+        await page.setViewport(fingerprint.resolution);
+        await page.setExtraHTTPHeaders({ 'Accept-Language': fingerprint.language });
+
         // 4. Navegar a Instagram y llenar formulario
         await page.goto('https://www.instagram.com/accounts/emailsignup/', { waitUntil: 'networkidle2' });
-        await humanActions.waitRandomDelay();
+        await humanActions.waitRandomDelay?.();
+        await humanActions.simulateMouseMovement(page);
 
-        await humanActions.typeLikeHuman(page, 'input[name="emailOrPhone"]', accountData.email);
-        await humanActions.typeLikeHuman(page, 'input[name="fullName"]', accountData.fullName);
-        await humanActions.typeLikeHuman(page, 'input[name="username"]', accountData.username);
-        await humanActions.typeLikeHuman(page, 'input[name="password"]', accountData.password);
+        await humanActions.humanType(page, 'input[name="emailOrPhone"]', accountData.email);
+        await humanActions.humanType(page, 'input[name="fullName"]', accountData.fullName);
+        await humanActions.humanType(page, 'input[name="username"]', accountData.username);
+        await humanActions.humanType(page, 'input[name="password"]', accountData.password);
 
-        await humanActions.waitRandomDelay();
+        await humanActions.waitRandomDelay?.();
+        await humanActions.simulateMouseMovement(page);
+
         await Promise.all([
             page.waitForNavigation({ waitUntil: 'networkidle2' }),
-            humanActions.clickLikeHuman(page, 'button[type="submit"]')
+            humanActions.clickLikeHuman?.(page, 'button[type="submit"]') || page.click('button[type="submit"]')
         ]);
 
         // 5. Esperar código de verificación y enviarlo
         const code = await emailManager.waitForCode(accountData.email);
-        await humanActions.typeLikeHuman(page, 'input[name="email_confirmation_code"]', code);
-        await humanActions.clickLikeHuman(page, 'button[type="submit"]');
-        await humanActions.waitRandomDelay();
+        await humanActions.humanType(page, 'input[name="email_confirmation_code"]', code);
+        await humanActions.simulateMouseMovement(page);
+        await humanActions.clickLikeHuman?.(page, 'button[type="submit"]') || page.click('button[type="submit"]');
+        await humanActions.waitRandomDelay?.();
 
         // 6. Validar cuenta creada correctamente
         await page.waitForTimeout(5000);
