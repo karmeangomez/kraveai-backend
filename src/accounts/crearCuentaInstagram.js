@@ -10,7 +10,7 @@ import {
 } from '../utils/humanActions.js';
 import ProxyRotationSystem from '../proxies/proxyRotationSystem.js';
 import AccountManager from './accountManager.js';
-import { getTempMail } from '../email/emailManager.js';
+import EmailManager from '../email/emailManager.js'; // ✅ CORREGIDO
 
 puppeteer.use(StealthPlugin());
 
@@ -31,6 +31,9 @@ async function crearCuentaInstagram() {
   const proxyObj = ProxyRotationSystem.getBestProxy();
   const proxyStr = proxyObj ? proxyObj.string : 'none';
 
+  const emailClient = new EmailManager(proxyObj); // ✅ CORREGIDO
+  const email = await emailClient.getRandomEmail(); // ✅ CORREGIDO
+
   try {
     if (!proxyObj) {
       logger.info('⚠️ Sin proxy, continúa en IP local');
@@ -48,7 +51,6 @@ async function crearCuentaInstagram() {
     const { firstName, lastName } = getRandomName();
     const username = `${firstName.toLowerCase()}${lastName.toLowerCase()}${Math.floor(Math.random() * 1000)}`;
     const password = `${firstName}${lastName}${Math.random().toString(36).slice(-4)}!`;
-    const { email } = await getTempMail();
 
     await humanInteraction(page);
     await humanType(page, 'input[name="emailOrPhone"]', email);
@@ -97,5 +99,4 @@ async function crearCuentaInstagram() {
   }
 }
 
-// ✅ ESTA LÍNEA CORRIGE EL ERROR
 export default crearCuentaInstagram;
