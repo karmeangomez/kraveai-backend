@@ -19,14 +19,20 @@ const sustantivos = [
   'fuego', 'tierra', 'nube', 'noche', 'aurora', 'bosque', 'trueno', 'lluvia'
 ];
 
-function generarNombreCompleto() {
+function getRandomName() {
+  const firstName = nombres[Math.floor(Math.random() * nombres.length)];
+  const lastName = apellidos[Math.floor(Math.random() * apellidos.length)];
+  return { firstName, lastName };
+}
+
+function generateRussianName() {
   const nombre = nombres[Math.floor(Math.random() * nombres.length)];
   const apellido1 = apellidos[Math.floor(Math.random() * apellidos.length)];
   const apellido2 = apellidos[Math.floor(Math.random() * apellidos.length)];
   return `${nombre} ${apellido1} ${apellido2}`;
 }
 
-function generarNombreUsuario() {
+function generateUsername() {
   const nombre = nombres[Math.floor(Math.random() * nombres.length)].toLowerCase();
   const adjetivo = adjetivos[Math.floor(Math.random() * adjetivos.length)];
   const sustantivo = sustantivos[Math.floor(Math.random() * sustantivos.length)];
@@ -34,8 +40,13 @@ function generarNombreUsuario() {
   return `${nombre}_${adjetivo}_${sustantivo}${numero}`;
 }
 
-export default {
-  generateRussianName: generarNombreCompleto,
-  generateUsername: generarNombreUsuario,
-  generateEmail: () => `${generarNombreUsuario()}@kraveai.xyz`
+function generateEmail() {
+  return `${generateUsername()}@kraveai.xyz`;
+}
+
+export {
+  getRandomName,            // <-- Esta es la que espera crearCuentaInstagram.js
+  generateRussianName,
+  generateUsername,
+  generateEmail
 };
