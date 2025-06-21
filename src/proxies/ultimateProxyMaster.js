@@ -1,6 +1,8 @@
 import axios from 'axios';
 import fs from 'fs/promises';
 import path from 'path';
+import MultiProxiesRunner from './multiProxiesRunner.js';
+import SwiftShadowLoader from './swiftShadowLoader.js';
 
 class UltimateProxyMaster {
   constructor() {
@@ -33,10 +35,12 @@ class UltimateProxyMaster {
 
       this.proxySources.premium = proxiesData.premium || [];
       this.proxySources.backup = proxiesData.backup || [];
-      this.proxySources.swiftShadow = proxiesData.swiftShadow || [];
-      this.proxySources.multiProxies = proxiesData.multiProxies || [];
+      this.proxySources.swiftShadow = await SwiftShadowLoader.getProxies();
+      this.proxySources.multiProxies = await MultiProxiesRunner.getProxies();
 
       console.log(`📁 ${this.proxySources.premium.length} proxies premium cargados`);
+      console.log(`⚡ ${this.proxySources.swiftShadow.length} proxies de SwiftShadow cargados`);
+      console.log(`🌐 ${this.proxySources.multiProxies.length} proxies de multiProxies cargados`);
 
       const combinedProxies = [
         ...this.proxySources.premium,
