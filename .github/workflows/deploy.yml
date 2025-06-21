@@ -17,8 +17,8 @@ jobs:
       - name: 🔐 Crear Archivo .env.temp
         run: |
           mkdir -p secure_config
-          echo "IONOS_USER=${{ secrets.IONOS_USER }}" > secure_config/.env.temp
-          echo "IONOS_PASS=${{ secrets.IONOS_PASS }}" >> secure_config/.env.temp
+          echo "IONOS_EMAIL=${{ secrets.IONOS_EMAIL }}" > secure_config/.env.temp
+          echo "IONOS_PASSWORD=${{ secrets.IONOS_PASSWORD }}" >> secure_config/.env.temp
           echo "CRYPTO_KEY=${{ secrets.CRYPTO_KEY }}" >> secure_config/.env.temp
           echo "CRYPTO_IV=${{ secrets.CRYPTO_IV }}" >> secure_config/.env.temp
 
@@ -32,7 +32,7 @@ jobs:
           rm secure_config/.env.temp
           echo "✅ .env.enc generado"
 
-      - name: 🚀 Subir .env.enc a Raspberry Pi (scp)
+      - name: 🚀 Subir .env.enc a Raspberry Pi (SCP)
         uses: appleboy/scp-action@v0.1.5
         with:
           host: ${{ secrets.SSH_HOST }}
@@ -42,7 +42,7 @@ jobs:
           source: secure_config/.env.enc
           target: ~/kraveai-backend/
 
-      - name: 📡 Ejecutar Despliegue Seguro en Raspberry Pi (SSH)
+      - name: 📡 Ejecutar Despliegue Seguro (SSH)
         uses: appleboy/ssh-action@v1
         with:
           host: ${{ secrets.SSH_HOST }}
@@ -50,7 +50,7 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           port: ${{ secrets.SSH_PORT }}
           script: |
-            echo "📦 Despliegue en curso..."
+            echo "📦 Iniciando despliegue..."
             cd ~/kraveai-backend
             git fetch --all
             git reset --hard origin/main
@@ -62,7 +62,7 @@ jobs:
               --key "${{ secrets.CRYPTO_KEY }}" \
               --iv "${{ secrets.CRYPTO_IV }}"
 
-            echo "🧪 Verificando entorno"
+            echo "🧪 Verificando variables de entorno..."
             node src/utils/checkEnv.js
 
             echo "🔁 Reiniciando servicios..."
@@ -72,25 +72,25 @@ jobs:
             echo "🌐 Verificando túnel Cloudflare..."
             estado=$(systemctl is-active cloudflared.service)
             if [ "$estado" != "active" ]; then
-              echo "Túnel inactivo, reiniciando..."
+              echo "Túnel inactivo. Reiniciando..."
               sudo systemctl restart cloudflared.service
             else
-              echo "Túnel Cloudflare activo ✅"
+              echo "✅ Túnel activo"
             fi
 
-            echo "🩺 Verificando backend..."
+            echo "🩺 Verificando /health..."
             respuesta=$(curl -s http://localhost:8000/health || echo "")
-            echo "Respuesta /health: $respuesta"
+            echo "Respuesta: $respuesta"
 
             if echo "$respuesta" | grep -q "\"status\": \"OK\""; then
               mensaje="✅ *KraveAI actualizado con éxito*\n🕒 $(date '+%H:%M')\n🔒 Configuración segura activa\n🟢 Backend OK"
               status=0
             else
-              mensaje="⚠️ *Error en despliegue KraveAI*\n🔴 /health falló\n📅 $(date '+%H:%M')\nRevisa logs: journalctl -u kraveai-python.service"
+              mensaje="⚠️ *Error en despliegue KraveAI*\n🔴 /health falló\n🕒 $(date '+%H:%M')\nRevisar: journalctl -u kraveai-python.service"
               status=1
             fi
 
-            echo "📨 Enviando notificación a Telegram..."
+            echo "📨 Enviando alerta a Telegram..."
             curl -s -X POST https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage \
               -d chat_id=${{ secrets.TELEGRAM_CHAT_ID }} \
               -d text="$mensaje" \
