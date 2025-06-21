@@ -3,35 +3,17 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "start:proxy": "node src/proxies/ultimateProxyMaster.js",
-    "test:proxy": "node src/proxies/proxyTester.js",
-    "start": "node server.js"
+    "start": "node run.js",
+    "proxy": "node src/proxies/ultimateProxyMaster.js",
+    "test": "node --test"
   },
   "dependencies": {
     "axios": "^1.10.0",
-    "dotenv": "^16.5.0",
-    "imap": "^0.8.19",
-    "jsdom": "^26.1.0",
-    "mailparser": "^3.7.3",
     "puppeteer": "^22.15.0",
-    "puppeteer-extra": "^3.3.6",
-    "puppeteer-extra-plugin-stealth": "^2.11.2",
-    "uuid": "^11.1.0"
+    "imap": "^0.8.19",
+    "mailparser": "^3.7.3"
   },
-  "main": "main.js",
-  "directories": {
-    "lib": "lib"
-  },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/karmeangomez/kraveai-backend.git"
-  },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "bugs": {
-    "url": "https://github.com/karmeangomez/kraveai-backend/issues"
-  },
-  "homepage": "https://github.com/karmeangomez/kraveai-backend#readme",
-  "description": ""
+  "engines": {
+    "node": ">=18.0.0"
+  }
 }
