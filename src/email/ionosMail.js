@@ -1,5 +1,3 @@
-// src/email/ionosMail.js
-
 export default class IONOSMail {
   constructor() {
     this.username = process.env.IONOS_EMAIL || '';
@@ -12,7 +10,6 @@ export default class IONOSMail {
     }
 
     this.active = true;
-    console.log("✅ Proveedor IONOSMail activado");
   }
 
   isActive() {
@@ -23,6 +20,7 @@ export default class IONOSMail {
     if (!this.active) {
       throw new Error("IONOSMail no activo");
     }
-    // ... implementar aquí tu lógica de generación de correo ...
+    const prefix = Math.random().toString(36).substring(2, 10);
+    return `${prefix}@kraveapi.xyz`;
   }
 }
