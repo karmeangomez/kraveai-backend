@@ -6,12 +6,15 @@ on:
       - main
 
 jobs:
-  deploy:
-    name: Despliegue Seguro en Raspberry Pi
+  build-and-deploy:
+    name: 🔐 Despliegue en Raspberry Pi
     runs-on: ubuntu-latest
 
     steps:
-      - name: 🛠️ Configuración Inicial
+      - name: 📥 Clonar Repositorio
+        uses: actions/checkout@v3
+
+      - name: 🔐 Crear Archivo .env.temp
         run: |
           mkdir -p secure_config
           echo "IONOS_USER=${{ secrets.IONOS_USER }}" > secure_config/.env.temp
@@ -19,24 +22,27 @@ jobs:
           echo "CRYPTO_KEY=${{ secrets.CRYPTO_KEY }}" >> secure_config/.env.temp
           echo "CRYPTO_IV=${{ secrets.CRYPTO_IV }}" >> secure_config/.env.temp
 
-      - name: 🔐 Cifrar Credenciales
+      - name: 🔒 Cifrar .env.temp como .env.enc
         run: |
           node src/utils/secureEnv.js encrypt \
             --input secure_config/.env.temp \
             --output secure_config/.env.enc \
             --key "${{ secrets.CRYPTO_KEY }}" \
             --iv "${{ secrets.CRYPTO_IV }}"
-          
           rm secure_config/.env.temp
-          echo "✅ Credenciales cifradas"
+          echo "✅ .env.enc generado"
 
-      - name: 📤 Subir Archivo Cifrado
-        uses: actions/upload-artifact@v3
+      - name: 🚀 Subir .env.enc a Raspberry Pi (scp)
+        uses: appleboy/scp-action@v0.1.5
         with:
-          name: env-secure
-          path: secure_config/.env.enc
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: ${{ secrets.SSH_PORT }}
+          source: secure_config/.env.enc
+          target: ~/kraveai-backend/
 
-      - name: 📡 Despliegue vía SSH
+      - name: 📡 Ejecutar Despliegue Seguro en Raspberry Pi (SSH)
         uses: appleboy/ssh-action@v1
         with:
           host: ${{ secrets.SSH_HOST }}
@@ -44,29 +50,20 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           port: ${{ secrets.SSH_PORT }}
           script: |
-            echo "📦 Iniciando despliegue seguro KraveAI..."
-            
-            # Descargar archivo cifrado
-            wget https://github.com/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/artifacts/env-secure \
-              -O ~/kraveai-backend/.env.enc
-            
+            echo "📦 Despliegue en curso..."
             cd ~/kraveai-backend
             git fetch --all
             git reset --hard origin/main
-            
-            echo "🔓 Descifrando credenciales..."
+
+            echo "🔓 Descifrando .env..."
             node src/utils/secureEnv.js decrypt \
               --input .env.enc \
               --output .env \
               --key "${{ secrets.CRYPTO_KEY }}" \
               --iv "${{ secrets.CRYPTO_IV }}"
-            
-            echo "🔍 Verificando entorno..."
+
+            echo "🧪 Verificando entorno"
             node src/utils/checkEnv.js
-            
-            echo "🐍 Activando entorno..."
-            source env/bin/activate
-            pip install -r requirements.txt
 
             echo "🔁 Reiniciando servicios..."
             sudo systemctl restart kraveai-python.service
@@ -81,19 +78,19 @@ jobs:
               echo "Túnel Cloudflare activo ✅"
             fi
 
-            echo "🩺 Verificando estado del backend..."
+            echo "🩺 Verificando backend..."
             respuesta=$(curl -s http://localhost:8000/health || echo "")
             echo "Respuesta /health: $respuesta"
 
             if echo "$respuesta" | grep -q "\"status\": \"OK\""; then
-              mensaje="✅ *KraveAI actualizado con éxito*\n📅 $(date '+%Y-%m-%d %H:%M')\n🔒 Configuración segura activa\n🟢 Backend operativo"
+              mensaje="✅ *KraveAI actualizado con éxito*\n🕒 $(date '+%H:%M')\n🔒 Configuración segura activa\n🟢 Backend OK"
               status=0
             else
-              mensaje="⚠️ *Error en despliegue KraveAI*\n📅 $(date '+%Y-%m-%d %H:%M')\n🔴 /health no respondió\n🔍 Verificar logs: journalctl -u kraveai-python.service"
+              mensaje="⚠️ *Error en despliegue KraveAI*\n🔴 /health falló\n📅 $(date '+%H:%M')\nRevisa logs: journalctl -u kraveai-python.service"
               status=1
             fi
 
-            echo "📨 Enviando notificación Telegram..."
+            echo "📨 Enviando notificación a Telegram..."
             curl -s -X POST https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage \
               -d chat_id=${{ secrets.TELEGRAM_CHAT_ID }} \
               -d text="$mensaje" \
