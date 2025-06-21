@@ -2,6 +2,8 @@ import AccountManager from './src/accounts/accountManager.js';
 import crearCuentaInstagram from './src/accounts/crearCuentaInstagram.js';
 import UltimateProxyMaster from './src/proxies/ultimateProxyMaster.js';
 import ProxyRotationSystem from './src/proxies/proxyRotationSystem.js';
+import fs from 'fs';
+import { notifyTelegram } from './src/utils/telegram_utils.js';
 
 const CONFIG = {
     ACCOUNTS_TO_CREATE: 5,
@@ -34,10 +36,17 @@ const CONFIG = {
             }
         }
 
-        // 3. Resultados
+        // 3. Guardar resultados
+        const allAccounts = AccountManager.getAccounts();
+        fs.writeFileSync('cuentas_creadas.json', JSON.stringify(allAccounts, null, 2));
+
+        // 4. Resultados finales
+        const successCount = allAccounts.filter(a => a.status === 'created').length;
         console.log('\n🎉 Proceso completado!');
-        console.log('Cuentas creadas:', AccountManager.getAccounts()
-            .filter(a => a.status === 'created').length);
+        console.log('Cuentas creadas:', successCount);
+
+        // 5. Notificación Telegram (opcional)
+        await notifyTelegram(`✅ Se crearon ${successCount} cuentas exitosamente 🚀`);
 
     } catch (error) {
         console.error('🔥 Error crítico:', error);
