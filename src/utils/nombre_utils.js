@@ -1,4 +1,4 @@
-cconst nombres = [
+const nombres = [
   'Carlos', 'María', 'Juan', 'Ana', 'Luis', 'Laura', 'Pedro', 'Sofía', 'Javier', 'Elena',
   'Andrés', 'Paola', 'Héctor', 'Gabriela', 'Fernando', 'Valeria', 'Daniel', 'Camila', 'Esteban', 'Natalia',
   'Eduardo', 'Lucía', 'Mateo', 'Renata', 'Emilio', 'Daniela', 'José', 'Carolina', 'Santiago', 'Andrea'
