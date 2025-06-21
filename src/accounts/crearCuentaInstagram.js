@@ -89,7 +89,13 @@ export default async function crearCuentaInstagram(proxySystem, retryCount = 0) 
 
         const cookies = await page.cookies();
         fs.writeFileSync(accountData.cookiesPath, JSON.stringify(cookies, null, 2));
-        await page.screenshot({ path: `screenshots/${accountData.username}_final.png` });
+        const screenshotPath = `screenshots/${accountData.username}_final.png`;
+        await page.screenshot({ path: screenshotPath });
+        accountData.screenshotPath = screenshotPath;
+
+        if (proxy) {
+            proxySystem.recordSuccess(proxy.string);
+        }
 
         return accountData;
 
