@@ -3,23 +3,24 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
+    "prestart": "node check-exports.js && node check-dependencies.js && node full-check.js",
     "start": "node run.js",
+    "verify": "node full-check.js",
     "proxy": "node src/proxies/ultimateProxyMaster.js",
-    "test": "node --test"
+    "proxytest": "node proxyTest.js",
+    "test": "node --test",
+    "decrypt": "node src/utils/secureEnv.js decrypt --input .env.enc --output .env --key $KEY --iv $IV",
+    "encrypt": "node src/utils/secureEnv.js encrypt --input .env --output .env.enc --key $KEY --iv $IV"
   },
   "dependencies": {
     "axios": "^1.10.0",
     "imap": "^0.8.19",
     "jsdom": "^26.1.0",
     "mailparser": "^3.7.3",
-    "puppeteer": "^22.15.0"
+    "puppeteer": "^22.15.0",
+    "user-agents": "^1.0.136"
   },
   "engines": {
     "node": ">=18.0.0"
   }
-}
-"scripts": {
-  "prestart": "node check-exports.js && node check-dependencies.js && node full-check.js",
-  "start": "node run.js",
-  "verify": "node full-check.js"
 }
