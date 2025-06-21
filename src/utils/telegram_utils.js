@@ -1,4 +1,3 @@
-// telegram_utils.js - Centro de notificaciones funcionales para KraveAI
 import dotenv from 'dotenv';
 import axios from 'axios';
 import fs from 'fs';
@@ -83,4 +82,9 @@ export async function notifyCaptchaDetected(usuario) {
 }
 
 export async function notifyCookiesGuardadas(path) {
-  await notifyTelegram(`💾 Cookies guardadas en: 
+  await notifyTelegram(`💾 Cookies guardadas en: ${path}`);
+}
+
+export async function notifyProxyFallido(proxy) {
+  await notifyTelegram(`🚫 Proxy marcado como fallido:\n${proxy}`);
+}
