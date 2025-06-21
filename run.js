@@ -8,96 +8,67 @@ import ProxyRotationSystem from './src/proxies/proxyRotationSystem.js';
 const ACCOUNTS_TO_CREATE = 5;
 const DELAY_BETWEEN_ACCOUNTS = 30000; // 30 segundos
 
-// Limpiar cuentas anteriores
-AccountManager.clearAccounts();
-
 (async () => {
   try {
-    // 1. Inicializar sistema de proxies
-    console.log('⚙️ Inicializando sistema de proxies...');
+    // 1. Inicializar sistemas
+    console.log('⚙️ Inicializando sistemas...');
+    
+    // Inicializar AccountManager
+    AccountManager.clearAccounts();
+    
+    // Inicializar proxies
     await UltimateProxyMaster.init();
+    const proxySystem = new ProxyRotationSystem();
+    await proxySystem.initHealthChecks();
     
-    // 2. Iniciar sistema de rotación
-    await ProxyRotationSystem.initHealthChecks();
+    console.log('🔥 Todos los sistemas iniciados');
     
-    console.log('🔥 Sistema de proxies iniciado');
-    
-    // Verificar que hay proxies disponibles
-    const activeProxies = ProxyRotationSystem.getActiveProxies();
-    console.log(`🔧 Proxies activos: ${activeProxies.length}`);
-    if (activeProxies.length === 0) {
-      console.warn('⚠️ Continuando sin proxies disponibles');
-    }
-    
-    // Ejecutar cuentas en serie
+    // 2. Crear cuentas
     const results = [];
     for (let i = 0; i < ACCOUNTS_TO_CREATE; i++) {
       console.log(`\n🚀 Creando cuenta ${i + 1}/${ACCOUNTS_TO_CREATE}...`);
       
       const startTime = Date.now();
-      const result = await crearCuentaInstagram();
+      const result = await crearCuentaInstagram(proxySystem); // Pasamos el proxySystem
       const elapsedTime = ((Date.now() - startTime) / 1000).toFixed(1);
       
       if (result.status === 'created') {
-        console.log(`✅ Cuenta creada exitosamente en ${elapsedTime}s`);
-        console.log(`   Usuario: @${result.username}`);
-        console.log(`   Email: ${result.email}`);
-        console.log(`   Proxy usado: ${result.proxy}`);
+        console.log(`✅ Cuenta creada en ${elapsedTime}s | @${result.username}`);
       } else {
         console.error(`❌ Error: ${result.error || 'Desconocido'}`);
       }
       
-      // Esperar antes de la siguiente cuenta (excepto la última)
       if (i < ACCOUNTS_TO_CREATE - 1) {
-        console.log(`⏳ Esperando ${DELAY_BETWEEN_ACCOUNTS / 1000} segundos...`);
+        console.log(`⏳ Esperando ${DELAY_BETWEEN_ACCOUNTS / 1000}s...`);
         await new Promise(resolve => setTimeout(resolve, DELAY_BETWEEN_ACCOUNTS));
       }
       
       results.push(result);
     }
     
-    // 3. Reporte final
-    const accounts = AccountManager.getAccounts();
-    const successCount = accounts.filter(a => a.status === 'created').length;
-    
-    console.log(`\n🎉 Proceso completado!`);
-    console.log(`   Cuentas exitosas: ${successCount}/${ACCOUNTS_TO_CREATE}`);
-    console.log(`   Cuentas fallidas: ${ACCOUNTS_TO_CREATE - successCount}`);
-    
-    // 4. Mostrar estadísticas de proxies
-    console.log('\n📊 Estadísticas de Proxies:');
-    ProxyRotationSystem.showProxyStats();
-    
-    // 5. Guardar reporte
-    fs.writeFileSync('creacion_cuentas_report.json', JSON.stringify({
-      timestamp: new Date().toISOString(),
-      total: ACCOUNTS_TO_CREATE,
-      success: successCount,
-      failed: ACCOUNTS_TO_CREATE - successCount,
-      accounts: accounts.map(a => ({
-        id: a.id,
-        username: a.username,
-        status: a.status,
-        email: a.email,
-        proxy: a.proxy,
-        error: a.error
-      }))
-    }, null, 2));
-    console.log('📝 Reporte guardado en creacion_cuentas_report.json');
+    // 3. Generar reporte
+    generateReport(results);
     
   } catch (error) {
     console.error(`🔥 Error fatal: ${error.message}`);
-    
-    // Guardar reporte de error
-    const accounts = AccountManager.getAccounts();
-    const successCount = accounts.filter(a => a.status === 'created').length;
-    
-    fs.writeFileSync('creacion_cuentas_report_ERROR.json', JSON.stringify({
+    fs.writeFileSync('error_report.json', JSON.stringify({
       error: error.message,
-      accounts_creadas: successCount,
-      accounts: accounts
+      stack: error.stack
     }, null, 2));
-    
     process.exit(1);
   }
 })();
+
+function generateReport(results) {
+  const successCount = results.filter(r => r.status === 'created').length;
+  
+  console.log(`\n🎉 Resultados:`);
+  console.log(`✔️ ${successCount} exitosas | ✖️ ${results.length - successCount} fallidas`);
+  
+  fs.writeFileSync('cuentas_creadas.json', JSON.stringify({
+    timestamp: new Date().toISOString(),
+    results: results
+  }, null, 2));
+  
+  console.log('📊 Reporte guardado en cuentas_creadas.json');
+}
