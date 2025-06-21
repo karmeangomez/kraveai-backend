@@ -11,13 +11,16 @@ const DELAY_BETWEEN_ACCOUNTS = 30000; // 30 segundos
 (async () => {
   try {
     // 1. Inicializar sistema de proxies
+    console.log('⚙️ Inicializando sistema de proxies...');
     await UltimateProxyMaster.init();
     
     // 2. Iniciar sistema de rotación
-    ProxyRotationSystem.initHealthChecks();
+    await ProxyRotationSystem.initHealthChecks();
     
     console.log('🔥 Sistema de proxies iniciado');
     
+    // Ejecutar cuentas en serie
+    const results = [];
     for (let i = 0; i < ACCOUNTS_TO_CREATE; i++) {
       console.log(`\n🚀 Creando cuenta ${i + 1}/${ACCOUNTS_TO_CREATE}...`);
       
@@ -30,15 +33,6 @@ const DELAY_BETWEEN_ACCOUNTS = 30000; // 30 segundos
         console.log(`   Usuario: @${result.username}`);
         console.log(`   Email: ${result.email}`);
         console.log(`   Proxy usado: ${result.proxy}`);
-        
-        // Guardar cuenta en el manager
-        AccountManager.addAccount({
-          id: AccountManager.getAccounts().length + 1,
-          username: result.username,
-          email: result.email,
-          proxy: result.proxy,
-          status: 'created'
-        });
       } else {
         console.error(`❌ Error: ${result.error || 'Desconocido'}`);
       }
@@ -48,6 +42,8 @@ const DELAY_BETWEEN_ACCOUNTS = 30000; // 30 segundos
         console.log(`⏳ Esperando ${DELAY_BETWEEN_ACCOUNTS / 1000} segundos...`);
         await new Promise(resolve => setTimeout(resolve, DELAY_BETWEEN_ACCOUNTS));
       }
+      
+      results.push(result);
     }
     
     // 3. Reporte final
@@ -73,7 +69,8 @@ const DELAY_BETWEEN_ACCOUNTS = 30000; // 30 segundos
         username: a.username,
         status: a.status,
         email: a.email,
-        proxy: a.proxy
+        proxy: a.proxy,
+        error: a.error
       }))
     }, null, 2));
     console.log('📝 Reporte guardado en creacion_cuentas_report.json');
