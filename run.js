@@ -8,6 +8,9 @@ import ProxyRotationSystem from './src/proxies/proxyRotationSystem.js';
 const ACCOUNTS_TO_CREATE = 5;
 const DELAY_BETWEEN_ACCOUNTS = 30000; // 30 segundos
 
+// Limpiar cuentas anteriores
+AccountManager.clearAccounts();
+
 (async () => {
   try {
     // 1. Inicializar sistema de proxies
@@ -18,6 +21,13 @@ const DELAY_BETWEEN_ACCOUNTS = 30000; // 30 segundos
     await ProxyRotationSystem.initHealthChecks();
     
     console.log('🔥 Sistema de proxies iniciado');
+    
+    // Verificar que hay proxies disponibles
+    const activeProxies = ProxyRotationSystem.getActiveProxies();
+    console.log(`🔧 Proxies activos: ${activeProxies.length}`);
+    if (activeProxies.length === 0) {
+      console.warn('⚠️ Continuando sin proxies disponibles');
+    }
     
     // Ejecutar cuentas en serie
     const results = [];
@@ -77,6 +87,17 @@ const DELAY_BETWEEN_ACCOUNTS = 30000; // 30 segundos
     
   } catch (error) {
     console.error(`🔥 Error fatal: ${error.message}`);
+    
+    // Guardar reporte de error
+    const accounts = AccountManager.getAccounts();
+    const successCount = accounts.filter(a => a.status === 'created').length;
+    
+    fs.writeFileSync('creacion_cuentas_report_ERROR.json', JSON.stringify({
+      error: error.message,
+      accounts_creadas: successCount,
+      accounts: accounts
+    }, null, 2));
+    
     process.exit(1);
   }
 })();
