@@ -26,10 +26,38 @@ class UltimateProxyMaster {
     try {
       // Carga proxies de archivos
       const premiumData = await fs.readFile('./config/premium_proxies.txt', 'utf8');
-      this.proxySources.premium = premiumData.split('\n').filter(Boolean);
+      const rawPremium = premiumData.split('\n').filter(Boolean);
       
       const backupData = await fs.readFile('./config/backup_proxies.txt', 'utf8');
-      this.proxySources.backup = backupData.split('\n').filter(Boolean);
+      const rawBackup = backupData.split('\n').filter(Boolean);
+      
+      // Filtrar proxies funcionales
+      this.proxySources.premium = [];
+      for (const proxyStr of rawPremium) {
+        if (await this.testProxy(proxyStr)) {
+          this.proxySources.premium.push(proxyStr);
+          console.log(`✅ Proxy premium verificado: ${proxyStr}`);
+        } else {
+          console.warn(`❌ Proxy premium no funcional: ${proxyStr}`);
+        }
+      }
+      
+      this.proxySources.backup = [];
+      for (const proxyStr of rawBackup) {
+        if (await this.testProxy(proxyStr)) {
+          this.proxySources.backup.push(proxyStr);
+          console.log(`✅ Proxy backup verificado: ${proxyStr}`);
+        } else {
+          console.warn(`❌ Proxy backup no funcional: ${proxyStr}`);
+        }
+      }
+
+      // Si no hay suficientes proxies, usar respaldo online
+      if (this.proxySources.premium.length < 3) {
+        console.log('⚠️ Usando proxies de respaldo online');
+        const onlineProxies = await this.getOnlineProxies();
+        this.proxySources.premium = [...this.proxySources.premium, ...onlineProxies.slice(0, 5)];
+      }
       
       // Inicializa contadores
       this.proxySources.premium.forEach(proxy => this.proxyUsageCount.set(proxy, 0));
@@ -38,15 +66,47 @@ class UltimateProxyMaster {
       console.warn('⚠️ Usando proxies por defecto');
       this.proxySources = {
         premium: [
-          '185.199.229.156:7492:user:pass',
-          '185.199.228.220:7300:user:pass',
-          '188.74.210.207:6286'
+          '45.95.96.187:8446',
+          '45.95.96.188:8446',
+          '45.95.96.189:8446'
         ],
         backup: [
-          '45.155.68.129:8137',
-          '51.158.68.133:8811'
+          '45.95.96.190:8446',
+          '45.95.96.191:8446'
         ]
       };
+    }
+  }
+
+  async testProxy(proxyStr) {
+    const proxy = this.formatProxy(proxyStr, 'test');
+    try {
+      const response = await axios.get('https://www.google.com', {
+        proxy: {
+          host: proxy.ip,
+          port: proxy.port,
+          ...(proxy.auth && {
+            auth: {
+              username: proxy.auth.username,
+              password: proxy.auth.password
+            }
+          })
+        },
+        timeout: 5000
+      });
+      return response.status === 200;
+    } catch (error) {
+      return false;
+    }
+  }
+
+  async getOnlineProxies() {
+    try {
+      const response = await axios.get('https://api.proxyscrape.com/v2/?request=getproxies&protocol=http&timeout=5000&country=all');
+      return response.data.split('\r\n').filter(p => p);
+    } catch (error) {
+      console.error('Error obteniendo proxies online:', error.message);
+      return [];
     }
   }
 
@@ -71,45 +131,6 @@ class UltimateProxyMaster {
       string: proxyStr,
       usageCount: this.proxyUsageCount.get(proxyStr) || 0
     };
-  }
-
-  async testProxyConnection(proxy) {
-    const testUrls = [
-      'https://www.instagram.com',
-      'https://www.google.com'
-    ];
-
-    const results = [];
-    for (const url of testUrls) {
-      try {
-        const start = Date.now();
-        await axios.get(url, {
-          proxy: {
-            host: proxy.ip,
-            port: proxy.port,
-            ...(proxy.auth ? {
-              auth: {
-                username: proxy.auth.username,
-                password: proxy.auth.password
-              }
-            } : {})
-          },
-          timeout: 8000
-        });
-        results.push({
-          url,
-          status: 'success',
-          responseTime: Date.now() - start
-        });
-      } catch (error) {
-        results.push({
-          url,
-          status: 'failed',
-          error: error.message
-        });
-      }
-    }
-    return results;
   }
 
   getProxyStats() {
