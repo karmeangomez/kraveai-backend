@@ -63,7 +63,7 @@ export default async function crearCuentaInstagram(proxySystem, retryCount = 0) 
         await page.setViewport(fingerprint.resolution);
         await page.setExtraHTTPHeaders({ 'Accept-Language': fingerprint.language });
 
-        // 4. Navegar a Instagram y llenar formulario
+        // 4. Navegar y llenar formulario
         await page.goto('https://www.instagram.com/accounts/emailsignup/', { waitUntil: 'networkidle2' });
         await humanActions.waitRandomDelay?.();
         await humanActions.simulateMouseMovement(page);
@@ -81,14 +81,14 @@ export default async function crearCuentaInstagram(proxySystem, retryCount = 0) 
             humanActions.clickLikeHuman?.(page, 'button[type="submit"]') || page.click('button[type="submit"]')
         ]);
 
-        // 5. Esperar código de verificación y enviarlo
+        // 5. Código de verificación
         const code = await emailManager.waitForCode(accountData.email);
         await humanActions.humanType(page, 'input[name="email_confirmation_code"]', code);
         await humanActions.simulateMouseMovement(page);
         await humanActions.clickLikeHuman?.(page, 'button[type="submit"]') || page.click('button[type="submit"]');
         await humanActions.waitRandomDelay?.();
 
-        // 6. Validar cuenta creada correctamente
+        // 6. Validar éxito
         await page.waitForTimeout(5000);
         const currentUrl = page.url();
         if (currentUrl.includes('/accounts/')) {
