@@ -1,5 +1,5 @@
 import AccountManager from './src/accounts/accountManager.js';
-import { crearCuentaInstagram } from './src/accounts/crearCuentaInstagram.js';
+import crearCuentaInstagram from './src/accounts/crearCuentaInstagram.js';
 import UltimateProxyMaster from './src/proxies/ultimateProxyMaster.js';
 import ProxyRotationSystem from './src/proxies/proxyRotationSystem.js';
 import fs from 'fs';
