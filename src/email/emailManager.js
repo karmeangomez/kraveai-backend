@@ -1,6 +1,6 @@
 import InstAddr from './instaddr.js';
 import TempMail from './tempMail.js';
-import OneSecMail from './onesecmail.js';
+import OneSecMail from './oneSecMail.js';
 import IONOSMail from './ionosMail.js';
 
 export default class EmailManager {
