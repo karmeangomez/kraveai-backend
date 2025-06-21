@@ -28,14 +28,13 @@ const CONFIG = {
         // 1. Inicialización
         AccountManager.clearAccounts();
         await UltimateProxyMaster.init();
-        const proxySystem = new ProxyRotationSystem();
-        await proxySystem.initHealthChecks();
+        await ProxyRotationSystem.initHealthChecks();
 
         // 2. Creación de cuentas
         for (let i = 0; i < CONFIG.ACCOUNTS_TO_CREATE; i++) {
             console.log(`\n🚀 Creando cuenta ${i+1}/${CONFIG.ACCOUNTS_TO_CREATE}`);
             
-            const result = await crearCuentaInstagram(proxySystem);
+            const result = await crearCuentaInstagram(ProxyRotationSystem);
             AccountManager.addAccount(result);
             
             if (result.status === 'created') {
