@@ -1,91 +1,86 @@
-// src/run.js
-import AccountManager from './src/accounts/accountManager.js';
-import crearCuentaInstagram from './src/accounts/crearCuentaInstagram.js';
-import UltimateProxyMaster from './src/proxies/ultimateProxyMaster.js';
-import ProxyRotationSystem from './src/proxies/proxyRotationSystem.js';
+// src/proxies/ultimateProxyMaster.js
 import fs from 'fs';
-import {
-  notifyTelegram,
-  notifyCuentaExitosa,
-  notifyErrorCuenta,
-  notifyResumenFinal,
-  notifyInstanciaIniciada
-} from './src/utils/telegram_utils.js';
+import path from 'path';
+import axios from 'axios';
 
-const CONFIG = {
-  ACCOUNTS_TO_CREATE: 5,
-  DELAY_BETWEEN_ACCOUNTS: 30000
-};
-
-(async () => {
-  try {
-    const inicio = new Date();
-    await notifyInstanciaIniciada({
-      hora: inicio.toLocaleTimeString(),
-      entorno: 'Producción'
-    });
-
-    AccountManager.clearAccounts();
-    await UltimateProxyMaster.load(); // ✅ CORREGIDO
-    await ProxyRotationSystem.initHealthChecks();
-
-    for (let i = 0; i < CONFIG.ACCOUNTS_TO_CREATE; i++) {
-      console.log(`\n🚀 Creando cuenta ${i + 1}/${CONFIG.ACCOUNTS_TO_CREATE}`);
-      const result = await crearCuentaInstagram();
-
-      if (result) {
-        AccountManager.addAccount(result);
-
-        if (result.username) {
-          console.log(`✅ Cuenta creada: @${result.username}`);
-          await notifyCuentaExitosa(result);
-        } else {
-          const mensaje = result.error || '❌ Cuenta inválida';
-          console.error(`❌ Fallo: ${mensaje}`);
-          await notifyErrorCuenta(result, mensaje);
-        }
-
-      } else {
-        const fallback = {
-          username: '',
-          email: '',
-          password: '',
-          proxy: '',
-          status: 'failed',
-          error: '❌ crearCuentaInstagram devolvió null'
-        };
-        AccountManager.addAccount(fallback);
-        await notifyErrorCuenta(fallback, fallback.error);
-      }
-
-      if (i < CONFIG.ACCOUNTS_TO_CREATE - 1) {
-        await new Promise(r => setTimeout(r, CONFIG.DELAY_BETWEEN_ACCOUNTS));
-      }
-    }
-
-    const allAccounts = AccountManager.getAccounts();
-    if (allAccounts.length) {
-      fs.writeFileSync('cuentas_creadas.json', JSON.stringify(allAccounts, null, 2));
-    }
-
-    const successCount = allAccounts.filter(a => a.status === 'created').length;
-    const failCount = allAccounts.length - successCount;
-    const fin = new Date();
-    const tiempo = ((fin - inicio) / 1000).toFixed(1) + 's';
-
-    console.log('\n🎉 Proceso completado!');
-    console.log('Cuentas creadas:', successCount);
-
-    await notifyResumenFinal({
-      total: allAccounts.length,
-      success: successCount,
-      fail: failCount,
-      tiempo
-    });
-
-  } catch (error) {
-    console.error('🔥 Error crítico:', error);
-    await notifyTelegram(`🔥 Error crítico en ejecución:\n${error.message}`);
-    process.exit(1);
+class UltimateProxyMaster {
+  constructor() {
+    this.proxySources = {
+      premium: [],
+      public: []
+    };
+    this.allProxies = [];
   }
-})();
+
+  async load() {
+    this.proxySources.premium = this.loadFromFile('config/premium_proxies.txt');
+    this.proxySources.public = this.loadFromFile('config/backup_proxies.txt');
+
+    const onlineProxies = await this.fetchOnlineProxies();
+    this.proxySources.public.push(...onlineProxies);
+
+    this.allProxies = [...new Set([...this.proxySources.premium, ...this.proxySources.public])]
+      .map(this.parseProxy)
+      .filter(Boolean);
+
+    console.log(`✅ Proxy Master iniciado con ${this.allProxies.length} proxies funcionales`);
+  }
+
+  loadFromFile(filename) {
+    try {
+      const fullPath = path.resolve(filename);
+      const content = fs.readFileSync(fullPath, 'utf-8');
+      return content
+        .split('\n')
+        .map(l => l.trim())
+        .filter(l => l && l.includes(':'));
+    } catch {
+      return [];
+    }
+  }
+
+  async fetchOnlineProxies() {
+    const urls = [
+      'https://raw.githubusercontent.com/TheSpeedX/PROXY-List/master/http.txt',
+      'https://raw.githubusercontent.com/clarketm/proxy-list/master/proxy-list-raw.txt',
+      'https://raw.githubusercontent.com/ShiftyTR/Proxy-List/master/http.txt'
+    ];
+
+    const all = [];
+
+    for (const url of urls) {
+      try {
+        const res = await axios.get(url, { timeout: 5000 });
+        const proxies = res.data.split('\n').map(l => l.trim()).filter(l => l.includes(':'));
+        all.push(...proxies);
+      } catch {
+        continue;
+      }
+    }
+
+    return all.slice(0, 100);
+  }
+
+  parseProxy(proxyStr) {
+    const parts = proxyStr.split(':');
+    if (parts.length < 2) return null;
+
+    const [ip, port, user, pass] = parts;
+    const isAuth = !!(user && pass);
+
+    return {
+      string: proxyStr,
+      ip,
+      port: Number(port),
+      auth: isAuth ? { username: user, password: pass } : null,
+      type: 'http'
+    };
+  }
+
+  getWorkingProxies() {
+    return this.allProxies;
+  }
+}
+
+const proxyMaster = new UltimateProxyMaster();
+export default proxyMaster;
