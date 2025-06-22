@@ -1,101 +1,115 @@
 // src/proxies/proxyRotationSystem.js
 import UltimateProxyMaster from './ultimateProxyMaster.js';
 import axios from 'axios';
+import fs from 'fs/promises';
 
 class ProxyRotationSystem {
   constructor() {
-    this.proxyStats = new Map();
+    this.proxies = [];
     this.blacklist = new Set();
-    this.config = {
-      MAX_FAILS: 3,
-      COOLDOWN_MS: 30 * 60 * 1000 // 30 minutos
-    };
-    this.cooldownTimers = new Map();
+    this.blacklistData = new Map(); // proxyStr -> timestamp
+    this.blacklistFile = 'blacklist.json';
   }
 
-  getBestProxy() {
-    const now = Date.now();
-
-    const available = UltimateProxyMaster.getWorkingProxies()
-      .filter(p => {
-        const inCooldown = this.cooldownTimers.has(p.string) &&
-          now < this.cooldownTimers.get(p.string);
-        return !this.blacklist.has(p.string) && !inCooldown;
-      })
-      .map(p => ({
-        proxy: p,
-        stats: this.proxyStats.get(p.string) || { usageCount: 0, failures: 0 },
-        premium: UltimateProxyMaster.proxySources.premium.includes(p.string)
-      }));
-
-    if (available.length === 0) throw new Error('❌ No hay proxies disponibles');
-
-    return available.sort((a, b) => {
-      if (a.premium !== b.premium) return b.premium - a.premium;
-      return a.stats.failures - b.stats.failures || a.stats.usageCount - b.stats.usageCount;
-    })[0].proxy;
-  }
-
-  recordFailure(proxyString) {
-    const stats = this.proxyStats.get(proxyString) || { usageCount: 0, failures: 0 };
-    stats.usageCount++;
-    stats.failures++;
-    this.proxyStats.set(proxyString, stats);
-
-    if (stats.failures >= this.config.MAX_FAILS) {
-      this.blacklist.add(proxyString);
-      this.cooldownTimers.set(proxyString, Date.now() + this.config.COOLDOWN_MS);
-      console.warn(`🚫 Proxy en cooldown por fallos: ${proxyString}`);
+  async loadBlacklist() {
+    try {
+      const data = await fs.readFile(this.blacklistFile, 'utf8');
+      const entries = JSON.parse(data);
+      for (const [proxyStr, timestamp] of entries) {
+        if (Date.now() - timestamp < 30 * 60 * 1000) {
+          this.blacklist.add(proxyStr);
+          this.blacklistData.set(proxyStr, timestamp);
+        }
+      }
+    } catch {
+      console.warn('⚠️ No se pudo cargar blacklist.json (aún no existe)');
     }
   }
 
-  recordSuccess(proxyString) {
-    const stats = this.proxyStats.get(proxyString) || { usageCount: 0, failures: 0 };
-    stats.usageCount++;
-    stats.failures = 0;
-    this.proxyStats.set(proxyString, stats);
-  }
-
-  markProxyUsed(proxyString) {
-    const stats = this.proxyStats.get(proxyString) || { usageCount: 0, failures: 0 };
-    stats.usageCount++;
-    this.proxyStats.set(proxyString, stats);
-  }
-
-  getProxyStats() {
-    return {
-      total: this.proxyStats.size,
-      buenos: [...this.proxyStats.entries()].filter(([_, s]) => s.failures < this.config.MAX_FAILS).length,
-      malos: this.blacklist.size
-    };
+  async saveBlacklist() {
+    try {
+      await fs.writeFile(this.blacklistFile, JSON.stringify([...this.blacklistData]));
+    } catch (error) {
+      console.error('❌ Error guardando blacklist.json:', error.message);
+    }
   }
 
   async initHealthChecks() {
     console.log('🔄 Iniciando chequeos de salud de proxies...');
-    const proxies = UltimateProxyMaster.getWorkingProxies();
+    this.proxies = await UltimateProxyMaster.loadProxies();
+    const valids = [];
 
-    for (const proxy of proxies) {
+    for (const proxy of this.proxies) {
+      if (this.blacklist.has(proxy.string)) continue;
       try {
-        const response = await axios.get('http://httpbin.org/ip', {
+        await axios.get('https://www.instagram.com', {
           proxy: {
             host: proxy.ip,
             port: proxy.port,
             auth: proxy.auth || undefined
           },
-          timeout: 4000
+          timeout: 3000
         });
-
-        if (response.status === 200) {
-          this.recordSuccess(proxy.string);
-        } else {
-          this.recordFailure(proxy.string);
-        }
-      } catch (err) {
+        valids.push(proxy);
+      } catch {
         this.recordFailure(proxy.string);
       }
     }
+
+    this.proxies = valids;
+    console.log(`🧠 ${this.proxies.length} proxies válidos / ${this.blacklist.size} en blacklist`);
+  }
+
+  getAvailableProxies() {
+    return this.proxies.filter(p => !this.blacklist.has(p.string));
+  }
+
+  async getBestProxy() {
+    const available = this.getAvailableProxies();
+    for (const proxy of available) {
+      try {
+        await axios.get('https://www.instagram.com', {
+          proxy: {
+            host: proxy.ip,
+            port: proxy.port,
+            auth: proxy.auth || undefined
+          },
+          timeout: 3000
+        });
+        return proxy;
+      } catch {
+        this.recordFailure(proxy.string);
+      }
+    }
+    throw new Error('❌ No hay proxies válidos disponibles');
+  }
+
+  recordFailure(proxyStr) {
+    this.blacklist.add(proxyStr);
+    this.blacklistData.set(proxyStr, Date.now());
+    this.saveBlacklist();
+
+    console.warn(`🚫 Proxy en cooldown por fallos: ${proxyStr}`);
+
+    setTimeout(() => {
+      this.blacklist.delete(proxyStr);
+      this.blacklistData.delete(proxyStr);
+      this.saveBlacklist();
+      console.log(`♻️ Proxy reactivado: ${proxyStr}`);
+    }, 30 * 60 * 1000); // 30 minutos
+  }
+
+  markProxyUsed(proxyStr) {
+    // Si quieres registrar uso sin bloquear, lo puedes extender aquí
+  }
+
+  startPeriodicValidation(intervalMs = 30 * 60 * 1000) {
+    setInterval(async () => {
+      console.log('🔁 Revalidando proxies automáticamente...');
+      await UltimateProxyMaster.loadProxies();
+      await this.initHealthChecks();
+    }, intervalMs);
   }
 }
 
-const proxyRotationSystem = new ProxyRotationSystem();
-export default proxyRotationSystem;
+export default new ProxyRotationSystem();
