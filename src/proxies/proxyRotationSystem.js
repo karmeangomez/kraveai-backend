@@ -1,27 +1,34 @@
+// src/proxies/proxyRotationSystem.js
 import UltimateProxyMaster from './ultimateProxyMaster.js';
 import axios from 'axios';
-import dotenv from 'dotenv';
-dotenv.config();
 
 class ProxyRotationSystem {
   constructor() {
     this.proxyStats = new Map();
     this.blacklist = new Set();
     this.config = {
-      MAX_FAILS: 3
+      MAX_FAILS: 3,
+      COOLDOWN_MS: 30 * 60 * 1000 // 30 minutos
     };
+    this.cooldownTimers = new Map();
   }
 
   getBestProxy() {
+    const now = Date.now();
+
     const available = UltimateProxyMaster.getWorkingProxies()
-      .filter(p => !this.blacklist.has(p.string))
+      .filter(p => {
+        const inCooldown = this.cooldownTimers.has(p.string) &&
+          now < this.cooldownTimers.get(p.string);
+        return !this.blacklist.has(p.string) && !inCooldown;
+      })
       .map(p => ({
         proxy: p,
         stats: this.proxyStats.get(p.string) || { usageCount: 0, failures: 0 },
         premium: UltimateProxyMaster.proxySources.premium.includes(p.string)
       }));
 
-    if (available.length === 0) throw new Error('No hay proxies disponibles');
+    if (available.length === 0) throw new Error('❌ No hay proxies disponibles');
 
     return available.sort((a, b) => {
       if (a.premium !== b.premium) return b.premium - a.premium;
@@ -29,7 +36,7 @@ class ProxyRotationSystem {
     })[0].proxy;
   }
 
-  async recordFailure(proxyString) {
+  recordFailure(proxyString) {
     const stats = this.proxyStats.get(proxyString) || { usageCount: 0, failures: 0 };
     stats.usageCount++;
     stats.failures++;
@@ -37,14 +44,15 @@ class ProxyRotationSystem {
 
     if (stats.failures >= this.config.MAX_FAILS) {
       this.blacklist.add(proxyString);
-      console.warn(`🚫 Proxy blacklisted: ${proxyString}`);
-      await this.notifyTelegram(proxyString, stats.failures);
+      this.cooldownTimers.set(proxyString, Date.now() + this.config.COOLDOWN_MS);
+      console.warn(`🚫 Proxy en cooldown por fallos: ${proxyString}`);
     }
   }
 
   recordSuccess(proxyString) {
     const stats = this.proxyStats.get(proxyString) || { usageCount: 0, failures: 0 };
     stats.usageCount++;
+    stats.failures = 0;
     this.proxyStats.set(proxyString, stats);
   }
 
@@ -74,34 +82,17 @@ class ProxyRotationSystem {
             port: proxy.port,
             auth: proxy.auth || undefined
           },
-          timeout: 5000
+          timeout: 4000
         });
+
         if (response.status === 200) {
           this.recordSuccess(proxy.string);
         } else {
-          await this.recordFailure(proxy.string);
+          this.recordFailure(proxy.string);
         }
       } catch (err) {
-        await this.recordFailure(proxy.string);
+        this.recordFailure(proxy.string);
       }
-    }
-  }
-
-  async notifyTelegram(proxyString, fallos) {
-    const token = process.env.TELEGRAM_BOT_TOKEN;
-    const chatId = process.env.TELEGRAM_CHAT_ID;
-
-    if (!token || !chatId) return;
-
-    const msg = `⚠️ *Proxy desactivado automáticamente*\n📍 \`${proxyString}\`\n❌ Fallos consecutivos: ${fallos}`;
-    try {
-      await axios.post(`https://api.telegram.org/bot${token}/sendMessage`, {
-        chat_id: chatId,
-        text: msg,
-        parse_mode: 'Markdown'
-      });
-    } catch (err) {
-      console.warn("⚠️ Error al notificar a Telegram:", err.message);
     }
   }
 }
