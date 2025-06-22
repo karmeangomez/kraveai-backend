@@ -1,4 +1,4 @@
-// src/proxies/ultimateProxyMaster.js
+// ✅ src/proxies/ultimateProxyMaster.js
 import fs from 'fs';
 import path from 'path';
 import axios from 'axios';
@@ -13,7 +13,7 @@ class UltimateProxyMaster {
     this.allProxies = [];
   }
 
-  async loadProxies() {
+  async init() {
     this.proxySources.premium = this.loadFromFile('config/premium_proxies.txt');
     this.proxySources.public = this.loadFromFile('config/backup_proxies.txt');
 
@@ -58,7 +58,7 @@ class UltimateProxyMaster {
       }
     }
 
-    return all.slice(0, 100); // límite para evitar sobrecarga
+    return all.slice(0, 100); // Máximo 100 proxies online
   }
 
   parseProxy(proxyStr) {
@@ -69,7 +69,7 @@ class UltimateProxyMaster {
       ip,
       port: Number(port),
       auth: isAuth ? { username: user, password: pass } : null,
-      type: 'http' // se puede ajustar dinámicamente si se quiere más adelante
+      type: 'http' // Podrías ajustarlo dinámicamente en el futuro
     };
   }
 
@@ -78,6 +78,4 @@ class UltimateProxyMaster {
   }
 }
 
-const proxyMaster = new UltimateProxyMaster();
-await proxyMaster.loadProxies();
-export default proxyMaster;
+export default new UltimateProxyMaster(); // ← exportas el objeto, no lo instancias todavía
