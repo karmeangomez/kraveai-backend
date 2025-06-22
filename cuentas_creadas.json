@@ -1,86 +1,52 @@
 [
   {
-    "id": "cffc50ce-e25e-4bd9-af34-dd3d01d9536b",
-    "username": "anatorres807",
-    "email": "insta_vdvmey@punkproof.com",
-    "password": "AnaTorres8sz4!",
+    "id": "5d26bc12-ae65-4a7b-8758-999943861441",
+    "username": "",
+    "email": "",
+    "password": "",
     "proxy": "31.57.90.48:5617:pdsmombq:terqdq67j6mp",
-    "status": "created"
+    "status": "failed",
+    "error": "net::ERR_NO_SUPPORTED_PROXIES at https://www.instagram.com/accounts/emailsignup/",
+    "timestamp": "2025-06-22T00:40:21.451Z"
   },
   {
-    "id": "cffc50ce-e25e-4bd9-af34-dd3d01d9536b",
-    "username": "anatorres807",
-    "email": "insta_vdvmey@punkproof.com",
-    "password": "AnaTorres8sz4!",
-    "proxy": "31.57.90.48:5617:pdsmombq:terqdq67j6mp",
-    "status": "created"
-  },
-  {
-    "id": "b340a3a4-cceb-4fca-aa3b-5a2a53f77c74",
-    "username": "carlospérez106",
-    "email": "insta_lsrmiu@punkproof.com",
-    "password": "CarlosPérez5jv2!",
+    "id": "f37afcd2-d564-4a1d-877b-a08b86e6540e",
+    "username": "",
+    "email": "",
+    "password": "",
     "proxy": "45.39.7.214:5645:pdsmombq:terqdq67j6mp",
-    "status": "created"
+    "status": "failed",
+    "error": "net::ERR_NO_SUPPORTED_PROXIES at https://www.instagram.com/accounts/emailsignup/",
+    "timestamp": "2025-06-22T00:40:54.869Z"
   },
   {
-    "id": "b340a3a4-cceb-4fca-aa3b-5a2a53f77c74",
-    "username": "carlospérez106",
-    "email": "insta_lsrmiu@punkproof.com",
-    "password": "CarlosPérez5jv2!",
-    "proxy": "45.39.7.214:5645:pdsmombq:terqdq67j6mp",
-    "status": "created"
-  },
-  {
-    "id": "005ea61b-dee1-4c98-8bb0-e0ebc124ba2c",
-    "username": "danielsilva507",
-    "email": "insta_jj2s84@punkproof.com",
-    "password": "DanielSilvazibs!",
+    "id": "fa055be1-0c4e-435c-b44e-bf7657154c7a",
+    "username": "",
+    "email": "",
+    "password": "",
     "proxy": "104.253.50.28:6465:pdsmombq:terqdq67j6mp",
-    "status": "created"
+    "status": "failed",
+    "error": "net::ERR_NO_SUPPORTED_PROXIES at https://www.instagram.com/accounts/emailsignup/",
+    "timestamp": "2025-06-22T00:41:28.335Z"
   },
   {
-    "id": "005ea61b-dee1-4c98-8bb0-e0ebc124ba2c",
-    "username": "danielsilva507",
-    "email": "insta_jj2s84@punkproof.com",
-    "password": "DanielSilvazibs!",
-    "proxy": "104.253.50.28:6465:pdsmombq:terqdq67j6mp",
-    "status": "created"
-  },
-  {
-    "id": "9c8b1f1a-600e-428f-9c9d-33e212fa229b",
+    "id": "3f29d359-5c07-4a6c-acbb-add43df912d9",
     "username": "",
     "email": "",
     "password": "",
     "proxy": "107.173.105.110:5797:pdsmombq:terqdq67j6mp",
     "status": "failed",
-    "error": "No se encontró el selector: input[name=\"emailOrPhone\"]"
+    "error": "net::ERR_NO_SUPPORTED_PROXIES at https://www.instagram.com/accounts/emailsignup/",
+    "timestamp": "2025-06-22T00:42:01.924Z"
   },
   {
-    "id": "9c8b1f1a-600e-428f-9c9d-33e212fa229b",
-    "username": "",
-    "email": "",
-    "password": "",
-    "proxy": "107.173.105.110:5797:pdsmombq:terqdq67j6mp",
-    "status": "failed",
-    "error": "No se encontró el selector: input[name=\"emailOrPhone\"]"
-  },
-  {
-    "id": "e998adc8-b022-4d08-987a-19afdf919328",
+    "id": "1c27388d-b529-4c54-a616-68e60e5b4f6d",
     "username": "",
     "email": "",
     "password": "",
     "proxy": "171.22.249.108:5688:pdsmombq:terqdq67j6mp",
     "status": "failed",
-    "error": "No se encontró el selector: input[name=\"emailOrPhone\"]"
-  },
-  {
-    "id": "e998adc8-b022-4d08-987a-19afdf919328",
-    "username": "",
-    "email": "",
-    "password": "",
-    "proxy": "171.22.249.108:5688:pdsmombq:terqdq67j6mp",
-    "status": "failed",
-    "error": "No se encontró el selector: input[name=\"emailOrPhone\"]"
+    "error": "net::ERR_NO_SUPPORTED_PROXIES at https://www.instagram.com/accounts/emailsignup/",
+    "timestamp": "2025-06-22T00:42:35.975Z"
   }
 ]
