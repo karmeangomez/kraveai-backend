@@ -1,16 +1,14 @@
 import puppeteer from 'puppeteer-extra';
 import StealthPlugin from 'puppeteer-extra-plugin-stealth';
+import fs from 'fs';
+import path from 'path';
 import { v4 as uuidv4 } from 'uuid';
-import { getRandomName } from '../utils/nombre_utils.js';
-import {
-  humanType,
-  randomDelay,
-  simulateMouseMovement,
-  humanInteraction
-} from '../utils/humanActions.js';
+
 import ProxyRotationSystem from '../proxies/proxyRotationSystem.js';
+import EmailManager from '../email/emailManager.js';
 import AccountManager from './accountManager.js';
-import EmailManager from '../email/emailManager.js'; // ✅ CORREGIDO
+import { generarNombreCompleto, generarNombreUsuario } from '../utils/nombre_utils.js';
+import { humanType, randomDelay, simulateMouseMovement, humanInteraction } from '../utils/humanActions.js';
 
 puppeteer.use(StealthPlugin());
 
@@ -20,61 +18,85 @@ const logger = {
 };
 
 async function crearCuentaInstagram() {
+  const proxyObj = ProxyRotationSystem.getBestProxy();
+  const proxyStr = proxyObj ? proxyObj.string : 'none';
+
   const browser = await puppeteer.launch({
     headless: true,
-    args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-gpu'],
-    executablePath: '/usr/bin/chromium-browser'
+    args: [
+      '--no-sandbox',
+      '--disable-setuid-sandbox',
+      '--disable-dev-shm-usage',
+      '--disable-gpu',
+      proxyObj ? `--proxy-server=${proxyObj.string}` : null
+    ].filter(Boolean),
+    executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || '/usr/bin/chromium-browser'
   });
 
   const page = await browser.newPage();
 
-  const proxyObj = ProxyRotationSystem.getBestProxy();
-  const proxyStr = proxyObj ? proxyObj.string : 'none';
-
-  const emailClient = new EmailManager(proxyObj); // ✅ CORREGIDO
-  const email = await emailClient.getRandomEmail(); // ✅ CORREGIDO
+  if (proxyObj?.auth) {
+    await page.authenticate(proxyObj.auth);
+  }
 
   try {
-    if (!proxyObj) {
-      logger.info('⚠️ Sin proxy, continúa en IP local');
-    } else {
-      logger.info(`🛡️ Usando proxy: ${proxyStr}`);
-      await page.authenticate(proxyObj.auth);
-    }
+    const fullName = generarNombreCompleto();
+    const username = generarNombreUsuario(fullName);
+    const password = `${username}${Math.random().toString(36).slice(-4)}!`;
+    const emailManager = new EmailManager(proxyObj);
+    const email = await emailManager.getRandomEmail();
 
-    await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36');
+    // Fingerprint & contexto realista
+    await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36');
+    await page.setViewport({ width: 390, height: 844 });
     await page.goto('https://www.instagram.com/accounts/emailsignup/', { waitUntil: 'networkidle2' });
-
     await simulateMouseMovement(page);
-    await randomDelay(2000, 4000);
-
-    const { firstName, lastName } = getRandomName();
-    const username = `${firstName.toLowerCase()}${lastName.toLowerCase()}${Math.floor(Math.random() * 1000)}`;
-    const password = `${firstName}${lastName}${Math.random().toString(36).slice(-4)}!`;
-
     await humanInteraction(page);
+    await randomDelay(3000, 7000);
+
     await humanType(page, 'input[name="emailOrPhone"]', email);
-    await humanType(page, 'input[name="fullName"]', `${firstName} ${lastName}`);
+    await humanType(page, 'input[name="fullName"]', fullName);
     await humanType(page, 'input[name="username"]', username);
     await humanType(page, 'input[name="password"]', password);
 
-    const signUpButton = await page.$('button[type="submit"]');
-    if (!signUpButton) throw new Error('No se encontró el botón de registro');
+    const btn = await page.$('button[type="submit"]');
+    await btn.click();
 
-    await signUpButton.click();
-    await page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 10000 }).catch(() => {});
+    await page.waitForTimeout(10000); // esperar carga
+    const code = await emailManager.waitForCode(email);
+    const codeInput = await page.$('input[name="email_confirmation_code"]');
+    if (codeInput) {
+      await humanType(page, 'input[name="email_confirmation_code"]', code);
+      await page.keyboard.press('Enter');
+    }
 
+    await page.waitForTimeout(5000);
+
+    // Verificar existencia real de cuenta
+    const check = await page.goto(`https://www.instagram.com/${username}`, { waitUntil: 'domcontentloaded' });
+    const exists = check.status() === 200;
+
+    if (!exists) throw new Error('Cuenta no encontrada en Instagram (post-verificación)');
+
+    const cookies = await page.cookies();
     const account = {
       id: uuidv4(),
       username,
-      email,
       password,
+      email,
       proxy: proxyStr,
-      status: 'created'
+      status: 'created',
+      timestamp: new Date().toISOString()
     };
 
+    // Guardar cookies por usuario
+    const cookiesPath = path.resolve(`cookies/${username}.json`);
+    fs.writeFileSync(cookiesPath, JSON.stringify(cookies, null, 2));
+
+    // Añadir a lista
     AccountManager.addAccount(account);
     if (proxyObj) ProxyRotationSystem.markProxyUsed(proxyStr);
+    logger.info(`✅ Cuenta añadida: ${username}`);
 
     await browser.close();
     return account;
@@ -82,20 +104,17 @@ async function crearCuentaInstagram() {
   } catch (error) {
     logger.error(`❌ Error creando cuenta: ${error.message}`);
     if (proxyObj) ProxyRotationSystem.recordFailure(proxyStr);
-
-    const failedAccount = {
+    await browser.close();
+    return {
       id: uuidv4(),
       username: '',
       email: '',
       password: '',
       proxy: proxyStr,
       status: 'failed',
-      error: error.message
+      error: error.message,
+      timestamp: new Date().toISOString()
     };
-
-    AccountManager.addAccount(failedAccount);
-    await browser.close();
-    return failedAccount;
   }
 }
 
