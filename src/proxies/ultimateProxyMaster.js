@@ -28,6 +28,7 @@ class UltimateProxyMaster {
       .filter(p => !!p); // filtrar nulls
 
     console.log(`✅ Proxy Master iniciado con ${this.allProxies.length} proxies funcionales`);
+    return this.allProxies;
   }
 
   loadFromFile(relativePath) {
