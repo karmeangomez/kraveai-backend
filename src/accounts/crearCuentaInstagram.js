@@ -1,3 +1,4 @@
+// src/accounts/crearCuentaInstagram.js
 import puppeteer from 'puppeteer-extra';
 import StealthPlugin from 'puppeteer-extra-plugin-stealth';
 import proxyRotationSystem from '../proxies/proxyRotationSystem.js';
@@ -25,7 +26,7 @@ export default async function crearCuentaInstagram() {
   const username = generateUsername();
   const password = `Insta@${Math.floor(Math.random() * 10000)}r`;
 
-  const proxy = proxyRotationSystem.getBestProxy();
+  const proxy = await proxyRotationSystem.getBestProxy();
   if (!proxy) throw new Error('Proxy no disponible');
 
   const proxyStr = proxy.auth
@@ -71,19 +72,16 @@ export default async function crearCuentaInstagram() {
       await page.click('button[type="submit"]');
     }
 
-    // Verificar si la cuenta existe públicamente
     const profileUrl = `https://www.instagram.com/${username}/`;
     const response = await page.goto(profileUrl, { timeout: 30000 });
-    const exists = response.status() === 200;
+    const exists = response && response.status && response.status() === 200;
 
     if (!exists) throw new Error('Cuenta creada no es pública');
 
-    // Guardar cookies
     const cookies = await page.cookies();
     const cookiesPath = path.join(__dirname, `../cookies/${username}.json`);
     fs.writeFileSync(cookiesPath, JSON.stringify(cookies, null, 2));
 
-    // Guardar cuenta
     const cuentasPath = path.join(__dirname, '../cuentas_creadas.json');
     const nuevaCuenta = {
       username,
@@ -102,7 +100,10 @@ export default async function crearCuentaInstagram() {
     proxyRotationSystem.recordSuccess(proxy.string);
     return nuevaCuenta;
   } catch (error) {
-    const screenshotPath = path.join(__dirname, `../logs/error_${Date.now()}.png`);
+    const logsDir = path.join(__dirname, '../logs');
+    if (!fs.existsSync(logsDir)) fs.mkdirSync(logsDir);
+
+    const screenshotPath = path.join(logsDir, `error_${Date.now()}.png`);
     if (browser) {
       const pages = await browser.pages();
       if (pages[0]) await pages[0].screenshot({ path: screenshotPath });
