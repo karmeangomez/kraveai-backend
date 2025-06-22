@@ -1,11 +1,10 @@
-// src/proxies/proxyRotationSystem.js
 import UltimateProxyMaster from './ultimateProxyMaster.js';
 import axios from 'axios';
 import fs from 'fs/promises';
 
 class ProxyRotationSystem {
   constructor() {
-    this.proxies = [];
+    this.proxies = []; // ← Se llena después de validación
     this.blacklist = new Set();
     this.blacklistData = new Map(); // proxyStr -> timestamp
     this.blacklistFile = 'blacklist.json';
@@ -36,11 +35,16 @@ class ProxyRotationSystem {
 
   async initHealthChecks() {
     console.log('🔄 Iniciando chequeos de salud de proxies...');
-    this.proxies = await UltimateProxyMaster.loadProxies();
-    const valids = [];
+    const loadedProxies = await UltimateProxyMaster.loadProxies();
 
-    for (const proxy of this.proxies) {
-      if (this.blacklist.has(proxy.string)) continue;
+    if (!Array.isArray(loadedProxies)) {
+      throw new Error('❌ UltimateProxyMaster.loadProxies no devolvió un array');
+    }
+
+    const valids = [];
+    for (const proxy of loadedProxies) {
+      if (!proxy?.ip || this.blacklist.has(proxy.string)) continue;
+
       try {
         await axios.get('https://www.instagram.com', {
           proxy: {
@@ -100,13 +104,12 @@ class ProxyRotationSystem {
   }
 
   markProxyUsed(proxyStr) {
-    // Si quieres registrar uso sin bloquear, lo puedes extender aquí
+    // Registro opcional de uso
   }
 
   startPeriodicValidation(intervalMs = 30 * 60 * 1000) {
     setInterval(async () => {
       console.log('🔁 Revalidando proxies automáticamente...');
-      await UltimateProxyMaster.loadProxies();
       await this.initHealthChecks();
     }, intervalMs);
   }
