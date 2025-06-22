@@ -3,104 +3,81 @@ import fs from 'fs';
 import path from 'path';
 import axios from 'axios';
 
-const premiumPath = path.resolve('config/premium_proxies.txt');
-const publicPath = path.resolve('config/backup_proxies.txt');
-
 class UltimateProxyMaster {
   constructor() {
-    this.proxyList = [];
     this.proxySources = {
       premium: [],
       public: []
     };
+
+    this.allProxies = [];
   }
 
-  async loadAllProxies() {
-    this.proxyList = [];
-    this.proxySources.premium = [];
-    this.proxySources.public = [];
+  async loadProxies() {
+    this.proxySources.premium = this.loadFromFile('config/premium_proxies.txt');
+    this.proxySources.public = this.loadFromFile('config/backup_proxies.txt');
 
-    // 1. Premium (local)
-    if (fs.existsSync(premiumPath)) {
-      const raw = fs.readFileSync(premiumPath, 'utf8').split('\n').map(l => l.trim()).filter(Boolean);
-      for (const proxy of raw) {
-        const parsed = this.parse(proxy);
-        if (parsed) {
-          parsed.source = 'premium';
-          this.proxyList.push(parsed);
-          this.proxySources.premium.push(parsed.string);
-        }
-      }
-      console.log(`✅ Proxies premium cargados: ${this.proxySources.premium.length}`);
-    }
+    const onlineProxies = await this.fetchOnlineProxies();
+    this.proxySources.public.push(...onlineProxies);
 
-    // 2. Públicos desde archivo
-    if (fs.existsSync(publicPath)) {
-      const raw = fs.readFileSync(publicPath, 'utf8').split('\n').map(l => l.trim()).filter(Boolean);
-      for (const proxy of raw) {
-        const parsed = this.parse(proxy);
-        if (parsed) {
-          parsed.source = 'public';
-          this.proxyList.push(parsed);
-          this.proxySources.public.push(parsed.string);
-        }
-      }
-      console.log(`✅ Proxies públicos locales cargados: ${this.proxySources.public.length}`);
-    }
+    this.allProxies = [...new Set([...this.proxySources.premium, ...this.proxySources.public])]
+      .map(this.parseProxy);
 
-    // 3. Scraping adicional en vivo (async, sin bloquear)
-    this.fetchPublicSources();
+    console.log(`✅ Proxy Master iniciado con ${this.allProxies.length} proxies funcionales`);
   }
 
-  async fetchPublicSources() {
+  loadFromFile(filename) {
+    try {
+      const fullPath = path.resolve(filename);
+      const content = fs.readFileSync(fullPath, 'utf-8');
+      return content
+        .split('\n')
+        .map(l => l.trim())
+        .filter(l => l && l.includes(':'));
+    } catch {
+      return [];
+    }
+  }
+
+  async fetchOnlineProxies() {
     const urls = [
       'https://raw.githubusercontent.com/TheSpeedX/PROXY-List/master/http.txt',
-      'https://api.proxyscrape.com/v2/?request=getproxies&protocol=http&timeout=5000&country=all',
-      'https://raw.githubusercontent.com/monosans/proxy-list/main/proxies/http.txt'
+      'https://raw.githubusercontent.com/clarketm/proxy-list/master/proxy-list-raw.txt',
+      'https://raw.githubusercontent.com/ShiftyTR/Proxy-List/master/http.txt'
     ];
+
+    const all = [];
 
     for (const url of urls) {
       try {
-        const res = await axios.get(url, { timeout: 10000 });
-        const lines = res.data.split('\n').map(l => l.trim()).filter(Boolean);
-        for (const line of lines) {
-          const proxy = `http://${line}`;
-          const parsed = this.parse(proxy);
-          if (parsed && !this.proxySources.public.includes(parsed.string)) {
-            parsed.source = 'public';
-            this.proxyList.push(parsed);
-            this.proxySources.public.push(parsed.string);
-          }
-        }
-        console.log(`🌍 Proxies públicos extraídos de: ${url}`);
-      } catch (e) {
-        console.warn(`⚠️ Fallo al obtener proxies desde ${url}: ${e.message}`);
+        const res = await axios.get(url, { timeout: 5000 });
+        const proxies = res.data.split('\n').map(l => l.trim()).filter(l => l.includes(':'));
+        all.push(...proxies);
+      } catch {
+        continue;
       }
     }
+
+    return all.slice(0, 100); // límite para evitar sobrecarga
   }
 
-  parse(rawProxy) {
-    try {
-      const cleaned = rawProxy.replace(/^http:\/\//, '');
-      const [authPart, ipPortPart] = cleaned.includes('@') ? cleaned.split('@') : [null, cleaned];
-      const [ip, port] = ipPortPart.split(':');
-      const [username, password] = authPart ? authPart.split(':') : [null, null];
-      return {
-        ip,
-        port: parseInt(port),
-        auth: username && password ? { username, password } : null,
-        string: `http://${authPart ? `${username}:${password}@` : ''}${ip}:${port}`
-      };
-    } catch (e) {
-      return null;
-    }
+  parseProxy(proxyStr) {
+    const [ip, port, user, pass] = proxyStr.split(':');
+    const isAuth = !!(user && pass);
+    return {
+      string: proxyStr,
+      ip,
+      port: Number(port),
+      auth: isAuth ? { username: user, password: pass } : null,
+      type: 'http' // se puede ajustar dinámicamente si se quiere más adelante
+    };
   }
 
   getWorkingProxies() {
-    return this.proxyList;
+    return this.allProxies;
   }
 }
 
-const instance = new UltimateProxyMaster();
-await instance.loadAllProxies();
-export default instance;
+const proxyMaster = new UltimateProxyMaster();
+await proxyMaster.loadProxies();
+export default proxyMaster;
