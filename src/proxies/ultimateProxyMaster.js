@@ -1,4 +1,3 @@
-// src/proxies/ultimateProxyMaster.js
 import fs from 'fs';
 import path from 'path';
 import axios from 'axios';
@@ -25,10 +24,11 @@ class UltimateProxyMaster {
 
     this.allProxies = [...new Set([...this.proxySources.premium, ...this.proxySources.public])]
       .map(this.parseProxy)
-      .filter(p => !!p); // filtrar nulls
+      .filter(p => !!p); // filtrar nulos
 
     console.log(`✅ Proxy Master iniciado con ${this.allProxies.length} proxies funcionales`);
-    return this.allProxies;
+
+    return this.allProxies; // ⚠️ IMPORTANTE para que .proxies = await loadProxies() funcione
   }
 
   loadFromFile(relativePath) {
@@ -67,7 +67,7 @@ class UltimateProxyMaster {
       }
     }
 
-    return all.slice(0, 100);
+    return all.slice(0, 100); // limitar para evitar sobrecarga
   }
 
   parseProxy(proxyStr) {
