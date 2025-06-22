@@ -13,8 +13,9 @@ import {
 } from './src/utils/telegram_utils.js';
 
 const CONFIG = {
-  ACCOUNTS_TO_CREATE: 5,
-  DELAY_BETWEEN_ACCOUNTS: 30000
+  ACCOUNTS_TO_CREATE: 50,
+  DELAY_BETWEEN_ACCOUNTS: 15000, // Más rápido entre cuentas
+  HEADLESS: false // 👁️ Navegador visible
 };
 
 (async () => {
@@ -22,40 +23,40 @@ const CONFIG = {
     const inicio = new Date();
     await notifyInstanciaIniciada({
       hora: inicio.toLocaleTimeString(),
-      entorno: 'Producción'
+      entorno: CONFIG.HEADLESS ? 'Visual Mode' : 'Headless'
     });
 
     AccountManager.clearAccounts();
+
+    // Proxies
     await UltimateProxyMaster.loadProxies();
+    await ProxyRotationSystem.loadBlacklist?.(); // Si existe
     await ProxyRotationSystem.initHealthChecks();
+    ProxyRotationSystem.startPeriodicValidation?.(); // Validación periódica cada 30 min
 
     for (let i = 0; i < CONFIG.ACCOUNTS_TO_CREATE; i++) {
       console.log(`\n🚀 Creando cuenta ${i + 1}/${CONFIG.ACCOUNTS_TO_CREATE}`);
-      const result = await crearCuentaInstagram();
+      const result = await crearCuentaInstagram({ headless: CONFIG.HEADLESS });
 
-      if (result) {
+      if (result && result.username) {
         AccountManager.addAccount(result);
-
-        if (result.username) {
-          console.log(`✅ Cuenta creada: @${result.username}`);
-          await notifyCuentaExitosa(result);
-        } else {
-          const mensaje = result.error || '❌ Cuenta inválida';
-          console.error(`❌ Fallo: ${mensaje}`);
-          await notifyErrorCuenta(result, mensaje);
-        }
-
+        console.log(`✅ Cuenta creada: @${result.username}`);
+        await notifyCuentaExitosa(result);
       } else {
+        const mensaje = result?.error || '❌ Cuenta inválida';
+        console.error(`❌ Fallo: ${mensaje}`);
+
         const fallback = {
           username: '',
           email: '',
           password: '',
-          proxy: '',
+          proxy: result?.proxy || '',
           status: 'failed',
-          error: '❌ crearCuentaInstagram devolvió null'
+          error: mensaje
         };
+
         AccountManager.addAccount(fallback);
-        await notifyErrorCuenta(fallback, fallback.error);
+        await notifyErrorCuenta(fallback, mensaje);
       }
 
       if (i < CONFIG.ACCOUNTS_TO_CREATE - 1) {
@@ -63,6 +64,7 @@ const CONFIG = {
       }
     }
 
+    // Guardar resultados
     const allAccounts = AccountManager.getAccounts();
     if (allAccounts.length) {
       fs.writeFileSync('cuentas_creadas.json', JSON.stringify(allAccounts, null, 2));
