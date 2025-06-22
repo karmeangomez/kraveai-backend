@@ -1,3 +1,5 @@
+// src/utils/nombre_utils.js
+
 const nombres = [
   'Carlos', 'María', 'Juan', 'Ana', 'Luis', 'Laura', 'Pedro', 'Sofía', 'Javier', 'Elena',
   'Andrés', 'Paola', 'Héctor', 'Gabriela', 'Fernando', 'Valeria', 'Daniel', 'Camila', 'Esteban', 'Natalia',
@@ -44,9 +46,19 @@ function generateEmail() {
   return `${generateUsername()}@kraveai.xyz`;
 }
 
+// Alias por compatibilidad
+const generarNombreCompleto = () => {
+  const { firstName, lastName } = getRandomName();
+  return `${firstName} ${lastName}`;
+};
+
+const generarNombreUsuario = () => generateUsername();
+
 export {
   getRandomName,
   generateRussianName,
   generateUsername,
-  generateEmail
+  generateEmail,
+  generarNombreCompleto,
+  generarNombreUsuario
 };
