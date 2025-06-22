@@ -3,7 +3,7 @@ import StealthPlugin from 'puppeteer-extra-plugin-stealth';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { generarNombreUsuario, generateEmail, getRandomName } from '../utils/nombre_utils.js';
+import { generarNombreUsuario, getRandomName } from '../utils/nombre_utils.js';
 import proxyRotationSystem from '../proxies/proxyRotationSystem.js';
 import EmailManager from '../email/emailManager.js';
 
@@ -19,8 +19,8 @@ async function crearCuentaInstagram() {
   let browser;
 
   try {
-    const emailManager = new EmailManager();
-    email = await emailManager.getRandomEmail();
+    // ✅ Corrección aquí: usamos el singleton EmailManager directamente
+    email = await EmailManager.getRandomEmail();
 
     // Obtener proxy válido
     proxyObj = proxyRotationSystem.getBestProxy();
