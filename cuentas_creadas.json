@@ -1,52 +1,47 @@
 [
   {
-    "id": "5d26bc12-ae65-4a7b-8758-999943861441",
-    "username": "",
-    "email": "",
-    "password": "",
+    "id": "058d1a2c-c3a6-45a9-9eaf-c7ae2d999ac2",
+    "username": "gabriela_sereno_estrella26187",
+    "email": "insta_7ayt3k@punkproof.com",
+    "password": "CarolinaLópez8762!",
     "proxy": "31.57.90.48:5617:pdsmombq:terqdq67j6mp",
     "status": "failed",
-    "error": "net::ERR_NO_SUPPORTED_PROXIES at https://www.instagram.com/accounts/emailsignup/",
-    "timestamp": "2025-06-22T00:40:21.451Z"
+    "error": "net::ERR_NO_SUPPORTED_PROXIES at https://www.instagram.com/accounts/emailsignup/"
   },
   {
-    "id": "f37afcd2-d564-4a1d-877b-a08b86e6540e",
-    "username": "",
-    "email": "",
-    "password": "",
+    "id": "82383a9a-1160-49a5-a893-5bbe4c7341aa",
+    "username": "daniela_dulce_mar42273",
+    "email": "insta_2cxwqo@punkproof.com",
+    "password": "JuanLópez5990!",
     "proxy": "45.39.7.214:5645:pdsmombq:terqdq67j6mp",
     "status": "failed",
-    "error": "net::ERR_NO_SUPPORTED_PROXIES at https://www.instagram.com/accounts/emailsignup/",
-    "timestamp": "2025-06-22T00:40:54.869Z"
+    "error": "net::ERR_NO_SUPPORTED_PROXIES at https://www.instagram.com/accounts/emailsignup/"
   },
   {
-    "id": "fa055be1-0c4e-435c-b44e-bf7657154c7a",
-    "username": "",
-    "email": "",
-    "password": "",
+    "id": "10c467fd-f3d0-485d-9383-c6ce7e0add04",
+    "username": "héctor_dulce_estrella6967",
+    "email": "insta_ol10ke@punkproof.com",
+    "password": "RenataCastillo7711!",
     "proxy": "104.253.50.28:6465:pdsmombq:terqdq67j6mp",
     "status": "failed",
-    "error": "net::ERR_NO_SUPPORTED_PROXIES at https://www.instagram.com/accounts/emailsignup/",
-    "timestamp": "2025-06-22T00:41:28.335Z"
+    "error": "net::ERR_NO_SUPPORTED_PROXIES at https://www.instagram.com/accounts/emailsignup/"
   },
   {
-    "id": "3f29d359-5c07-4a6c-acbb-add43df912d9",
-    "username": "",
-    "email": "",
-    "password": "",
+    "id": "5eef8562-cd8f-49ae-b06b-a70282d194f3",
+    "username": "valeria_sencillo_nube55400",
+    "email": "f1cm7z8k2p@1secmail.org",
+    "password": "HéctorTorres9809!",
     "proxy": "107.173.105.110:5797:pdsmombq:terqdq67j6mp",
     "status": "failed",
-    "error": "net::ERR_NO_SUPPORTED_PROXIES at https://www.instagram.com/accounts/emailsignup/",
-    "timestamp": "2025-06-22T00:42:01.924Z"
+    "error": "net::ERR_NO_SUPPORTED_PROXIES at https://www.instagram.com/accounts/emailsignup/"
   },
   {
-    "id": "1c27388d-b529-4c54-a616-68e60e5b4f6d",
-    "username": "",
-    "email": "",
-    "password": "",
+    "id": "521a736f-8dc1-4f08-8b39-a3728649dc6c",
+    "username": "laura_bravo_bosque77203",
+    "email": "insta_vlxyju@punkproof.com",
+    "password": "FernandoRamírez8339!",
     "proxy": "171.22.249.108:5688:pdsmombq:terqdq67j6mp",
     "status": "failed",
-    "error": "net::ERR_NO_SUPPORTED_PROXIES at https://www.instagram.com/accounts/emailsignup/",
-    "timestamp": "2025-06-22T00:42:35.975Z"
+    "error": "net::ERR_NO_SUPPORTED_PROXIES at https://www.instagram.com/accounts/emailsignup/"
   }
 ]
