@@ -14,7 +14,7 @@ import {
 
 const CONFIG = {
   ACCOUNTS_TO_CREATE: 50,
-  DELAY_BETWEEN_ACCOUNTS: 15000
+  DELAY_BETWEEN_ACCOUNTS: 15000 // 15 segundos para evitar detección
 };
 
 (async () => {
@@ -22,14 +22,15 @@ const CONFIG = {
     const inicio = new Date();
     await notifyInstanciaIniciada({
       hora: inicio.toLocaleTimeString(),
-      entorno: 'Producción Visual'
+      entorno: 'Producción'
     });
 
+    // 🔄 Limpieza y validación inicial
     AccountManager.clearAccounts();
     await UltimateProxyMaster.loadProxies();
-    await ProxyRotationSystem.loadBlacklist();
+    await ProxyRotationSystem.loadBlacklist?.(); // si implementaste persistencia
     await ProxyRotationSystem.initHealthChecks();
-    ProxyRotationSystem.startPeriodicValidation();
+    ProxyRotationSystem.startPeriodicValidation?.(); // si tienes activada revalidación automática
 
     for (let i = 0; i < CONFIG.ACCOUNTS_TO_CREATE; i++) {
       console.log(`\n🚀 Creando cuenta ${i + 1}/${CONFIG.ACCOUNTS_TO_CREATE}`);
@@ -64,11 +65,13 @@ const CONFIG = {
       }
     }
 
+    // Guardar cuentas
     const allAccounts = AccountManager.getAccounts();
     if (allAccounts.length) {
       fs.writeFileSync('cuentas_creadas.json', JSON.stringify(allAccounts, null, 2));
     }
 
+    // Resumen final
     const successCount = allAccounts.filter(a => a.status === 'created').length;
     const failCount = allAccounts.length - successCount;
     const fin = new Date();
@@ -83,6 +86,7 @@ const CONFIG = {
       fail: failCount,
       tiempo
     });
+
   } catch (error) {
     console.error('🔥 Error crítico:', error);
     await notifyTelegram(`🔥 Error crítico en ejecución:\n${error.message}`);
