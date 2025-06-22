@@ -1,97 +1,101 @@
-// src/accounts/crearCuentaInstagram.js
 import puppeteer from 'puppeteer-extra';
 import StealthPlugin from 'puppeteer-extra-plugin-stealth';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { generarNombreCompleto, generarNombreUsuario } from '../utils/nombre_utils.js';
-import emailManager from '../email/emailManager.js';
-import proxySystem from '../proxies/proxyRotationSystem.js';
-import { v4 as uuidv4 } from 'uuid';
+import { generarNombreUsuario, generateEmail, getRandomName } from '../utils/nombre_utils.js';
+import proxyRotationSystem from '../proxies/proxyRotationSystem.js';
+import EmailManager from '../email/emailManager.js';
 
-puppeteer.use(StealthPlugin());
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
+puppeteer.use(StealthPlugin());
 
-export async function crearCuentaInstagram() {
-  const proxy = proxySystem.getBestProxy();
-  const proxyUrl = `http://${proxy.auth.username}:${proxy.auth.password}@${proxy.ip}:${proxy.port}`;
-  const proxyArg = `--proxy-server=${proxyUrl}`;
-
-  let browser;
-  let page;
+async function crearCuentaInstagram() {
+  const { firstName, lastName } = getRandomName();
+  const username = generarNombreUsuario();
+  const password = 'kraveAIBot@123';
   let email = '';
-  let username = '';
-  let fullName = '';
-  let password = '';
+  let proxyObj;
+  let browser;
 
   try {
-    console.log(`[INFO] 🛡️ Usando proxy: ${proxy.string}`);
-
-    // Generar datos
-    fullName = generarNombreCompleto();
-    username = generarNombreUsuario();
-    password = `${uuidv4().slice(0, 8)}Aa!`;
-
+    const emailManager = new EmailManager();
     email = await emailManager.getRandomEmail();
-    console.log(`📨 Email generado: ${email}`);
+
+    // Obtener proxy válido
+    proxyObj = proxyRotationSystem.getBestProxy();
+    const proxyUrl = `http://${proxyObj.auth.username}:${proxyObj.auth.password}@${proxyObj.ip}:${proxyObj.port}`;
+
+    const args = [
+      `--proxy-server=http=${proxyObj.ip}:${proxyObj.port}`,
+      '--no-sandbox',
+      '--disable-setuid-sandbox',
+      '--lang=es-ES',
+      '--window-size=360,640'
+    ];
 
     browser = await puppeteer.launch({
       headless: true,
-      args: [
-        proxyArg,
-        '--no-sandbox',
-        '--disable-setuid-sandbox',
-        '--disable-gpu',
-        '--disable-dev-shm-usage'
-      ]
+      args
     });
 
-    page = await browser.newPage();
+    const page = await browser.newPage();
+    await page.setUserAgent(
+      'Mozilla/5.0 (Linux; Android 13; SM-S918B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Mobile Safari/537.36'
+    );
 
-    await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36');
-    await page.goto('https://www.instagram.com/accounts/emailsignup/', { waitUntil: 'networkidle2', timeout: 60000 });
+    await page.goto('https://www.instagram.com/accounts/emailsignup/', {
+      waitUntil: 'networkidle2',
+      timeout: 60000
+    });
 
-    await page.waitForSelector('input[name="emailOrPhone"]');
+    await page.waitForSelector('input[name="emailOrPhone"]', { timeout: 15000 });
     await page.type('input[name="emailOrPhone"]', email, { delay: 100 });
-    await page.type('input[name="fullName"]', fullName, { delay: 100 });
+    await page.type('input[name="fullName"]', `${firstName} ${lastName}`, { delay: 100 });
     await page.type('input[name="username"]', username, { delay: 100 });
     await page.type('input[name="password"]', password, { delay: 100 });
 
-    await page.waitForTimeout(2000);
-    const buttons = await page.$x("//button[contains(., 'Siguiente')]");
-    if (buttons.length > 0) await buttons[0].click();
-    else throw new Error('No se encontró botón "Siguiente"');
+    await page.click('button[type="submit"]');
+    await page.waitForTimeout(5000);
 
-    await page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 30000 });
+    // Validar si se creó exitosamente accediendo al perfil
+    const profileUrl = `https://www.instagram.com/${username}`;
+    await page.goto(profileUrl, { waitUntil: 'domcontentloaded', timeout: 30000 });
 
+    const notFound = await page.$x("//*[contains(text(),'Esta página no está disponible')]");
+    if (notFound.length > 0) {
+      throw new Error('Instagram no reconoce el perfil creado');
+    }
+
+    // Guardar cookies
     const cookies = await page.cookies();
     const cookiePath = path.join(__dirname, `../cookies/${username}.json`);
     fs.writeFileSync(cookiePath, JSON.stringify(cookies, null, 2));
 
+    // Guardar cuenta
     const cuenta = {
       username,
       password,
       email,
-      nombre: fullName,
-      fecha: new Date().toISOString(),
-      cookies: `cookies/${username}.json`
+      cookies_path: `cookies/${username}.json`,
+      created_at: new Date().toISOString()
     };
 
-    const cuentasPath = path.join(__dirname, '../cuentas_creadas.json');
+    const cuentasPath = path.join(__dirname, '../data/cuentas_creadas.json');
     let cuentas = [];
     if (fs.existsSync(cuentasPath)) {
-      cuentas = JSON.parse(fs.readFileSync(cuentasPath));
+      cuentas = JSON.parse(fs.readFileSync(cuentasPath, 'utf8'));
     }
     cuentas.push(cuenta);
     fs.writeFileSync(cuentasPath, JSON.stringify(cuentas, null, 2));
 
-    console.log(`✅ Cuenta creada: @${username}`);
-    proxySystem.recordSuccess(proxy.string);
+    console.log(`✅ Cuenta creada y confirmada: @${username}`);
+    proxyRotationSystem.recordSuccess(proxyObj.string);
     return cuenta;
 
   } catch (err) {
-    console.error(`❌ Error creando cuenta: ${err.message}`);
-    if (proxy && proxy.string) proxySystem.recordFailure(proxy.string);
+    console.error('❌ Error creando o validando cuenta:', err.message);
+    if (proxyObj) proxyRotationSystem.recordFailure(proxyObj.string);
     return null;
   } finally {
     if (browser) await browser.close();
