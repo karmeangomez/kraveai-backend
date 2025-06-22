@@ -14,8 +14,7 @@ import {
 
 const CONFIG = {
   ACCOUNTS_TO_CREATE: 50,
-  DELAY_BETWEEN_ACCOUNTS: 15000, // Más rápido entre cuentas
-  HEADLESS: false // 👁️ Navegador visible
+  DELAY_BETWEEN_ACCOUNTS: 15000
 };
 
 (async () => {
@@ -23,40 +22,41 @@ const CONFIG = {
     const inicio = new Date();
     await notifyInstanciaIniciada({
       hora: inicio.toLocaleTimeString(),
-      entorno: CONFIG.HEADLESS ? 'Visual Mode' : 'Headless'
+      entorno: 'Producción Visual'
     });
 
     AccountManager.clearAccounts();
-
-    // Proxies
     await UltimateProxyMaster.loadProxies();
-    await ProxyRotationSystem.loadBlacklist?.(); // Si existe
+    await ProxyRotationSystem.loadBlacklist();
     await ProxyRotationSystem.initHealthChecks();
-    ProxyRotationSystem.startPeriodicValidation?.(); // Validación periódica cada 30 min
+    ProxyRotationSystem.startPeriodicValidation();
 
     for (let i = 0; i < CONFIG.ACCOUNTS_TO_CREATE; i++) {
       console.log(`\n🚀 Creando cuenta ${i + 1}/${CONFIG.ACCOUNTS_TO_CREATE}`);
-      const result = await crearCuentaInstagram({ headless: CONFIG.HEADLESS });
+      const result = await crearCuentaInstagram();
 
-      if (result && result.username) {
+      if (result) {
         AccountManager.addAccount(result);
-        console.log(`✅ Cuenta creada: @${result.username}`);
-        await notifyCuentaExitosa(result);
-      } else {
-        const mensaje = result?.error || '❌ Cuenta inválida';
-        console.error(`❌ Fallo: ${mensaje}`);
 
+        if (result.username) {
+          console.log(`✅ Cuenta creada: @${result.username}`);
+          await notifyCuentaExitosa(result);
+        } else {
+          const mensaje = result.error || '❌ Cuenta inválida';
+          console.error(`❌ Fallo: ${mensaje}`);
+          await notifyErrorCuenta(result, mensaje);
+        }
+      } else {
         const fallback = {
           username: '',
           email: '',
           password: '',
-          proxy: result?.proxy || '',
+          proxy: '',
           status: 'failed',
-          error: mensaje
+          error: '❌ crearCuentaInstagram devolvió null'
         };
-
         AccountManager.addAccount(fallback);
-        await notifyErrorCuenta(fallback, mensaje);
+        await notifyErrorCuenta(fallback, fallback.error);
       }
 
       if (i < CONFIG.ACCOUNTS_TO_CREATE - 1) {
@@ -64,7 +64,6 @@ const CONFIG = {
       }
     }
 
-    // Guardar resultados
     const allAccounts = AccountManager.getAccounts();
     if (allAccounts.length) {
       fs.writeFileSync('cuentas_creadas.json', JSON.stringify(allAccounts, null, 2));
@@ -84,7 +83,6 @@ const CONFIG = {
       fail: failCount,
       tiempo
     });
-
   } catch (error) {
     console.error('🔥 Error crítico:', error);
     await notifyTelegram(`🔥 Error crítico en ejecución:\n${error.message}`);
