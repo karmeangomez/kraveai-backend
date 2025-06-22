@@ -5,10 +5,11 @@
   "scripts": {
     "prestart": "node check-exports.js && node check-dependencies.js && node full-check.js",
     "start": "node run.js",
-    "verify": "node full-check.js",
+    "start:visual": "node run.js",                         // modo visual activado por default
+    "start:headless": "HEADLESS=true node run.js",        // para desactivar visual (opcional)
     "proxy": "node src/proxies/ultimateProxyMaster.js",
     "proxytest": "node proxyTest.js",
-    "test": "node --test",
+    "verify": "node full-check.js",
     "decrypt": "node src/utils/secureEnv.cjs decrypt --input .env.enc --output .env --key $KEY --iv $IV",
     "encrypt": "node src/utils/secureEnv.cjs encrypt --input .env --output .env.enc --key $KEY --iv $IV"
   },
@@ -20,6 +21,8 @@
     "jsdom": "^26.1.0",
     "mailparser": "^3.7.3",
     "puppeteer": "^22.15.0",
+    "puppeteer-extra": "^3.3.4",
+    "puppeteer-extra-plugin-stealth": "^2.11.1",
     "user-agents": "^1.0.136"
   },
   "engines": {
