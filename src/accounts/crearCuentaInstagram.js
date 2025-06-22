@@ -4,95 +4,98 @@ import StealthPlugin from 'puppeteer-extra-plugin-stealth';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { generateRussianName, generateUsername } from '../utils/nombre_utils.js';
+import { generarNombreCompleto, generarNombreUsuario } from '../utils/nombre_utils.js';
 import emailManager from '../email/emailManager.js';
-import proxyRotationSystem from '../proxies/proxyRotationSystem.js';
+import proxySystem from '../proxies/proxyRotationSystem.js';
 import { v4 as uuidv4 } from 'uuid';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 puppeteer.use(StealthPlugin());
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-export default async function crearCuentaInstagram() {
-  const username = generateUsername();
-  const password = uuidv4().slice(0, 12);
-  const fullName = generateRussianName();
+export async function crearCuentaInstagram() {
+  const proxy = proxySystem.getBestProxy();
+  const proxyUrl = `http://${proxy.auth.username}:${proxy.auth.password}@${proxy.ip}:${proxy.port}`;
+  const proxyArg = `--proxy-server=${proxyUrl}`;
+
+  let browser;
+  let page;
   let email = '';
-
-  const proxy = proxyRotationSystem.getBestProxy();
-  console.log(`🛡️ Usando proxy: ${proxy.string}`);
+  let username = '';
+  let fullName = '';
+  let password = '';
 
   try {
+    console.log(`[INFO] 🛡️ Usando proxy: ${proxy.string}`);
+
+    // Generar datos
+    fullName = generarNombreCompleto();
+    username = generarNombreUsuario();
+    password = `${uuidv4().slice(0, 8)}Aa!`;
+
     email = await emailManager.getRandomEmail();
     console.log(`📨 Email generado: ${email}`);
-  } catch (err) {
-    console.error('❌ Error generando email:', err.message);
-    return;
-  }
 
-  const browser = await puppeteer.launch({
-    headless: true,
-    args: [
-      `--proxy-server=${proxy.ip}:${proxy.port}`,
-      '--no-sandbox',
-      '--disable-setuid-sandbox'
-    ]
-  });
-
-  const page = await browser.newPage();
-
-  if (proxy.auth) {
-    await page.authenticate({
-      username: proxy.auth.username,
-      password: proxy.auth.password
+    browser = await puppeteer.launch({
+      headless: true,
+      args: [
+        proxyArg,
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-gpu',
+        '--disable-dev-shm-usage'
+      ]
     });
-  }
 
-  try {
-    await page.goto('https://www.instagram.com/accounts/emailsignup/', { timeout: 60000 });
-    await page.waitForSelector('input[name=emailOrPhone]');
+    page = await browser.newPage();
 
-    await page.type('input[name=emailOrPhone]', email, { delay: 50 });
-    await page.type('input[name=fullName]', fullName, { delay: 50 });
-    await page.type('input[name=username]', username, { delay: 50 });
-    await page.type('input[name=password]', password, { delay: 50 });
-    await page.waitForTimeout(1500);
-    await page.click('button[type=submit]');
-    await page.waitForTimeout(4000);
+    await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36');
+    await page.goto('https://www.instagram.com/accounts/emailsignup/', { waitUntil: 'networkidle2', timeout: 60000 });
 
-    // Verificar que el perfil existe realmente
-    const profileUrl = `https://www.instagram.com/${username}/`;
-    const check = await page.goto(profileUrl, { waitUntil: 'domcontentloaded', timeout: 15000 }).catch(() => null);
-    if (!check || check.status() === 404) {
-      throw new Error(`❌ La cuenta ${username} no fue creada realmente.`);
-    }
+    await page.waitForSelector('input[name="emailOrPhone"]');
+    await page.type('input[name="emailOrPhone"]', email, { delay: 100 });
+    await page.type('input[name="fullName"]', fullName, { delay: 100 });
+    await page.type('input[name="username"]', username, { delay: 100 });
+    await page.type('input[name="password"]', password, { delay: 100 });
 
-    // Guardar cookies
+    await page.waitForTimeout(2000);
+    const buttons = await page.$x("//button[contains(., 'Siguiente')]");
+    if (buttons.length > 0) await buttons[0].click();
+    else throw new Error('No se encontró botón "Siguiente"');
+
+    await page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 30000 });
+
     const cookies = await page.cookies();
-    const cookiesPath = path.join(__dirname, `../cookies/${username}.json`);
-    fs.writeFileSync(cookiesPath, JSON.stringify(cookies, null, 2));
+    const cookiePath = path.join(__dirname, `../cookies/${username}.json`);
+    fs.writeFileSync(cookiePath, JSON.stringify(cookies, null, 2));
 
-    // Guardar cuenta
     const cuenta = {
       username,
       password,
       email,
-      cookiesPath,
-      proxy: proxy.string,
-      createdAt: new Date().toISOString()
+      nombre: fullName,
+      fecha: new Date().toISOString(),
+      cookies: `cookies/${username}.json`
     };
 
-    const filePath = path.join(__dirname, '../cuentas_creadas.json');
-    const existentes = fs.existsSync(filePath) ? JSON.parse(fs.readFileSync(filePath)) : [];
-    existentes.push(cuenta);
-    fs.writeFileSync(filePath, JSON.stringify(existentes, null, 2));
+    const cuentasPath = path.join(__dirname, '../cuentas_creadas.json');
+    let cuentas = [];
+    if (fs.existsSync(cuentasPath)) {
+      cuentas = JSON.parse(fs.readFileSync(cuentasPath));
+    }
+    cuentas.push(cuenta);
+    fs.writeFileSync(cuentasPath, JSON.stringify(cuentas, null, 2));
 
-    proxyRotationSystem.recordSuccess(proxy.string);
     console.log(`✅ Cuenta creada: @${username}`);
-  } catch (error) {
-    console.error('❌ Error creando cuenta:', error.message);
-    proxyRotationSystem.recordFailure(proxy.string);
+    proxySystem.recordSuccess(proxy.string);
+    return cuenta;
+
+  } catch (err) {
+    console.error(`❌ Error creando cuenta: ${err.message}`);
+    if (proxy && proxy.string) proxySystem.recordFailure(proxy.string);
+    return null;
   } finally {
-    await browser.close();
+    if (browser) await browser.close();
   }
 }
+
+export default crearCuentaInstagram;
