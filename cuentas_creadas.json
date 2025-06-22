@@ -1,1 +1,42 @@
-[]
+[
+  {
+    "username": "",
+    "email": "",
+    "password": "",
+    "proxy": "",
+    "status": "failed",
+    "error": "❌ crearCuentaInstagram devolvió null"
+  },
+  {
+    "username": "",
+    "email": "",
+    "password": "",
+    "proxy": "",
+    "status": "failed",
+    "error": "❌ crearCuentaInstagram devolvió null"
+  },
+  {
+    "username": "",
+    "email": "",
+    "password": "",
+    "proxy": "",
+    "status": "failed",
+    "error": "❌ crearCuentaInstagram devolvió null"
+  },
+  {
+    "username": "",
+    "email": "",
+    "password": "",
+    "proxy": "",
+    "status": "failed",
+    "error": "❌ crearCuentaInstagram devolvió null"
+  },
+  {
+    "username": "",
+    "email": "",
+    "password": "",
+    "proxy": "",
+    "status": "failed",
+    "error": "❌ crearCuentaInstagram devolvió null"
+  }
+]
