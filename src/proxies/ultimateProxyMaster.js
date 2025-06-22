@@ -1,4 +1,4 @@
-// ✅ src/proxies/ultimateProxyMaster.js
+// src/proxies/ultimateProxyMaster.js
 import fs from 'fs';
 import path from 'path';
 import axios from 'axios';
@@ -9,11 +9,10 @@ class UltimateProxyMaster {
       premium: [],
       public: []
     };
-
     this.allProxies = [];
   }
 
-  async init() {
+  async load() {
     this.proxySources.premium = this.loadFromFile('config/premium_proxies.txt');
     this.proxySources.public = this.loadFromFile('config/backup_proxies.txt');
 
@@ -30,10 +29,7 @@ class UltimateProxyMaster {
     try {
       const fullPath = path.resolve(filename);
       const content = fs.readFileSync(fullPath, 'utf-8');
-      return content
-        .split('\n')
-        .map(l => l.trim())
-        .filter(l => l && l.includes(':'));
+      return content.split('\n').map(l => l.trim()).filter(l => l && l.includes(':'));
     } catch {
       return [];
     }
@@ -58,7 +54,7 @@ class UltimateProxyMaster {
       }
     }
 
-    return all.slice(0, 100); // Máximo 100 proxies online
+    return all.slice(0, 100); // ⚠️ Limitamos para evitar sobrecarga
   }
 
   parseProxy(proxyStr) {
@@ -69,7 +65,7 @@ class UltimateProxyMaster {
       ip,
       port: Number(port),
       auth: isAuth ? { username: user, password: pass } : null,
-      type: 'http' // Podrías ajustarlo dinámicamente en el futuro
+      type: 'http'
     };
   }
 
@@ -78,4 +74,6 @@ class UltimateProxyMaster {
   }
 }
 
-export default new UltimateProxyMaster(); // ← exportas el objeto, no lo instancias todavía
+const instance = new UltimateProxyMaster();
+export default instance;
+export const loadProxies = async () => await instance.load();
