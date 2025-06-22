@@ -1,79 +1,91 @@
-// src/proxies/ultimateProxyMaster.js
+// src/run.js
+import AccountManager from './src/accounts/accountManager.js';
+import crearCuentaInstagram from './src/accounts/crearCuentaInstagram.js';
+import UltimateProxyMaster from './src/proxies/ultimateProxyMaster.js';
+import ProxyRotationSystem from './src/proxies/proxyRotationSystem.js';
 import fs from 'fs';
-import path from 'path';
-import axios from 'axios';
+import {
+  notifyTelegram,
+  notifyCuentaExitosa,
+  notifyErrorCuenta,
+  notifyResumenFinal,
+  notifyInstanciaIniciada
+} from './src/utils/telegram_utils.js';
 
-class UltimateProxyMaster {
-  constructor() {
-    this.proxySources = {
-      premium: [],
-      public: []
-    };
-    this.allProxies = [];
-  }
+const CONFIG = {
+  ACCOUNTS_TO_CREATE: 5,
+  DELAY_BETWEEN_ACCOUNTS: 30000
+};
 
-  async load() {
-    this.proxySources.premium = this.loadFromFile('config/premium_proxies.txt');
-    this.proxySources.public = this.loadFromFile('config/backup_proxies.txt');
+(async () => {
+  try {
+    const inicio = new Date();
+    await notifyInstanciaIniciada({
+      hora: inicio.toLocaleTimeString(),
+      entorno: 'Producción'
+    });
 
-    const onlineProxies = await this.fetchOnlineProxies();
-    this.proxySources.public.push(...onlineProxies);
+    AccountManager.clearAccounts();
+    await UltimateProxyMaster.load(); // ✅ CORREGIDO
+    await ProxyRotationSystem.initHealthChecks();
 
-    this.allProxies = [...new Set([...this.proxySources.premium, ...this.proxySources.public])]
-      .map(this.parseProxy);
+    for (let i = 0; i < CONFIG.ACCOUNTS_TO_CREATE; i++) {
+      console.log(`\n🚀 Creando cuenta ${i + 1}/${CONFIG.ACCOUNTS_TO_CREATE}`);
+      const result = await crearCuentaInstagram();
 
-    console.log(`✅ Proxy Master iniciado con ${this.allProxies.length} proxies funcionales`);
-  }
+      if (result) {
+        AccountManager.addAccount(result);
 
-  loadFromFile(filename) {
-    try {
-      const fullPath = path.resolve(filename);
-      const content = fs.readFileSync(fullPath, 'utf-8');
-      return content.split('\n').map(l => l.trim()).filter(l => l && l.includes(':'));
-    } catch {
-      return [];
-    }
-  }
+        if (result.username) {
+          console.log(`✅ Cuenta creada: @${result.username}`);
+          await notifyCuentaExitosa(result);
+        } else {
+          const mensaje = result.error || '❌ Cuenta inválida';
+          console.error(`❌ Fallo: ${mensaje}`);
+          await notifyErrorCuenta(result, mensaje);
+        }
 
-  async fetchOnlineProxies() {
-    const urls = [
-      'https://raw.githubusercontent.com/TheSpeedX/PROXY-List/master/http.txt',
-      'https://raw.githubusercontent.com/clarketm/proxy-list/master/proxy-list-raw.txt',
-      'https://raw.githubusercontent.com/ShiftyTR/Proxy-List/master/http.txt'
-    ];
+      } else {
+        const fallback = {
+          username: '',
+          email: '',
+          password: '',
+          proxy: '',
+          status: 'failed',
+          error: '❌ crearCuentaInstagram devolvió null'
+        };
+        AccountManager.addAccount(fallback);
+        await notifyErrorCuenta(fallback, fallback.error);
+      }
 
-    const all = [];
-
-    for (const url of urls) {
-      try {
-        const res = await axios.get(url, { timeout: 5000 });
-        const proxies = res.data.split('\n').map(l => l.trim()).filter(l => l.includes(':'));
-        all.push(...proxies);
-      } catch {
-        continue;
+      if (i < CONFIG.ACCOUNTS_TO_CREATE - 1) {
+        await new Promise(r => setTimeout(r, CONFIG.DELAY_BETWEEN_ACCOUNTS));
       }
     }
 
-    return all.slice(0, 100); // ⚠️ Limitamos para evitar sobrecarga
-  }
+    const allAccounts = AccountManager.getAccounts();
+    if (allAccounts.length) {
+      fs.writeFileSync('cuentas_creadas.json', JSON.stringify(allAccounts, null, 2));
+    }
 
-  parseProxy(proxyStr) {
-    const [ip, port, user, pass] = proxyStr.split(':');
-    const isAuth = !!(user && pass);
-    return {
-      string: proxyStr,
-      ip,
-      port: Number(port),
-      auth: isAuth ? { username: user, password: pass } : null,
-      type: 'http'
-    };
-  }
+    const successCount = allAccounts.filter(a => a.status === 'created').length;
+    const failCount = allAccounts.length - successCount;
+    const fin = new Date();
+    const tiempo = ((fin - inicio) / 1000).toFixed(1) + 's';
 
-  getWorkingProxies() {
-    return this.allProxies;
-  }
-}
+    console.log('\n🎉 Proceso completado!');
+    console.log('Cuentas creadas:', successCount);
 
-const instance = new UltimateProxyMaster();
-export default instance;
-export const loadProxies = async () => await instance.load();
+    await notifyResumenFinal({
+      total: allAccounts.length,
+      success: successCount,
+      fail: failCount,
+      tiempo
+    });
+
+  } catch (error) {
+    console.error('🔥 Error crítico:', error);
+    await notifyTelegram(`🔥 Error crítico en ejecución:\n${error.message}`);
+    process.exit(1);
+  }
+})();
