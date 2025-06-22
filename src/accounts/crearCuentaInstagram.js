@@ -1,7 +1,7 @@
 import puppeteer from 'puppeteer-extra';
 import StealthPlugin from 'puppeteer-extra-plugin-stealth';
 import proxyRotationSystem from '../proxies/proxyRotationSystem.js';
-import { getEmailAddress, getVerificationCode } from '../email/emailManager.js';
+import emailManager from '../email/emailManager.js'; // ✅ Corrección aquí
 import { generateRussianName, generateUsername } from '../utils/nombre_utils.js';
 import { humanType, randomDelay, moveMouse } from '../utils/humanActions.js';
 import fs from 'fs';
@@ -21,7 +21,7 @@ export default async function crearCuentaInstagram() {
 
   let browser;
   try {
-    const email = await getEmailAddress();
+    const email = await emailManager.getRandomEmail(); // ✅ Corrección aquí
 
     browser = await puppeteer.launch({
       headless: true,
@@ -45,12 +45,14 @@ export default async function crearCuentaInstagram() {
     await page.click('button[type="submit"]');
     await page.waitForTimeout(5000);
 
-    // Esperar código y ponerlo si lo pide
-    const code = await getVerificationCode(email);
+    // Verificación automática (si aparece el input para código)
     const codeInput = await page.$('input[name="email_confirmation_code"]');
     if (codeInput) {
-      await humanType(page, 'input[name="email_confirmation_code"]', code);
-      await page.click('button[type="submit"]');
+      const code = await emailManager.getVerificationCode?.(email); // opcional
+      if (code) {
+        await humanType(page, 'input[name="email_confirmation_code"]', code);
+        await page.click('button[type="submit"]');
+      }
     }
 
     // Verificar si la cuenta existe públicamente
