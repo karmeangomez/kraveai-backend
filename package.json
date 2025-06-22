@@ -5,8 +5,8 @@
   "scripts": {
     "prestart": "node check-exports.js && node check-dependencies.js && node full-check.js",
     "start": "node run.js",
-    "start:visual": "node run.js",                         // modo visual activado por default
-    "start:headless": "HEADLESS=true node run.js",        // para desactivar visual (opcional)
+    "start:visual": "node run.js",
+    "start:headless": "HEADLESS=true node run.js",
     "proxy": "node src/proxies/ultimateProxyMaster.js",
     "proxytest": "node proxyTest.js",
     "verify": "node full-check.js",
