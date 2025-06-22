@@ -1,7 +1,7 @@
 import puppeteer from 'puppeteer-extra';
 import StealthPlugin from 'puppeteer-extra-plugin-stealth';
 import proxyRotationSystem from '../proxies/proxyRotationSystem.js';
-import emailManager from '../email/emailManager.js'; // ✅ Corrección aquí
+import emailManager from '../email/emailManager.js';
 import { generateRussianName, generateUsername } from '../utils/nombre_utils.js';
 import { humanType, randomDelay, moveMouse } from '../utils/humanActions.js';
 import fs from 'fs';
@@ -17,11 +17,15 @@ export default async function crearCuentaInstagram() {
   const password = `Insta@${Math.floor(Math.random() * 10000)}r`;
 
   const proxy = proxyRotationSystem.getBestProxy();
-  const proxyStr = `${proxy.protocol || 'http'}://${proxy.auth.username}:${proxy.auth.password}@${proxy.ip}:${proxy.port}`;
+  if (!proxy) throw new Error('Proxy no disponible');
+
+  const proxyStr = proxy.auth
+    ? `${proxy.type || 'http'}://${proxy.auth.username}:${proxy.auth.password}@${proxy.ip}:${proxy.port}`
+    : `${proxy.type || 'http'}://${proxy.ip}:${proxy.port}`;
 
   let browser;
   try {
-    const email = await emailManager.getRandomEmail(); // ✅ Corrección aquí
+    const email = await emailManager.getRandomEmail();
 
     browser = await puppeteer.launch({
       headless: true,
@@ -45,14 +49,12 @@ export default async function crearCuentaInstagram() {
     await page.click('button[type="submit"]');
     await page.waitForTimeout(5000);
 
-    // Verificación automática (si aparece el input para código)
+    // Esperar código y ponerlo si lo pide
+    const code = await emailManager.getVerificationCode(email);
     const codeInput = await page.$('input[name="email_confirmation_code"]');
     if (codeInput) {
-      const code = await emailManager.getVerificationCode?.(email); // opcional
-      if (code) {
-        await humanType(page, 'input[name="email_confirmation_code"]', code);
-        await page.click('button[type="submit"]');
-      }
+      await humanType(page, 'input[name="email_confirmation_code"]', code);
+      await page.click('button[type="submit"]');
     }
 
     // Verificar si la cuenta existe públicamente
@@ -78,7 +80,7 @@ export default async function crearCuentaInstagram() {
     return nuevaCuenta;
 
   } catch (error) {
-    proxyRotationSystem.recordFailure(proxy.string);
+    proxyRotationSystem.recordFailure(proxy?.string || 'N/A');
     console.error(`❌ Error creando cuenta: ${error.message}`);
     return null;
   } finally {
