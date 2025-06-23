@@ -1,9 +1,9 @@
 // src/accounts/crearCuentaInstagram.js
 import puppeteer from 'puppeteer-extra';
 import StealthPlugin from 'puppeteer-extra-plugin-stealth';
-import proxyRotationSystem from '../proxies/proxyRotationSystem.js';
+import ProxyRotationSystem from '../proxies/proxyRotationSystem.js';
 import emailManager from '../email/emailManager.js';
-import { generateRussianName, generateUsername } from '../utils/nombre_utils.js';
+import { generateLatinoName, generateLatinoUsername } from '../utils/nombre_utils.js'; // Actualizado a latino
 import { humanType, randomDelay, moveMouse } from '../utils/humanActions.js';
 import fs from 'fs';
 import path from 'path';
@@ -11,6 +11,9 @@ import { fileURLToPath } from 'url';
 
 puppeteer.use(StealthPlugin());
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
+// Bandera para inicializar el sistema de proxies solo una vez
+let proxySystemInitialized = false;
 
 async function safeInteract(page, selector, action, value = '') {
   try {
@@ -22,16 +25,31 @@ async function safeInteract(page, selector, action, value = '') {
 }
 
 export default async function crearCuentaInstagram() {
-  const nombreCompleto = generateRussianName();
-  const username = generateUsername();
-  const password = `Insta@${Math.floor(Math.random() * 10000)}r`;
+  // Inicializar sistema de proxies solo una vez
+  if (!proxySystemInitialized) {
+    await ProxyRotationSystem.initialize();
+    proxySystemInitialized = true;
+    console.log('✅ Sistema de proxies inicializado');
+  }
 
-  const proxy = await proxyRotationSystem.getBestProxy();
+  const nombreCompleto = generateLatinoName(); // Nombre latino
+  const username = generateLatinoUsername();   // Usuario latino
+  const password = `Insta@${Math.floor(Math.random() * 10000)}`;
+
+  // Obtener proxy usando el nuevo sistema
+  const proxy = ProxyRotationSystem.getNextProxy();
   if (!proxy) throw new Error('Proxy no disponible');
 
-  const proxyStr = proxy.auth
-    ? `${proxy.type || 'http'}://${proxy.auth.username}:${proxy.auth.password}@${proxy.ip}:${proxy.port}`
-    : `${proxy.type || 'http'}://${proxy.ip}:${proxy.port}`;
+  // Parsear el nuevo formato de proxy (ip:port:user:pass)
+  const proxyParts = proxy.proxy.split(':');
+  const ip = proxyParts[0];
+  const port = proxyParts[1];
+  const user = proxyParts[2];
+  const pass = proxyParts[3];
+
+  const proxyStr = user && pass 
+      ? `http://${user}:${pass}@${ip}:${port}`
+      : `http://${ip}:${port}`;
 
   let browser;
   try {
@@ -39,7 +57,11 @@ export default async function crearCuentaInstagram() {
 
     browser = await puppeteer.launch({
       headless: false, // VISUAL
-      args: [`--proxy-server=${proxyStr}`, '--no-sandbox', '--disable-setuid-sandbox'],
+      args: [
+        `--proxy-server=${proxyStr}`,
+        '--no-sandbox',
+        '--disable-setuid-sandbox'
+      ],
       defaultViewport: null
     });
 
@@ -73,7 +95,7 @@ export default async function crearCuentaInstagram() {
     }
 
     const profileUrl = `https://www.instagram.com/${username}/`;
-    const response = await page.goto(profileUrl, { timeout: 30000 });
+    const response = await page.goto(profileUrl, { waitUntil: 'domcontentloaded', timeout: 30000 });
     const exists = response && response.status && response.status() === 200;
 
     if (!exists) throw new Error('Cuenta creada no es pública');
@@ -89,15 +111,19 @@ export default async function crearCuentaInstagram() {
       email,
       proxy: proxyStr,
       createdAt: new Date().toISOString(),
-      status: 'created'
+      status: 'created',
+      proxyScore: proxy.score,  // Calidad del proxy
+      latency: proxy.latency,   // Rendimiento del proxy
+      country: 'LATAM'          // País de origen
     };
+    
     const cuentas = fs.existsSync(cuentasPath)
-      ? JSON.parse(fs.readFileSync(cuentasPath))
+      ? JSON.parse(fs.readFileSync(cuentasPath, 'utf8'))
       : [];
     cuentas.push(nuevaCuenta);
     fs.writeFileSync(cuentasPath, JSON.stringify(cuentas, null, 2));
 
-    proxyRotationSystem.recordSuccess(proxy.string);
+    console.log(`✅ Cuenta latina creada con proxy ${ip} (Score: ${proxy.score}, Latencia: ${proxy.latency}ms)`);
     return nuevaCuenta;
   } catch (error) {
     const logsDir = path.join(__dirname, '../logs');
@@ -109,8 +135,7 @@ export default async function crearCuentaInstagram() {
       if (pages[0]) await pages[0].screenshot({ path: screenshotPath });
     }
 
-    proxyRotationSystem.recordFailure(proxy?.string || 'N/A');
-    console.error(`❌ Error creando cuenta: ${error.message}`);
+    console.error(`❌ Error creando cuenta latina con proxy ${ip}:${port}: ${error.message}`);
     return null;
   } finally {
     if (browser) await browser.close().catch(() => {});
