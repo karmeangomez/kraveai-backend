@@ -4,9 +4,9 @@
   "type": "module",
   "scripts": {
     "prestart": "node check-exports.js && node check-dependencies.js && node full-check.js",
-    "start": "node run.js",
-    "start:visual": "node run.js",
-    "start:headless": "HEADLESS=true node run.js",
+    "start": "node src/run.js",
+    "start:visual": "node src/run.js",
+    "start:headless": "HEADLESS=true node src/run.js",
     "proxy": "node src/proxies/ultimateProxyMaster.js --load-all",
     "proxy:test": "node src/proxies/proxyTester.js --full-scan",
     "proxy:dashboard": "node src/proxies/proxyScoreWatcher.js --live",
@@ -28,7 +28,8 @@
     "puppeteer-extra-plugin-stealth": "^2.11.1",
     "socks-proxy-agent": "^8.0.3",
     "tor-request": "^3.1.0",
-    "user-agents": "^1.0.136"
+    "user-agents": "^1.0.136",
+    "form-data": "^4.0.0"  // Nueva dependencia para Telegram
   },
   "engines": {
     "node": ">=18.0.0"
