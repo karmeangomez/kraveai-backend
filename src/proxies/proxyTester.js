@@ -1,23 +1,24 @@
-import axios from 'axios';
-
-export default class SwiftShadowLoader {
-  static async getProxies() {
-    try {
-      console.log('⚡ Cargando proxies desde SwiftShadow...');
-
-      const { data } = await axios.get('https://raw.githubusercontent.com/mertguvencli/http-proxy-list/main/proxy-list/data.txt');
-
-      const proxies = data
-        .split('\n')
-        .filter(line => line.includes(':'))
-        .slice(0, 50)
-        .map(ipPort => `${ipPort}:user:pass`);
-
-      console.log(`✅ ${proxies.length} proxies de SwiftShadow cargados`);
-      return proxies;
-    } catch (error) {
-      console.error('❌ Error al cargar proxies desde SwiftShadow:', error.message);
-      return [];
-    }
+async function testProxy(proxy) {
+  try {
+    const start = Date.now();
+    const response = await axios.get('https://www.instagram.com', {
+      proxy: {
+        host: proxy.ip,
+        port: proxy.port,
+        auth: { username: proxy.user, password: proxy.pass }
+      },
+      timeout: 6000 // 6 segundos máximo
+    });
+    
+    const latency = Date.now() - start;
+    const isBlocked = response.data.includes('instagram.com/accounts/login');
+    
+    return {
+      valid: response.status === 200 && !isBlocked,
+      latency,
+      country: parseGeoHeader(response.headers)
+    };
+  } catch {
+    return { valid: false };
   }
 }
