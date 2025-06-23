@@ -1,19 +1,33 @@
-class ProxyScoreWatcher {
-  constructor() {
-    this.scores = new Map();
-    setInterval(this.checkProxies.bind(this), 300000); // 5 minutos
-  }
+const axios = require('axios');
 
-  async checkProxies() {
-    const proxies = ultimateProxyMaster.getProxies();
-    for (const proxy of proxies) {
-      const result = await proxyTester.testProxy(proxy);
-      const score = result.valid ? 100 - (result.latency / 100) : 0;
-      this.scores.set(proxy.string, score);
+module.exports = {
+  async validateProxies(proxies) {
+    const validProxies = [];
+    
+    for (const proxyStr of proxies) {
+      const [ip, port, user, pass] = proxyStr.split(':');
+      try {
+        const start = Date.now();
+        await axios.get('https://www.instagram.com', {
+          proxy: { host: ip, port: parseInt(port), auth: { username: user, password: pass } },
+          timeout: 6000
+        });
+        const latency = Date.now() - start;
+        
+        if (latency < 6000) {
+          validProxies.push({
+            proxy: proxyStr,
+            score: this.calculateScore(latency),
+            latency
+          });
+        }
+      } catch {}
     }
-  }
+    
+    return validProxies.sort((a, b) => b.score - a.score);
+  },
 
-  getIpScore(proxyString) {
-    return this.scores.get(proxyString) || 0;
+  calculateScore(latency) {
+    return Math.max(0, 100 - (latency / 100)); // Más alto = mejor
   }
-}
+};
