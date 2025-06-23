@@ -1,10 +1,10 @@
-// src/accounts/crearCuentaInstagram.js
 import puppeteer from 'puppeteer-extra';
 import StealthPlugin from 'puppeteer-extra-plugin-stealth';
 import ProxyRotationSystem from '../proxies/proxyRotationSystem.js';
 import emailManager from '../email/emailManager.js';
-import { generateLatinoName, generateLatinoUsername } from '../utils/nombre_utils.js'; // Actualizado a latino
+import { generateLatinoName, generateLatinoUsername } from '../utils/nombre_utils.js';
 import { humanType, randomDelay, moveMouse } from '../utils/humanActions.js';
+import { generateAdaptiveFingerprint } from '../fingerprints/generator.js';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -32,8 +32,8 @@ export default async function crearCuentaInstagram() {
     console.log('✅ Sistema de proxies inicializado');
   }
 
-  const nombreCompleto = generateLatinoName(); // Nombre latino
-  const username = generateLatinoUsername();   // Usuario latino
+  const nombreCompleto = generateLatinoName();
+  const username = generateLatinoUsername();
   const password = `Insta@${Math.floor(Math.random() * 10000)}`;
 
   // Obtener proxy usando el nuevo sistema
@@ -51,6 +51,9 @@ export default async function crearCuentaInstagram() {
       ? `http://${user}:${pass}@${ip}:${port}`
       : `http://${ip}:${port}`;
 
+  // Generar fingerprint compatible con la ubicación del proxy
+  const fingerprint = generateAdaptiveFingerprint(proxy.country || 'MX');
+
   let browser;
   try {
     const email = await emailManager.getRandomEmail();
@@ -60,12 +63,25 @@ export default async function crearCuentaInstagram() {
       args: [
         `--proxy-server=${proxyStr}`,
         '--no-sandbox',
-        '--disable-setuid-sandbox'
+        '--disable-setuid-sandbox',
+        `--lang=${fingerprint.language.split(',')[0].split('-')[0]}`
       ],
-      defaultViewport: null
+      defaultViewport: {
+        width: fingerprint.resolution.width,
+        height: fingerprint.resolution.height
+      }
     });
 
     const page = await browser.newPage();
+    
+    // Aplicar fingerprint completo
+    await page.setUserAgent(fingerprint.userAgent);
+    await page.evaluateOnNewDocument((timezone) => {
+      Object.defineProperty(Intl, 'DateTimeFormat', {
+        value: () => new Intl.DateTimeFormat('en-US', { timeZone: timezone })
+      });
+    }, fingerprint.timezone);
+    
     await page.setRequestInterception(true);
     page.on('request', req => {
       const blockTypes = ['image', 'stylesheet', 'font'];
@@ -112,9 +128,10 @@ export default async function crearCuentaInstagram() {
       proxy: proxyStr,
       createdAt: new Date().toISOString(),
       status: 'created',
-      proxyScore: proxy.score,  // Calidad del proxy
-      latency: proxy.latency,   // Rendimiento del proxy
-      country: 'LATAM'          // País de origen
+      proxyScore: proxy.score,
+      latency: proxy.latency,
+      country: 'LATAM',
+      fingerprintCountry: proxy.country || 'MX'
     };
     
     const cuentas = fs.existsSync(cuentasPath)
