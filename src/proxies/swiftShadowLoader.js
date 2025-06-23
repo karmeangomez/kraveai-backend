@@ -1,42 +1,21 @@
-import { execSync } from 'child_process';
-import fs from 'fs';
-import path from 'path';
+const sources = [
+  'https://raw.githubusercontent.com/TheSpeedX/PROXY-List/master/http.txt',
+  'https://api.proxyscrape.com/v2/?request=getproxies&protocol=http',
+  'https://raw.githubusercontent.com/mertguvencli/http-proxy-list/main/proxy-list/data.txt',
+  'https://www.proxynova.com/proxy-server-list/'
+];
 
-const __dirname = path.resolve();
-
-export default class SwiftShadowLoader {
-  static get swiftPath() {
-    return path.join(__dirname, 'swiftshadow');
-  }
-
-  static get outputFile() {
-    return path.join(this.swiftPath, 'proxies.txt');
-  }
-
-  static refreshProxies() {
-    try {
-      execSync(`cd ${this.swiftPath} && python3 swiftshadow.py --http --https`, {
-        timeout: 120000
+async function fetchMassiveProxies() {
+  let allProxies = [];
+  for (const url of sources) {
+    const response = await axios.get(url);
+    const proxies = response.data.split('\n')
+      .filter(line => line.includes(':'))
+      .map(line => {
+        const [ip, port] = line.trim().split(':');
+        return `${ip}:${port}:username:password`; // Estructura estándar
       });
-      return this.parseProxies();
-    } catch (error) {
-      console.error('Error SwiftShadow:', error);
-      return [];
-    }
+    allProxies = [...allProxies, ...proxies];
   }
-
-  static parseProxies() {
-    try {
-      const data = fs.readFileSync(this.outputFile, 'utf8');
-      return data.split('\n')
-        .filter(line => line.trim() !== '')
-        .map(line => {
-          const [ip, port] = line.split(':');
-          return `${ip}:${port}`;
-        });
-    } catch (error) {
-      console.error('Error parsing proxies:', error);
-      return [];
-    }
-  }
+  return [...new Set(allProxies)].slice(0, 10000); // 10,000 únicos
 }
