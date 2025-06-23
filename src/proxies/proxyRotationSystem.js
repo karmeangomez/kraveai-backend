@@ -1,4 +1,5 @@
-const ultimateProxyMaster = require('./ultimateProxyMaster');
+// src/proxies/proxyRotationSystem.js
+import UltimateProxyMaster from './ultimateProxyMaster.js';
 
 class ProxyRotationSystem {
   constructor() {
@@ -7,18 +8,27 @@ class ProxyRotationSystem {
   }
 
   async initialize() {
-    this.validProxies = await ultimateProxyMaster.loadAllProxies();
+    // Cargar todos los proxies usando UltimateProxyMaster
+    this.validProxies = await UltimateProxyMaster.loadAllProxies();
     console.log(`✅ ${this.validProxies.length} proxies válidos cargados`);
   }
 
   getNextProxy() {
-    if (this.validProxies.length === 0) throw new Error('No hay proxies disponibles');
+    if (this.validProxies.length === 0) {
+      throw new Error('No hay proxies disponibles. Ejecuta initialize() primero.');
+    }
     
     const proxy = this.validProxies[this.currentIndex];
     this.currentIndex = (this.currentIndex + 1) % this.validProxies.length;
     
-    return proxy;
+    return {
+      proxy: proxy.proxy, // String en formato "ip:port:user:pass" o "ip:port"
+      score: proxy.score,
+      latency: proxy.latency
+    };
   }
 }
 
-module.exports = new ProxyRotationSystem();
+// Exportamos una instancia única (singleton)
+const proxySystem = new ProxyRotationSystem();
+export default proxySystem;
