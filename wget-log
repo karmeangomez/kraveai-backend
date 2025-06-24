@@ -1,0 +1,6 @@
+--2025-06-23 20:13:24--  https://download.maxmind.com/app/geoip_download?edition_id=GeoLite2-Country-CSV
+Resolving download.maxmind.com (download.maxmind.com)... 162.159.135.22, 162.159.134.22, 2606:4700:7::a29f:8716, ...
+Connecting to download.maxmind.com (download.maxmind.com)|162.159.135.22|:443... connected.
+HTTP request sent, awaiting response... 400 Bad Request
+2025-06-23 20:13:24 ERROR 400: Bad Request.
+
