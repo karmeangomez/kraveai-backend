@@ -19,7 +19,8 @@
     "axios": "^1.10.0",
     "cheerio": "^1.0.0-rc.12",
     "dotenv": "^16.5.0",
-    "geoip-country-lite": "^1.0.3",
+    "geoip-country-lite": "^1.0.2",  // OPCIÓN 1 (ligera)
+    // "geoip-country": "^5.0.0",     // OPCIÓN 2 (más completa)
     "imap": "^0.8.19",
     "jsdom": "^26.1.0",
     "mailparser": "^3.7.3",
