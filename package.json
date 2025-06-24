@@ -19,7 +19,7 @@
     "axios": "^1.10.0",
     "cheerio": "^1.0.0-rc.12",
     "dotenv": "^16.5.0",
-    "geoip-country-lite": "^1.0.3",
+    "geoip-lite": "^2.1.0",  // CORRECCIÓN CLAVE: Paquete actualizado
     "imap": "^0.8.19",
     "jsdom": "^26.1.0",
     "mailparser": "^3.7.3",
