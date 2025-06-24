@@ -13,14 +13,13 @@
     "proxytest": "node proxyTest.js",
     "verify": "node full-check.js",
     "decrypt": "node src/utils/secureEnv.cjs decrypt --input .env.enc --output .env --key $KEY --iv $IV",
-    "encrypt": "node src/utils/secureEnv.cjs encrypt --input .env --output .env.enc --key $KEY --iv $IV",
-    "update-geoip": "cd node_modules/geoip-lite && npm run-script updatedb license_key=$MAXMIND_KEY"
+    "encrypt": "node src/utils/secureEnv.cjs encrypt --input .env --output .env.enc --key $KEY --iv $IV"
   },
   "dependencies": {
     "axios": "^1.10.0",
     "cheerio": "^1.0.0-rc.12",
     "dotenv": "^16.5.0",
-    "geoip-lite": "^1.4.10",
+    "geoip-country-lite": "^1.0.3",
     "imap": "^0.8.19",
     "jsdom": "^26.1.0",
     "mailparser": "^3.7.3",
