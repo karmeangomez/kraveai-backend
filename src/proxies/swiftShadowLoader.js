@@ -19,6 +19,7 @@ export default function swiftShadowLoader() {
     }),
     
     fetchMassiveProxies: async () => {
+      console.log('🌐 Obteniendo proxies masivos...');
       const sources = [
         'https://raw.githubusercontent.com/TheSpeedX/PROXY-List/master/http.txt',
         'https://api.proxyscrape.com/v2/?request=getproxies&protocol=http',
@@ -26,6 +27,7 @@ export default function swiftShadowLoader() {
       ];
 
       let allProxies = [];
+      
       for (const url of sources) {
         try {
           const { data } = await axios.get(url, { timeout: 5000 });
@@ -35,13 +37,16 @@ export default function swiftShadowLoader() {
             .slice(0, 3500);
             
           allProxies = [...allProxies, ...proxies];
+          console.log(`📥 ${proxies.length} proxies de ${url.split('/')[2]}`);
         } catch (error) {
-          console.error(`⚠️ Error obteniendo proxies de ${url}: ${error.message}`);
+          console.error(`⚠️ Error en ${url}: ${error.message}`);
         }
       }
       
-      // Devolver hasta 10,000 proxies únicos
-      return [...new Set(allProxies)].slice(0, 10000);
+      // Filtrar duplicados
+      const uniqueProxies = [...new Set(allProxies)];
+      console.log(`✅ ${uniqueProxies.length} proxies únicos obtenidos`);
+      return uniqueProxies.slice(0, 10000);
     }
   };
 }
