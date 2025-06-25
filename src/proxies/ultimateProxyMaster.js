@@ -1,58 +1,40 @@
-import UltimateProxyMaster from './ultimateProxyMaster.js';
+import SwiftShadow from './swiftshadow/swiftShadowLoader.js';
 
-class ProxyRotationSystem {
-  constructor() {
-    this.validProxies = [];
-    this.currentIndex = 0;
-  }
+const ProxySources = {
+  SwiftShadow: SwiftShadow
+};
 
-  async initialize() {
-    if (this.validProxies.length > 0) return;
-    
-    console.log('⚙️ Inicializando sistema de proxies...');
-    
+const UltimateProxyMaster = {
+  async loadAllProxies() {
     try {
-      this.validProxies = await UltimateProxyMaster.loadAllProxies();
-      
-      if (this.validProxies.length === 0) {
-        console.warn('⚠️ No se cargaron proxies. Usando respaldo local');
-        this.validProxies = [{
-          proxy: 'localhost:8080',
-          score: 80,
-          latency: 150
-        }];
+      const allProxies = [];
+      for (const [sourceName, source] of Object.entries(ProxySources)) {
+        try {
+          console.log(`🔍 Cargando proxies de ${sourceName}...`);
+          const loader = source();
+          await loader.initialize();
+          for (let i = 0; i < 5; i++) {
+            const proxy = loader.getProxy();
+            allProxies.push({
+              source: sourceName,
+              proxy: `${proxy.host}:${proxy.port}`,
+              ...(proxy.auth && {
+                auth: `${proxy.auth.username}:${proxy.auth.password}`
+              }),
+              score: 80,
+              latency: Math.floor(Math.random() * 300) + 100
+            });
+          }
+        } catch (error) {
+          console.error(`⚠️ Error cargando ${sourceName}: ${error.message}`);
+        }
       }
-      
-      console.log(`✅ ${this.validProxies.length} proxies disponibles`);
+      return allProxies;
     } catch (error) {
-      console.error('🔥 Error crítico inicializando proxies:', error);
-      this.validProxies = [{
-        proxy: 'localhost:8080',
-        score: 80,
-        latency: 150
-      }];
+      console.error('🔥 Error crítico en loadAllProxies:', error);
+      return [];
     }
   }
+};
 
-  getNextProxy() {
-    if (this.validProxies.length === 0) {
-      return {
-        proxy: 'localhost:8080',
-        score: 80,
-        latency: 150
-      };
-    }
-    
-    const proxy = this.validProxies[this.currentIndex];
-    this.currentIndex = (this.currentIndex + 1) % this.validProxies.length;
-    
-    return {
-      ...proxy,
-      ip: proxy.proxy.split(':')[0]
-    };
-  }
-}
-
-// Singleton
-const proxySystem = new ProxyRotationSystem();
-export default proxySystem;
+export default UltimateProxyMaster;
