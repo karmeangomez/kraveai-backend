@@ -2,3 +2,9 @@
 [2025-06-25T21:26:16.727Z] ✅ Plataforma: linux
 [2025-06-25T21:26:16.727Z] ✅ Modo: HEADLESS
 [2025-06-25T21:26:16.727Z] ✅ Cuentas a crear: 50
+[2025-06-25T21:26:17.520Z] 🔄 Inicializando sistema de proxies...
+[2025-06-25T21:26:17.522Z] 🔥 Error crítico: UltimateProxyMaster.loadAllProxies is not a function
+[2025-06-25T21:26:17.522Z] TypeError: UltimateProxyMaster.loadAllProxies is not a function
+    at ProxyRotationSystem.initialize (file:///home/karmean/kraveai-backend/src/proxies/proxyRotationSystem.js:17:52)
+    at file:///home/karmean/kraveai-backend/src/run.js:129:31
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
