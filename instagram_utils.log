@@ -1,0 +1,31 @@
+2025-06-17 12:52:42,894 - InstagramUtils - INFO - Intento 1/3 creando cuenta
+2025-06-17 12:52:43,542 - InstagramUtils - ERROR - Error JSON: Expecting value: line 1 column 1 (char 0) | Salida: ...
+2025-06-17 12:52:43,542 - InstagramUtils - INFO - Reintentando en 5 segundos...
+2025-06-17 12:52:48,543 - InstagramUtils - INFO - Intento 2/3 creando cuenta
+2025-06-17 12:52:49,251 - InstagramUtils - ERROR - Error JSON: Expecting value: line 1 column 1 (char 0) | Salida: ...
+2025-06-17 12:52:49,252 - InstagramUtils - INFO - Reintentando en 5 segundos...
+2025-06-17 12:52:54,252 - InstagramUtils - INFO - Intento 3/3 creando cuenta
+2025-06-17 12:52:54,930 - InstagramUtils - ERROR - Error JSON: Expecting value: line 1 column 1 (char 0) | Salida: ...
+2025-06-17 12:52:55,641 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8066723325:AAH1XgvTqjDZV8wt6TLqP58euK1OwBSd-9A/sendMessage "HTTP/1.1 200 OK"
+2025-06-17 13:25:35,985 - InstagramUtils - INFO - Intento 1/3 creando cuenta
+2025-06-17 13:25:36,751 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8066723325:AAH1XgvTqjDZV8wt6TLqP58euK1OwBSd-9A/sendMessage "HTTP/1.1 400 Bad Request"
+2025-06-17 15:11:22,539 - InstagramUtils - INFO - Intento 1/3 creando cuenta
+2025-06-17 15:11:22,708 - InstagramUtils - ERROR - Excepción inesperada: TypeError - notify_telegram() got an unexpected keyword argument 'parse_mode'
+Traceback (most recent call last):
+  File "/home/karmean/kraveai-backend/instagram_utils.py", line 91, in crear_cuenta_instagram
+    notify_telegram(mensaje, parse_mode="MarkdownV2")
+TypeError: notify_telegram() got an unexpected keyword argument 'parse_mode'
+2025-06-17 15:11:22,709 - InstagramUtils - INFO - Reintentando en 5 segundos...
+2025-06-17 15:11:27,710 - InstagramUtils - INFO - Intento 2/3 creando cuenta
+2025-06-17 15:11:27,882 - InstagramUtils - ERROR - Excepción inesperada: TypeError - notify_telegram() got an unexpected keyword argument 'parse_mode'
+Traceback (most recent call last):
+  File "/home/karmean/kraveai-backend/instagram_utils.py", line 91, in crear_cuenta_instagram
+    notify_telegram(mensaje, parse_mode="MarkdownV2")
+TypeError: notify_telegram() got an unexpected keyword argument 'parse_mode'
+2025-06-17 15:11:27,883 - InstagramUtils - INFO - Reintentando en 5 segundos...
+2025-06-17 15:11:32,883 - InstagramUtils - INFO - Intento 3/3 creando cuenta
+2025-06-17 15:11:33,064 - InstagramUtils - ERROR - Excepción inesperada: TypeError - notify_telegram() got an unexpected keyword argument 'parse_mode'
+Traceback (most recent call last):
+  File "/home/karmean/kraveai-backend/instagram_utils.py", line 91, in crear_cuenta_instagram
+    notify_telegram(mensaje, parse_mode="MarkdownV2")
+TypeError: notify_telegram() got an unexpected keyword argument 'parse_mode'
