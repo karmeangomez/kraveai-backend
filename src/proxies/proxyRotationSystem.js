@@ -1,31 +1,77 @@
 // src/proxies/proxyRotationSystem.js
 import UltimateProxyMaster from './ultimateProxyMaster.js';
+import { getGeo } from '../utils/geoUtils.js'; // Nueva utilidad geoUtils
 
 class ProxyRotationSystem {
   constructor() {
     this.validProxies = [];
     this.currentIndex = 0;
+    this.initialized = false;
   }
 
   async initialize() {
-    // Cargar todos los proxies usando UltimateProxyMaster
-    this.validProxies = await UltimateProxyMaster.loadAllProxies();
-    console.log(`✅ ${this.validProxies.length} proxies válidos cargados`);
+    if (this.initialized) return;
+    
+    try {
+      // Cargar todos los proxies usando UltimateProxyMaster
+      const rawProxies = await UltimateProxyMaster.loadAllProxies();
+      console.log(`⏳ Enriqueciendo ${rawProxies.length} proxies con geolocalización...`);
+
+      // Enriquecer proxies con información geográfica
+      for (let i = 0; i < rawProxies.length; i++) {
+        try {
+          const proxy = rawProxies[i];
+          const ip = proxy.proxy.split(':')[0];
+          const geoInfo = await getGeo(ip);
+          
+          rawProxies[i] = {
+            ...proxy,
+            country: geoInfo.country,
+            countryName: geoInfo.countryName,
+            region: geoInfo.region,
+            city: geoInfo.city
+          };
+        } catch (error) {
+          console.error(`⚠️ Error en proxy ${i+1}/${rawProxies.length}: ${error.message}`);
+          rawProxies[i] = {
+            ...rawProxies[i],
+            country: 'XX',
+            countryName: 'Unknown',
+            region: 'Unknown',
+            city: 'Unknown'
+          };
+        }
+      }
+
+      this.validProxies = rawProxies;
+      this.initialized = true;
+      console.log(`✅ ${this.validProxies.length} proxies válidos cargados con geolocalización`);
+    } catch (error) {
+      console.error('🔥 Error crítico inicializando proxies:', error);
+      throw error;
+    }
   }
 
   getNextProxy() {
+    if (!this.initialized) {
+      throw new Error('Sistema de proxies no inicializado. Ejecuta initialize() primero.');
+    }
+    
     if (this.validProxies.length === 0) {
-      throw new Error('No hay proxies disponibles. Ejecuta initialize() primero.');
+      throw new Error('No hay proxies disponibles');
     }
     
     const proxy = this.validProxies[this.currentIndex];
     this.currentIndex = (this.currentIndex + 1) % this.validProxies.length;
     
     return {
-      proxy: proxy.proxy, // String en formato "ip:port:user:pass" o "ip:port"
-      score: proxy.score,
-      latency: proxy.latency
+      ...proxy,
+      ip: proxy.proxy.split(':')[0]
     };
+  }
+
+  getProxyCount() {
+    return this.validProxies.length;
   }
 }
 
