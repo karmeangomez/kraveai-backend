@@ -1,5 +1,3 @@
-// src/utils/nombre_utils.js
-
 const nombres = [
   'Carlos', 'María', 'Juan', 'Ana', 'Luis', 'Laura', 'Pedro', 'Sofía', 'Javier', 'Elena',
   'Andrés', 'Paola', 'Héctor', 'Gabriela', 'Fernando', 'Valeria', 'Daniel', 'Camila', 'Esteban', 'Natalia',
@@ -38,8 +36,8 @@ function generateUsername() {
   const nombre = nombres[Math.floor(Math.random() * nombres.length)].toLowerCase();
   const adjetivo = adjetivos[Math.floor(Math.random() * adjetivos.length)];
   const sustantivo = sustantivos[Math.floor(Math.random() * sustantivos.length)];
-  const numero = Math.floor(Math.random() * 99999);
-  return `${nombre}_${adjetivo}_${sustantivo}${numero}`;
+  const numero = Math.floor(Math.random() * 1000); // Reducido a 3 dígitos para nombres más cortos
+  return `${nombre}${adjetivo}${sustantivo}${numero}`;
 }
 
 function generateEmail() {
