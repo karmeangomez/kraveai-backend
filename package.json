@@ -14,15 +14,13 @@
     "proxytest": "node proxyTest.js",
     "verify": "node full-check.js",
     "decrypt": "node src/utils/secureEnv.cjs decrypt --input .env.enc --output .env --key $KEY --iv $IV",
-    "encrypt": "node src/utils/secureEnv.cjs encrypt --input .env --output .env.enc --key $KEY --iv $IV",
-    "updatedb": "node node_modules/geoip-lite/scripts/updatedb.js license_key=$GEOIP_LICENSE_KEY",
-    "postinstall": "if [ -f /etc/rpi-issue ]; then export PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true; npm rebuild; fi"
+    "encrypt": "node src/utils/secureEnv.cjs encrypt --input .env --output .env.enc --key $KEY --iv $IV"
   },
   "dependencies": {
     "axios": "^1.10.0",
     "cheerio": "^1.0.0-rc.12",
     "dotenv": "^16.5.0",
-    "geoip-lite": "^1.4.10",
+    "geoip-country": "^4.2.0",
     "imap": "^0.8.19",
     "jsdom": "^26.1.0",
     "mailparser": "^3.7.3",
@@ -36,9 +34,5 @@
   },
   "engines": {
     "node": ">=18.0.0"
-  },
-  "piDependencies": {
-    "chromium": "sudo apt install -y chromium-browser",
-    "tor": "sudo apt install -y tor"
   }
 }
