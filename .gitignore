@@ -1,6 +1,18 @@
+# Node
 node_modules/
+package-lock.json
+npm-debug.log
+
+# Environment
 .env
-*.log
-screenshots/
-proxies.json
-session_data/
+.env.enc
+
+# GeoIP update files
+geoip-update.lock
+
+# OS specific
+.DS_Store
+Thumbs.db
+
+# Puppeteer local chromium
+.local-chromium/
