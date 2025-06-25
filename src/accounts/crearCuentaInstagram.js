@@ -1,3 +1,4 @@
+// src/accounts/crearCuentaInstagram.js
 import puppeteer from 'puppeteer-extra';
 import StealthPlugin from 'puppeteer-extra-plugin-stealth';
 import ProxyRotationSystem from '../proxies/proxyRotationSystem.js';
@@ -19,12 +20,14 @@ async function safeInteract(page, selector, action, value = '') {
   try {
     await page.waitForSelector(selector, { timeout: 10000 });
     await action(page, selector, value);
+    return true;
   } catch (e) {
-    throw new Error(`⚠️ Error con selector ${selector}: ${e.message}`);
+    console.error(`⚠️ Error con selector ${selector}: ${e.message}`);
+    return false;
   }
 }
 
-export default async function crearCuentaInstagram() {
+export default async function crearCuentaInstagram(puppeteerConfig = {}) {
   // Inicializar sistema de proxies solo una vez
   if (!proxySystemInitialized) {
     await ProxyRotationSystem.initialize();
@@ -40,7 +43,6 @@ export default async function crearCuentaInstagram() {
   const proxy = ProxyRotationSystem.getNextProxy();
   if (!proxy) throw new Error('Proxy no disponible');
 
-  // Parsear el nuevo formato de proxy (ip:port:user:pass)
   const proxyParts = proxy.proxy.split(':');
   const ip = proxyParts[0];
   const port = proxyParts[1];
@@ -59,7 +61,7 @@ export default async function crearCuentaInstagram() {
     const email = await emailManager.getRandomEmail();
 
     browser = await puppeteer.launch({
-      headless: false, // VISUAL
+      ...puppeteerConfig, // Usar configuración externa
       args: [
         `--proxy-server=${proxyStr}`,
         '--no-sandbox',
@@ -82,6 +84,7 @@ export default async function crearCuentaInstagram() {
       });
     }, fingerprint.timezone);
     
+    // Bloquear recursos innecesarios
     await page.setRequestInterception(true);
     page.on('request', req => {
       const blockTypes = ['image', 'stylesheet', 'font'];
@@ -89,38 +92,61 @@ export default async function crearCuentaInstagram() {
       else req.continue();
     });
 
-    await page.goto('https://www.instagram.com/accounts/emailsignup/', { timeout: 45000 });
+    // Navegar a Instagram
+    await page.goto('https://www.instagram.com/accounts/emailsignup/', { 
+      timeout: 60000,
+      waitUntil: 'domcontentloaded'
+    });
 
-    await randomDelay();
-    await safeInteract(page, 'input[name="emailOrPhone"]', humanType, email);
-    await safeInteract(page, 'input[name="fullName"]', humanType, nombreCompleto);
-    await safeInteract(page, 'input[name="username"]', humanType, username);
-    await safeInteract(page, 'input[name="password"]', humanType, password);
+    // Completar formulario
+    await randomDelay(1000, 3000);
+    if (!(await safeInteract(page, 'input[name="emailOrPhone"]', humanType, email))) return null;
+    await randomDelay(500, 1500);
+    if (!(await safeInteract(page, 'input[name="fullName"]', humanType, nombreCompleto))) return null;
+    await randomDelay(500, 1500);
+    if (!(await safeInteract(page, 'input[name="username"]', humanType, username))) return null;
+    await randomDelay(500, 1500);
+    if (!(await safeInteract(page, 'input[name="password"]', humanType, password))) return null;
+    
+    // Simular comportamiento humano
     await moveMouse(page);
-    await randomDelay();
+    await randomDelay(2000, 4000);
 
-    await safeInteract(page, 'button[type="submit"]', async (p, s) => p.click(s));
+    // Enviar formulario
+    if (!(await safeInteract(page, 'button[type="submit"]', async (p, s) => p.click(s)))) return null;
     await page.waitForTimeout(5000);
 
+    // Manejar verificación por email
     const codeInput = await page.$('input[name="email_confirmation_code"]');
     if (codeInput) {
       const code = await emailManager.getVerificationCode(email);
-      await humanType(page, 'input[name="email_confirmation_code"]', code);
-      await randomDelay();
+      if (!code) throw new Error('Código de verificación no recibido');
+      
+      await safeInteract(page, 'input[name="email_confirmation_code"]', humanType, code);
+      await randomDelay(2000, 4000);
       await page.click('button[type="submit"]');
+      await page.waitForTimeout(5000);
     }
 
+    // Verificar cuenta creada
     const profileUrl = `https://www.instagram.com/${username}/`;
-    const response = await page.goto(profileUrl, { waitUntil: 'domcontentloaded', timeout: 30000 });
-    const exists = response && response.status && response.status() === 200;
+    await page.goto(profileUrl, { waitUntil: 'domcontentloaded', timeout: 30000 });
+    
+    const isProfileVisible = await page.evaluate(() => {
+      return document.querySelector('h2')?.textContent?.includes('¿No has encontrado la cuenta que estabas buscando?') === false;
+    });
 
-    if (!exists) throw new Error('Cuenta creada no es pública');
+    if (!isProfileVisible) throw new Error('Cuenta creada no es pública');
 
+    // Guardar cookies
     const cookies = await page.cookies();
-    const cookiesPath = path.join(__dirname, `../cookies/${username}.json`);
+    const cookiesDir = path.join(__dirname, '../cookies');
+    if (!fs.existsSync(cookiesDir)) fs.mkdirSync(cookiesDir);
+    
+    const cookiesPath = path.join(cookiesDir, `${username}.json`);
     fs.writeFileSync(cookiesPath, JSON.stringify(cookies, null, 2));
 
-    const cuentasPath = path.join(__dirname, '../cuentas_creadas.json');
+    // Guardar cuenta
     const nuevaCuenta = {
       username,
       password,
@@ -130,31 +156,76 @@ export default async function crearCuentaInstagram() {
       status: 'created',
       proxyScore: proxy.score,
       latency: proxy.latency,
-      country: 'LATAM',
-      fingerprintCountry: proxy.country || 'MX'
+      country: proxy.country || 'XX',
+      countryName: proxy.countryName || 'Unknown',
+      region: proxy.region || 'Unknown',
+      city: proxy.city || 'Unknown'
     };
     
+    const cuentasPath = path.join(__dirname, '../cuentas_creadas.json');
     const cuentas = fs.existsSync(cuentasPath)
       ? JSON.parse(fs.readFileSync(cuentasPath, 'utf8'))
       : [];
+    
     cuentas.push(nuevaCuenta);
     fs.writeFileSync(cuentasPath, JSON.stringify(cuentas, null, 2));
 
-    console.log(`✅ Cuenta latina creada con proxy ${ip} (Score: ${proxy.score}, Latencia: ${proxy.latency}ms)`);
+    console.log(`✅ Cuenta @${username} creada con proxy ${ip} (${proxy.country || 'XX'})`);
     return nuevaCuenta;
   } catch (error) {
+    console.error(`❌ Error creando cuenta: ${error.message}`);
+    
+    // Guardar error en log
     const logsDir = path.join(__dirname, '../logs');
     if (!fs.existsSync(logsDir)) fs.mkdirSync(logsDir);
-
-    const screenshotPath = path.join(logsDir, `error_${Date.now()}.png`);
+    
+    const logEntry = {
+      timestamp: new Date().toISOString(),
+      username: username || 'unknown',
+      error: error.message,
+      proxy: proxyStr || 'none',
+      country: proxy?.country || 'XX'
+    };
+    
+    const errorLogPath = path.join(logsDir, 'error_log.json');
+    const errorLog = fs.existsSync(errorLogPath)
+      ? JSON.parse(fs.readFileSync(errorLogPath, 'utf8'))
+      : [];
+    
+    errorLog.push(logEntry);
+    fs.writeFileSync(errorLogPath, JSON.stringify(errorLog, null, 2));
+    
+    // Capturar screenshot si es posible
     if (browser) {
-      const pages = await browser.pages();
-      if (pages[0]) await pages[0].screenshot({ path: screenshotPath });
+      try {
+        const pages = await browser.pages();
+        if (pages[0]) {
+          const screenshotPath = path.join(logsDir, `error_${Date.now()}.png`);
+          await pages[0].screenshot({ path: screenshotPath });
+        }
+      } catch (screenshotError) {
+        console.error('⚠️ Error capturando screenshot:', screenshotError.message);
+      }
     }
 
-    console.error(`❌ Error creando cuenta latina con proxy ${ip}:${port}: ${error.message}`);
-    return null;
+    return {
+      username: username || 'unknown',
+      email: email || 'unknown',
+      password: password || 'unknown',
+      proxy: proxyStr || 'none',
+      status: 'failed',
+      error: error.message,
+      proxyScore: proxy?.score,
+      latency: proxy?.latency,
+      country: proxy?.country || 'XX'
+    };
   } finally {
-    if (browser) await browser.close().catch(() => {});
+    if (browser) {
+      try {
+        await browser.close();
+      } catch (browserError) {
+        console.error('⚠️ Error cerrando browser:', browserError.message);
+      }
+    }
   }
 }
