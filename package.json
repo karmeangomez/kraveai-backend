@@ -7,6 +7,7 @@
     "start": "node src/run.js",
     "start:visual": "node src/run.js",
     "start:headless": "HEADLESS=true node src/run.js",
+    "start:pi": "PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser HEADLESS=true node src/run.js",
     "proxy": "node src/proxies/ultimateProxyMaster.js --load-all",
     "proxy:test": "node src/proxies/proxyTester.js --full-scan",
     "proxy:dashboard": "node src/proxies/proxyScoreWatcher.js --live",
@@ -14,7 +15,8 @@
     "verify": "node full-check.js",
     "decrypt": "node src/utils/secureEnv.cjs decrypt --input .env.enc --output .env --key $KEY --iv $IV",
     "encrypt": "node src/utils/secureEnv.cjs encrypt --input .env --output .env.enc --key $KEY --iv $IV",
-    "updatedb": "node node_modules/geoip-lite/scripts/updatedb.js license_key=$GEOIP_LICENSE_KEY"
+    "updatedb": "node node_modules/geoip-lite/scripts/updatedb.js license_key=$GEOIP_LICENSE_KEY",
+    "postinstall": "if [ -f /etc/rpi-issue ]; then export PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true; npm rebuild; fi"
   },
   "dependencies": {
     "axios": "^1.10.0",
@@ -34,5 +36,9 @@
   },
   "engines": {
     "node": ">=18.0.0"
+  },
+  "piDependencies": {
+    "chromium": "sudo apt install -y chromium-browser",
+    "tor": "sudo apt install -y tor"
   }
 }
