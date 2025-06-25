@@ -3041,3 +3041,8 @@
 2025-06-25 00:05:19,420 [INFO] instagrapi: https://i.instagram.com/api/v1/feed/timeline/
 2025-06-25 00:05:19,748 [INFO] private_request: None [403] POST https://i.instagram.com/api/v1/feed/timeline/ (269.0.0.18.75, OnePlus 6T Dev)
 2025-06-25 00:05:19,749 [INFO] KraveAI-Backend: Cliente Instagram inicializado
+2025-06-25 14:28:34,200 [INFO] instagrapi: https://i.instagram.com/api/v1/feed/timeline/
+2025-06-25 14:28:34,239 [WARNING] urllib3.connectionpool: Retrying (Retry(total=2, connect=None, read=None, redirect=None, status=None)) after connection broken by 'NameResolutionError("<urllib3.connection.HTTPSConnection object at 0x7fff6967d190>: Failed to resolve 'i.instagram.com' ([Errno -3] Temporary failure in name resolution)")': /api/v1/feed/timeline/
+2025-06-25 14:28:38,240 [WARNING] urllib3.connectionpool: Retrying (Retry(total=1, connect=None, read=None, redirect=None, status=None)) after connection broken by 'NameResolutionError("<urllib3.connection.HTTPSConnection object at 0x7fff6967e950>: Failed to resolve 'i.instagram.com' ([Errno -3] Temporary failure in name resolution)")': /api/v1/feed/timeline/
+2025-06-25 14:28:38,763 [INFO] private_request: None [403] POST https://i.instagram.com/api/v1/feed/timeline/ (269.0.0.18.75, OnePlus 6T Dev)
+2025-06-25 14:28:38,763 [INFO] KraveAI-Backend: Cliente Instagram inicializado
