@@ -1,57 +1,58 @@
-// src/proxies/ultimateProxyMaster.js
-import fs from 'fs';
-import path from 'path';
-import { fileURLToPath } from 'url';
-import swiftShadowLoader from './swiftshadow/swiftShadowLoader.js';
-import multiProxiesRunner from './multiProxiesRunner.js';
-import proxyScoreWatcher from './proxyScoreWatcher.js';
+import UltimateProxyMaster from './ultimateProxyMaster.js';
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-
-class UltimateProxyMaster {
+class ProxyRotationSystem {
   constructor() {
-    this.proxySources = {
-      premium: [],
-      public: [],
-      swiftShadow: [],
-      multiProxies: [],
-      tor: []
-    };
+    this.validProxies = [];
+    this.currentIndex = 0;
   }
 
-  async loadAllProxies() {
-    // 1. Cargar proxies premium desde archivo
-    this.proxySources.premium = this.loadFromFile('../../config/proxies.json');
+  async initialize() {
+    if (this.validProxies.length > 0) return;
     
-    // 2. Extraer proxies públicos
-    this.proxySources.swiftShadow = await swiftShadowLoader.fetchMassiveProxies();
+    console.log('⚙️ Inicializando sistema de proxies...');
     
-    // 3. Fuentes alternativas
-    this.proxySources.multiProxies = await multiProxiesRunner.getProxies();
-    
-    // 4. Combinar todos los proxies (premium + públicos)
-    const allProxies = [
-      ...this.proxySources.premium,
-      ...this.proxySources.swiftShadow,
-      ...this.proxySources.multiProxies
-    ];
-    
-    // 5. Validar y calificar (usando el validador)
-    return await proxyScoreWatcher.validateProxies(allProxies);
-  }
-
-  loadFromFile(filePath) {
-    const fullPath = path.resolve(__dirname, filePath);
-    if (!fs.existsSync(fullPath)) {
-      console.warn(`⚠️ Archivo de proxies no encontrado: ${fullPath}`);
-      return [];
+    try {
+      this.validProxies = await UltimateProxyMaster.loadAllProxies();
+      
+      if (this.validProxies.length === 0) {
+        console.warn('⚠️ No se cargaron proxies. Usando respaldo local');
+        this.validProxies = [{
+          proxy: 'localhost:8080',
+          score: 80,
+          latency: 150
+        }];
+      }
+      
+      console.log(`✅ ${this.validProxies.length} proxies disponibles`);
+    } catch (error) {
+      console.error('🔥 Error crítico inicializando proxies:', error);
+      this.validProxies = [{
+        proxy: 'localhost:8080',
+        score: 80,
+        latency: 150
+      }];
     }
-    const rawData = fs.readFileSync(fullPath, 'utf8');
-    const data = JSON.parse(rawData);
-    return data.premium || [];
+  }
+
+  getNextProxy() {
+    if (this.validProxies.length === 0) {
+      return {
+        proxy: 'localhost:8080',
+        score: 80,
+        latency: 150
+      };
+    }
+    
+    const proxy = this.validProxies[this.currentIndex];
+    this.currentIndex = (this.currentIndex + 1) % this.validProxies.length;
+    
+    return {
+      ...proxy,
+      ip: proxy.proxy.split(':')[0]
+    };
   }
 }
 
-// Exportamos una instancia única (singleton)
-const ultimateProxyMaster = new UltimateProxyMaster();
-export default ultimateProxyMaster;
+// Singleton
+const proxySystem = new ProxyRotationSystem();
+export default proxySystem;
