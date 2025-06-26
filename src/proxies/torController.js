@@ -6,7 +6,12 @@ async function rotateTorIP() {
       if (!error) {
         console.log('🔄 IP Tor rotada (SIGNAL NEWNYM)');
         resolve(true);
+      } else {
+        console.error('❌ Error al reiniciar Tor:', error.message);
+        resolve(false);
       }
     });
   });
 }
+
+export default rotateTorIP;
