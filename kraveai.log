@@ -216,3 +216,6 @@
 [2025-06-26T03:04:38.446Z] ✅ Cuentas creadas: 0
 [2025-06-26T03:04:38.446Z] ❌ Fallidas: 50
 [2025-06-26T03:04:38.447Z] ⏱️ Tiempo total: 12.8 min
+2025-06-25 21:05:53,970 [INFO] instagrapi: https://i.instagram.com/api/v1/feed/timeline/
+2025-06-25 21:05:54,399 [INFO] private_request: None [403] POST https://i.instagram.com/api/v1/feed/timeline/ (269.0.0.18.75, OnePlus 6T Dev)
+2025-06-25 21:05:54,400 [INFO] KraveAI-Backend: Cliente Instagram inicializado
