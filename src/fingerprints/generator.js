@@ -2,11 +2,10 @@
 import UserAgent from 'user-agents';
 
 export function generateRussianFingerprint() {
-  // Tu implementación actual (sin cambios)
   const ua = new UserAgent(/Chrome/);
   return {
     userAgent: ua.toString(),
-    resolution: getRandomResolution(),
+    screen: getRandomResolution(), // ✅ cambio clave aquí
     language: 'ru-RU,ru;q=0.9,en-US;q=0.8,en;q=0.7',
     timezone: 'Europe/Moscow',
     platform: getRandomPlatform()
@@ -14,11 +13,9 @@ export function generateRussianFingerprint() {
 }
 
 export function generateAdaptiveFingerprint(country = 'RU') {
-  // Adaptación para mantener compatibilidad
   return generateRussianFingerprint();
 }
 
-// Funciones auxiliares (sin cambios)
 function getRandomResolution() {
   const resolutions = [
     { width: 1920, height: 1080 },
