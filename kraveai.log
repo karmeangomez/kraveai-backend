@@ -43,3 +43,11 @@
 [2025-06-26T07:48:24.127Z] 
 🚀 Creando cuenta 10/50
 [2025-06-26T07:49:04.693Z] ❌ Fallo: Timed out after 30000 ms while waiting for the WS endpoint URL to appear in stdout!
+[2025-06-26T07:49:17.728Z] 🛑 Se detectaron 10 fallos consecutivos.
+Se detiene el sistema para evitar sobrecarga.
+[2025-06-26T07:49:37.740Z] 💾 Cuentas guardadas en cuentas_creadas.json
+[2025-06-26T07:49:40.429Z] 
+🎉 Proceso completado!
+[2025-06-26T07:49:42.312Z] ✅ Cuentas creadas: 0
+[2025-06-26T07:49:43.277Z] ❌ Fallidas: 10
+[2025-06-26T07:49:43.800Z] ⏱️ Tiempo total: 14.9 min

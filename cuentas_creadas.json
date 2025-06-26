@@ -3,80 +3,80 @@
     "username": "",
     "email": "",
     "password": "",
-    "proxy": "",
+    "proxy": "46.203.28.10:6533",
     "status": "failed",
-    "error": "net::ERR_INVALID_AUTH_CREDENTIALS at https://www.instagram.com/accounts/emailsignup/"
+    "error": "page.waitForTimeout is not a function"
   },
   {
     "username": "",
     "email": "",
     "password": "",
-    "proxy": "",
+    "proxy": "173.0.9.3:5586",
     "status": "failed",
-    "error": "net::ERR_INVALID_AUTH_CREDENTIALS at https://www.instagram.com/accounts/emailsignup/"
+    "error": "page.waitForTimeout is not a function"
   },
   {
     "username": "",
     "email": "",
     "password": "",
-    "proxy": "",
+    "proxy": "46.202.59.131:5622",
     "status": "failed",
-    "error": "net::ERR_INVALID_AUTH_CREDENTIALS at https://www.instagram.com/accounts/emailsignup/"
+    "error": "page.waitForTimeout is not a function"
   },
   {
     "username": "",
     "email": "",
     "password": "",
-    "proxy": "",
+    "proxy": "64.137.93.215:6672",
     "status": "failed",
-    "error": "net::ERR_INVALID_AUTH_CREDENTIALS at https://www.instagram.com/accounts/emailsignup/"
+    "error": "page.waitForTimeout is not a function"
   },
   {
     "username": "",
     "email": "",
     "password": "",
-    "proxy": "",
+    "proxy": "104.233.12.130:6681",
     "status": "failed",
-    "error": "net::ERR_INVALID_AUTH_CREDENTIALS at https://www.instagram.com/accounts/emailsignup/"
+    "error": "page.waitForTimeout is not a function"
   },
   {
     "username": "",
     "email": "",
     "password": "",
-    "proxy": "",
+    "proxy": "173.214.177.24:5715",
     "status": "failed",
-    "error": "net::ERR_INVALID_AUTH_CREDENTIALS at https://www.instagram.com/accounts/emailsignup/"
+    "error": "page.waitForTimeout is not a function"
   },
   {
     "username": "",
     "email": "",
     "password": "",
-    "proxy": "",
+    "proxy": "82.26.240.7:7823",
     "status": "failed",
-    "error": "net::ERR_INVALID_AUTH_CREDENTIALS at https://www.instagram.com/accounts/emailsignup/"
+    "error": "page.waitForTimeout is not a function"
   },
   {
     "username": "",
     "email": "",
     "password": "",
-    "proxy": "",
+    "proxy": "89.42.8.244:5805",
     "status": "failed",
-    "error": "net::ERR_INVALID_AUTH_CREDENTIALS at https://www.instagram.com/accounts/emailsignup/"
+    "error": "page.waitForTimeout is not a function"
   },
   {
     "username": "",
     "email": "",
     "password": "",
-    "proxy": "",
+    "proxy": "38.153.132.214:5321",
     "status": "failed",
-    "error": "net::ERR_INVALID_AUTH_CREDENTIALS at https://www.instagram.com/accounts/emailsignup/"
+    "error": "Target.createTarget timed out. Increase the 'protocolTimeout' setting in launch/connect calls for a higher timeout if needed."
   },
   {
     "username": "",
     "email": "",
     "password": "",
-    "proxy": "",
+    "proxy": "38.154.197.2:6668",
     "status": "failed",
-    "error": "net::ERR_INVALID_AUTH_CREDENTIALS at https://www.instagram.com/accounts/emailsignup/"
+    "error": "Timed out after 30000 ms while waiting for the WS endpoint URL to appear in stdout!"
   }
 ]

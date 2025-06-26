@@ -2045,3 +2045,4 @@ Failed to restart cloudflared.service: Connection timed out
 See system logs and 'systemctl status cloudflared.service' for details.
 ❌ No se pudo restaurar el túnel
 ⚠️ Túnel caído. Reiniciando...
+❌ No se pudo restaurar el túnel
