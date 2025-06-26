@@ -6,3 +6,5 @@
 [2025-06-26T07:34:48.605Z] ✅ Sistema de proxies listo
 [2025-06-26T07:34:48.605Z] 
 🚀 Creando cuenta 1/50
+[2025-06-26T07:34:56.030Z] ❌ Fallo: page.waitForTimeout is not a function
+[2025-06-26T07:34:56.615Z] ⏳ Esperando 15 segundos...
