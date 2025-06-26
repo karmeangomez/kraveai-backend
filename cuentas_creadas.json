@@ -5,7 +5,7 @@
     "password": "",
     "proxy": "",
     "status": "failed",
-    "error": "❌ crearCuentaInstagram devolvió null"
+    "error": "ProxyRotationSystem.getProxy is not a function"
   },
   {
     "username": "",
@@ -13,7 +13,7 @@
     "password": "",
     "proxy": "",
     "status": "failed",
-    "error": "❌ crearCuentaInstagram devolvió null"
+    "error": "ProxyRotationSystem.getProxy is not a function"
   },
   {
     "username": "",
@@ -21,7 +21,7 @@
     "password": "",
     "proxy": "",
     "status": "failed",
-    "error": "❌ crearCuentaInstagram devolvió null"
+    "error": "ProxyRotationSystem.getProxy is not a function"
   },
   {
     "username": "",
@@ -29,7 +29,7 @@
     "password": "",
     "proxy": "",
     "status": "failed",
-    "error": "❌ crearCuentaInstagram devolvió null"
+    "error": "ProxyRotationSystem.getProxy is not a function"
   },
   {
     "username": "",
@@ -37,6 +37,366 @@
     "password": "",
     "proxy": "",
     "status": "failed",
-    "error": "❌ crearCuentaInstagram devolvió null"
+    "error": "ProxyRotationSystem.getProxy is not a function"
+  },
+  {
+    "username": "",
+    "email": "",
+    "password": "",
+    "proxy": "",
+    "status": "failed",
+    "error": "ProxyRotationSystem.getProxy is not a function"
+  },
+  {
+    "username": "",
+    "email": "",
+    "password": "",
+    "proxy": "",
+    "status": "failed",
+    "error": "ProxyRotationSystem.getProxy is not a function"
+  },
+  {
+    "username": "",
+    "email": "",
+    "password": "",
+    "proxy": "",
+    "status": "failed",
+    "error": "ProxyRotationSystem.getProxy is not a function"
+  },
+  {
+    "username": "",
+    "email": "",
+    "password": "",
+    "proxy": "",
+    "status": "failed",
+    "error": "ProxyRotationSystem.getProxy is not a function"
+  },
+  {
+    "username": "",
+    "email": "",
+    "password": "",
+    "proxy": "",
+    "status": "failed",
+    "error": "ProxyRotationSystem.getProxy is not a function"
+  },
+  {
+    "username": "",
+    "email": "",
+    "password": "",
+    "proxy": "",
+    "status": "failed",
+    "error": "ProxyRotationSystem.getProxy is not a function"
+  },
+  {
+    "username": "",
+    "email": "",
+    "password": "",
+    "proxy": "",
+    "status": "failed",
+    "error": "ProxyRotationSystem.getProxy is not a function"
+  },
+  {
+    "username": "",
+    "email": "",
+    "password": "",
+    "proxy": "",
+    "status": "failed",
+    "error": "ProxyRotationSystem.getProxy is not a function"
+  },
+  {
+    "username": "",
+    "email": "",
+    "password": "",
+    "proxy": "",
+    "status": "failed",
+    "error": "ProxyRotationSystem.getProxy is not a function"
+  },
+  {
+    "username": "",
+    "email": "",
+    "password": "",
+    "proxy": "",
+    "status": "failed",
+    "error": "ProxyRotationSystem.getProxy is not a function"
+  },
+  {
+    "username": "",
+    "email": "",
+    "password": "",
+    "proxy": "",
+    "status": "failed",
+    "error": "ProxyRotationSystem.getProxy is not a function"
+  },
+  {
+    "username": "",
+    "email": "",
+    "password": "",
+    "proxy": "",
+    "status": "failed",
+    "error": "ProxyRotationSystem.getProxy is not a function"
+  },
+  {
+    "username": "",
+    "email": "",
+    "password": "",
+    "proxy": "",
+    "status": "failed",
+    "error": "ProxyRotationSystem.getProxy is not a function"
+  },
+  {
+    "username": "",
+    "email": "",
+    "password": "",
+    "proxy": "",
+    "status": "failed",
+    "error": "ProxyRotationSystem.getProxy is not a function"
+  },
+  {
+    "username": "",
+    "email": "",
+    "password": "",
+    "proxy": "",
+    "status": "failed",
+    "error": "ProxyRotationSystem.getProxy is not a function"
+  },
+  {
+    "username": "",
+    "email": "",
+    "password": "",
+    "proxy": "",
+    "status": "failed",
+    "error": "ProxyRotationSystem.getProxy is not a function"
+  },
+  {
+    "username": "",
+    "email": "",
+    "password": "",
+    "proxy": "",
+    "status": "failed",
+    "error": "ProxyRotationSystem.getProxy is not a function"
+  },
+  {
+    "username": "",
+    "email": "",
+    "password": "",
+    "proxy": "",
+    "status": "failed",
+    "error": "ProxyRotationSystem.getProxy is not a function"
+  },
+  {
+    "username": "",
+    "email": "",
+    "password": "",
+    "proxy": "",
+    "status": "failed",
+    "error": "ProxyRotationSystem.getProxy is not a function"
+  },
+  {
+    "username": "",
+    "email": "",
+    "password": "",
+    "proxy": "",
+    "status": "failed",
+    "error": "ProxyRotationSystem.getProxy is not a function"
+  },
+  {
+    "username": "",
+    "email": "",
+    "password": "",
+    "proxy": "",
+    "status": "failed",
+    "error": "ProxyRotationSystem.getProxy is not a function"
+  },
+  {
+    "username": "",
+    "email": "",
+    "password": "",
+    "proxy": "",
+    "status": "failed",
+    "error": "ProxyRotationSystem.getProxy is not a function"
+  },
+  {
+    "username": "",
+    "email": "",
+    "password": "",
+    "proxy": "",
+    "status": "failed",
+    "error": "ProxyRotationSystem.getProxy is not a function"
+  },
+  {
+    "username": "",
+    "email": "",
+    "password": "",
+    "proxy": "",
+    "status": "failed",
+    "error": "ProxyRotationSystem.getProxy is not a function"
+  },
+  {
+    "username": "",
+    "email": "",
+    "password": "",
+    "proxy": "",
+    "status": "failed",
+    "error": "ProxyRotationSystem.getProxy is not a function"
+  },
+  {
+    "username": "",
+    "email": "",
+    "password": "",
+    "proxy": "",
+    "status": "failed",
+    "error": "ProxyRotationSystem.getProxy is not a function"
+  },
+  {
+    "username": "",
+    "email": "",
+    "password": "",
+    "proxy": "",
+    "status": "failed",
+    "error": "ProxyRotationSystem.getProxy is not a function"
+  },
+  {
+    "username": "",
+    "email": "",
+    "password": "",
+    "proxy": "",
+    "status": "failed",
+    "error": "ProxyRotationSystem.getProxy is not a function"
+  },
+  {
+    "username": "",
+    "email": "",
+    "password": "",
+    "proxy": "",
+    "status": "failed",
+    "error": "ProxyRotationSystem.getProxy is not a function"
+  },
+  {
+    "username": "",
+    "email": "",
+    "password": "",
+    "proxy": "",
+    "status": "failed",
+    "error": "ProxyRotationSystem.getProxy is not a function"
+  },
+  {
+    "username": "",
+    "email": "",
+    "password": "",
+    "proxy": "",
+    "status": "failed",
+    "error": "ProxyRotationSystem.getProxy is not a function"
+  },
+  {
+    "username": "",
+    "email": "",
+    "password": "",
+    "proxy": "",
+    "status": "failed",
+    "error": "ProxyRotationSystem.getProxy is not a function"
+  },
+  {
+    "username": "",
+    "email": "",
+    "password": "",
+    "proxy": "",
+    "status": "failed",
+    "error": "ProxyRotationSystem.getProxy is not a function"
+  },
+  {
+    "username": "",
+    "email": "",
+    "password": "",
+    "proxy": "",
+    "status": "failed",
+    "error": "ProxyRotationSystem.getProxy is not a function"
+  },
+  {
+    "username": "",
+    "email": "",
+    "password": "",
+    "proxy": "",
+    "status": "failed",
+    "error": "ProxyRotationSystem.getProxy is not a function"
+  },
+  {
+    "username": "",
+    "email": "",
+    "password": "",
+    "proxy": "",
+    "status": "failed",
+    "error": "ProxyRotationSystem.getProxy is not a function"
+  },
+  {
+    "username": "",
+    "email": "",
+    "password": "",
+    "proxy": "",
+    "status": "failed",
+    "error": "ProxyRotationSystem.getProxy is not a function"
+  },
+  {
+    "username": "",
+    "email": "",
+    "password": "",
+    "proxy": "",
+    "status": "failed",
+    "error": "ProxyRotationSystem.getProxy is not a function"
+  },
+  {
+    "username": "",
+    "email": "",
+    "password": "",
+    "proxy": "",
+    "status": "failed",
+    "error": "ProxyRotationSystem.getProxy is not a function"
+  },
+  {
+    "username": "",
+    "email": "",
+    "password": "",
+    "proxy": "",
+    "status": "failed",
+    "error": "ProxyRotationSystem.getProxy is not a function"
+  },
+  {
+    "username": "",
+    "email": "",
+    "password": "",
+    "proxy": "",
+    "status": "failed",
+    "error": "ProxyRotationSystem.getProxy is not a function"
+  },
+  {
+    "username": "",
+    "email": "",
+    "password": "",
+    "proxy": "",
+    "status": "failed",
+    "error": "ProxyRotationSystem.getProxy is not a function"
+  },
+  {
+    "username": "",
+    "email": "",
+    "password": "",
+    "proxy": "",
+    "status": "failed",
+    "error": "ProxyRotationSystem.getProxy is not a function"
+  },
+  {
+    "username": "",
+    "email": "",
+    "password": "",
+    "proxy": "",
+    "status": "failed",
+    "error": "ProxyRotationSystem.getProxy is not a function"
+  },
+  {
+    "username": "",
+    "email": "",
+    "password": "",
+    "proxy": "",
+    "status": "failed",
+    "error": "ProxyRotationSystem.getProxy is not a function"
   }
 ]

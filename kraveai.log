@@ -210,3 +210,9 @@
 [2025-06-26T03:04:37.866Z] 
 🚀 Creando cuenta 50/50
 [2025-06-26T03:04:37.866Z] ❌ Fallo: ProxyRotationSystem.getProxy is not a function
+[2025-06-26T03:04:38.446Z] 💾 Cuentas guardadas en cuentas_creadas.json
+[2025-06-26T03:04:38.446Z] 
+🎉 Proceso completado!
+[2025-06-26T03:04:38.446Z] ✅ Cuentas creadas: 0
+[2025-06-26T03:04:38.446Z] ❌ Fallidas: 50
+[2025-06-26T03:04:38.447Z] ⏱️ Tiempo total: 12.8 min
