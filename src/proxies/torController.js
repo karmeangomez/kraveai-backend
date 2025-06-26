@@ -1,6 +1,6 @@
-const { exec } = require('child_process');
+import { exec } from 'child_process';
 
-async function rotateTorIP() {
+export default async function rotateTorIP() {
   return new Promise((resolve) => {
     exec('sudo systemctl restart tor', (error) => {
       if (!error) {
@@ -13,5 +13,3 @@ async function rotateTorIP() {
     });
   });
 }
-
-export default rotateTorIP;
