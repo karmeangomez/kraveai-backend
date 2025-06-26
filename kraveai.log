@@ -1,18 +1,4 @@
-[2025-06-25T21:26:16.725Z] 🔥 Iniciando KraveAI-Granja Rusa 🔥
-[2025-06-25T21:26:16.727Z] ✅ Plataforma: linux
-[2025-06-25T21:26:16.727Z] ✅ Modo: HEADLESS
-[2025-06-25T21:26:16.727Z] ✅ Cuentas a crear: 50
-[2025-06-25T21:26:17.520Z] 🔄 Inicializando sistema de proxies...
-[2025-06-25T21:26:17.522Z] 🔥 Error crítico: UltimateProxyMaster.loadAllProxies is not a function
-[2025-06-25T21:26:17.522Z] TypeError: UltimateProxyMaster.loadAllProxies is not a function
-    at ProxyRotationSystem.initialize (file:///home/karmean/kraveai-backend/src/proxies/proxyRotationSystem.js:17:52)
-    at file:///home/karmean/kraveai-backend/src/run.js:129:31
-    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
-2025-06-25 20:48:03,850 [INFO] instagrapi: https://i.instagram.com/api/v1/feed/timeline/
-2025-06-25 20:48:04,343 [INFO] private_request: None [403] POST https://i.instagram.com/api/v1/feed/timeline/ (269.0.0.18.75, OnePlus 6T Dev)
-2025-06-25 20:48:04,344 [INFO] KraveAI-Backend: Cliente Instagram inicializado
-2025-06-25 20:48:22,382 [INFO] httpx: HTTP Request: POST https://api.telegram.org/bot8066723325:AAH1XgvTqjDZV8wt6TLqP58euK1OwBSd-9A/sendMessage "HTTP/1.1 200 OK"
-2025-06-25 20:50:02,074 [INFO] httpx: HTTP Request: POST https://api.telegram.org/bot8066723325:AAH1XgvTqjDZV8wt6TLqP58euK1OwBSd-9A/sendMessage "HTTP/1.1 200 OK"
-2025-06-25 20:51:34,684 [INFO] instagrapi: https://i.instagram.com/api/v1/feed/timeline/
-2025-06-25 20:51:34,944 [INFO] private_request: None [403] POST https://i.instagram.com/api/v1/feed/timeline/ (269.0.0.18.75, OnePlus 6T Dev)
-2025-06-25 20:51:34,947 [INFO] KraveAI-Backend: Cliente Instagram inicializado
+[2025-06-26T02:51:49.448Z] 🔥 Iniciando KraveAI-Granja Rusa 🔥
+[2025-06-26T02:51:49.450Z] ✅ Plataforma: linux
+[2025-06-26T02:51:49.450Z] ✅ Modo: HEADLESS
+[2025-06-26T02:51:49.450Z] ✅ Cuentas a crear: 50
