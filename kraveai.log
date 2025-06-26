@@ -103,3 +103,4 @@
 🚀 Creando cuenta 24/50
 [2025-06-26T02:57:50.414Z] ❌ Fallo: ProxyRotationSystem.getProxy is not a function
 [2025-06-26T02:57:51.030Z] ⏳ Esperando 15 segundos...
+2025-06-25 20:58:02,377 [INFO] httpx: HTTP Request: POST https://api.telegram.org/bot8066723325:AAH1XgvTqjDZV8wt6TLqP58euK1OwBSd-9A/sendMessage "HTTP/1.1 200 OK"
