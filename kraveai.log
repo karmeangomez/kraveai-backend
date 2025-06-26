@@ -2,3 +2,8 @@
 [2025-06-26T06:15:37.110Z] ✅ Plataforma: linux
 [2025-06-26T06:15:37.110Z] ✅ Modo: HEADLESS
 [2025-06-26T06:15:37.110Z] ✅ Cuentas a crear: 50
+[2025-06-26T06:15:37.819Z] 🔄 Inicializando sistema de proxies...
+[2025-06-26T06:15:37.822Z] ✅ Sistema de proxies listo
+[2025-06-26T06:15:37.822Z] 
+🚀 Creando cuenta 1/50
+[2025-06-26T06:15:37.822Z] ❌ Fallo: No hay proxies disponibles
