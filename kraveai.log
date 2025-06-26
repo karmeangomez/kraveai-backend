@@ -8,3 +8,4 @@
     at ProxyRotationSystem.initialize (file:///home/karmean/kraveai-backend/src/proxies/proxyRotationSystem.js:17:52)
     at file:///home/karmean/kraveai-backend/src/run.js:129:31
     at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+2025-06-25 20:48:03,850 [INFO] instagrapi: https://i.instagram.com/api/v1/feed/timeline/
