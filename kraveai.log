@@ -120,3 +120,4 @@
 [2025-06-26T04:07:54.650Z] ⏳ Esperando 15 segundos...
 [2025-06-26T04:08:09.658Z] 
 🚀 Creando cuenta 29/50
+[2025-06-26T04:08:14.419Z] ❌ Fallo: Cannot read properties of undefined (reading 'width')
