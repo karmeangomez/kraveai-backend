@@ -6,3 +6,4 @@
 [2025-06-26T06:28:42.099Z] ✅ Sistema de proxies listo
 [2025-06-26T06:28:42.099Z] 
 🚀 Creando cuenta 1/50
+[2025-06-26T06:28:43.466Z] ❌ Fallo: net::ERR_INVALID_AUTH_CREDENTIALS at https://www.instagram.com/accounts/emailsignup/
