@@ -37,3 +37,5 @@
 [2025-06-26T04:02:01.428Z] ❌ Fallo: Cannot read properties of undefined (reading 'width')
 [2025-06-26T04:02:01.989Z] ⏳ Esperando 15 segundos...
 2025-06-25 22:02:04,286 [INFO] httpx: HTTP Request: POST https://api.telegram.org/bot8066723325:AAH1XgvTqjDZV8wt6TLqP58euK1OwBSd-9A/sendMessage "HTTP/1.1 200 OK"
+[2025-06-26T04:02:16.999Z] 
+🚀 Creando cuenta 9/50
