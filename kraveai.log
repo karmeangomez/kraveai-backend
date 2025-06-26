@@ -2,3 +2,9 @@
 [2025-06-26T02:51:49.450Z] ✅ Plataforma: linux
 [2025-06-26T02:51:49.450Z] ✅ Modo: HEADLESS
 [2025-06-26T02:51:49.450Z] ✅ Cuentas a crear: 50
+[2025-06-26T02:51:50.186Z] 🔄 Inicializando sistema de proxies...
+[2025-06-26T02:51:50.847Z] ✅ Sistema de proxies listo
+[2025-06-26T02:51:50.847Z] 
+🚀 Creando cuenta 1/50
+[2025-06-26T02:51:50.848Z] ❌ Fallo: ProxyRotationSystem.getProxy is not a function
+[2025-06-26T02:51:51.150Z] ⏳ Esperando 15 segundos...
