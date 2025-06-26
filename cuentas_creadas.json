@@ -5,7 +5,7 @@
     "password": "",
     "proxy": "",
     "status": "failed",
-    "error": "No hay proxies disponibles"
+    "error": "net::ERR_INVALID_AUTH_CREDENTIALS at https://www.instagram.com/accounts/emailsignup/"
   },
   {
     "username": "",
@@ -13,7 +13,7 @@
     "password": "",
     "proxy": "",
     "status": "failed",
-    "error": "No hay proxies disponibles"
+    "error": "net::ERR_INVALID_AUTH_CREDENTIALS at https://www.instagram.com/accounts/emailsignup/"
   },
   {
     "username": "",
@@ -21,7 +21,7 @@
     "password": "",
     "proxy": "",
     "status": "failed",
-    "error": "No hay proxies disponibles"
+    "error": "net::ERR_INVALID_AUTH_CREDENTIALS at https://www.instagram.com/accounts/emailsignup/"
   },
   {
     "username": "",
@@ -29,7 +29,7 @@
     "password": "",
     "proxy": "",
     "status": "failed",
-    "error": "No hay proxies disponibles"
+    "error": "net::ERR_INVALID_AUTH_CREDENTIALS at https://www.instagram.com/accounts/emailsignup/"
   },
   {
     "username": "",
@@ -37,7 +37,7 @@
     "password": "",
     "proxy": "",
     "status": "failed",
-    "error": "No hay proxies disponibles"
+    "error": "net::ERR_INVALID_AUTH_CREDENTIALS at https://www.instagram.com/accounts/emailsignup/"
   },
   {
     "username": "",
@@ -45,7 +45,7 @@
     "password": "",
     "proxy": "",
     "status": "failed",
-    "error": "No hay proxies disponibles"
+    "error": "net::ERR_INVALID_AUTH_CREDENTIALS at https://www.instagram.com/accounts/emailsignup/"
   },
   {
     "username": "",
@@ -53,7 +53,7 @@
     "password": "",
     "proxy": "",
     "status": "failed",
-    "error": "No hay proxies disponibles"
+    "error": "net::ERR_INVALID_AUTH_CREDENTIALS at https://www.instagram.com/accounts/emailsignup/"
   },
   {
     "username": "",
@@ -61,7 +61,7 @@
     "password": "",
     "proxy": "",
     "status": "failed",
-    "error": "No hay proxies disponibles"
+    "error": "net::ERR_INVALID_AUTH_CREDENTIALS at https://www.instagram.com/accounts/emailsignup/"
   },
   {
     "username": "",
@@ -69,7 +69,7 @@
     "password": "",
     "proxy": "",
     "status": "failed",
-    "error": "No hay proxies disponibles"
+    "error": "net::ERR_INVALID_AUTH_CREDENTIALS at https://www.instagram.com/accounts/emailsignup/"
   },
   {
     "username": "",
@@ -77,6 +77,6 @@
     "password": "",
     "proxy": "",
     "status": "failed",
-    "error": "No hay proxies disponibles"
+    "error": "net::ERR_INVALID_AUTH_CREDENTIALS at https://www.instagram.com/accounts/emailsignup/"
   }
 ]

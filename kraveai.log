@@ -42,3 +42,12 @@
 [2025-06-26T06:30:58.860Z] ⏳ Esperando 15 segundos...
 [2025-06-26T06:31:13.870Z] 
 🚀 Creando cuenta 10/50
+[2025-06-26T06:31:18.750Z] ❌ Fallo: net::ERR_INVALID_AUTH_CREDENTIALS at https://www.instagram.com/accounts/emailsignup/
+[2025-06-26T06:31:19.269Z] 🛑 Se detectaron 10 fallos consecutivos.
+Se detiene el sistema para evitar sobrecarga.
+[2025-06-26T06:31:19.532Z] 💾 Cuentas guardadas en cuentas_creadas.json
+[2025-06-26T06:31:19.532Z] 
+🎉 Proceso completado!
+[2025-06-26T06:31:19.532Z] ✅ Cuentas creadas: 0
+[2025-06-26T06:31:19.532Z] ❌ Fallidas: 10
+[2025-06-26T06:31:19.532Z] ⏱️ Tiempo total: 2.7 min
