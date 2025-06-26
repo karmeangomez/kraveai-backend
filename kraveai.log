@@ -40,3 +40,8 @@
 🚀 Creando cuenta 9/50
 [2025-06-26T06:17:43.614Z] ❌ Fallo: No hay proxies disponibles
 [2025-06-26T06:17:44.191Z] ⏳ Esperando 15 segundos...
+[2025-06-26T06:17:59.202Z] 
+🚀 Creando cuenta 10/50
+[2025-06-26T06:17:59.203Z] ❌ Fallo: No hay proxies disponibles
+[2025-06-26T06:17:59.802Z] 🛑 Se detectaron 10 fallos consecutivos.
+Se detiene el sistema para evitar sobrecarga.
