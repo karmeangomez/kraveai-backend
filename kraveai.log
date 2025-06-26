@@ -38,3 +38,4 @@
 [2025-06-26T06:30:41.940Z] ⏳ Esperando 15 segundos...
 [2025-06-26T06:30:56.950Z] 
 🚀 Creando cuenta 9/50
+[2025-06-26T06:30:58.416Z] ❌ Fallo: net::ERR_INVALID_AUTH_CREDENTIALS at https://www.instagram.com/accounts/emailsignup/
