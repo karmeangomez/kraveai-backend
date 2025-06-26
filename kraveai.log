@@ -40,3 +40,6 @@
 🚀 Creando cuenta 9/50
 [2025-06-26T07:46:45.885Z] ❌ Fallo: Target.createTarget timed out. Increase the 'protocolTimeout' setting in launch/connect calls for a higher timeout if needed.
 [2025-06-26T07:48:08.738Z] ⏳ Esperando 15 segundos...
+[2025-06-26T07:48:24.127Z] 
+🚀 Creando cuenta 10/50
+[2025-06-26T07:49:04.693Z] ❌ Fallo: Timed out after 30000 ms while waiting for the WS endpoint URL to appear in stdout!
