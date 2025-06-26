@@ -52,3 +52,5 @@ Se detiene el sistema para evitar sobrecarga.
 [2025-06-26T06:31:19.532Z] ❌ Fallidas: 10
 [2025-06-26T06:31:19.532Z] ⏱️ Tiempo total: 2.7 min
 2025-06-26 01:31:44,080 [INFO] instagrapi: https://i.instagram.com/api/v1/feed/timeline/
+2025-06-26 01:31:44,563 [INFO] private_request: None [403] POST https://i.instagram.com/api/v1/feed/timeline/ (269.0.0.18.75, OnePlus 6T Dev)
+2025-06-26 01:31:44,566 [INFO] KraveAI-Backend: Cliente Instagram inicializado
