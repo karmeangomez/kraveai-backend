@@ -1,4 +1,6 @@
-import SwiftShadow from './swiftshadow/swiftShadowLoader.js';
+// Después (CORRECTO)
+import SwiftShadow from './swiftShadowLoader.js';
+
 
 const ProxySources = {
   SwiftShadow: SwiftShadow
