@@ -34,7 +34,7 @@ export const PUPPETEER_CONFIG = {
     '--disable-software-rasterizer',
     '--disable-features=site-per-process'
   ],
-  ...(isRaspberryPi && { 
+  ...(isRaspberryPi && {
     executablePath: '/usr/bin/chromium-browser',
     ignoreDefaultArgs: ['--disable-extensions']
   })
@@ -107,7 +107,7 @@ process.on('SIGTERM', handleShutdown);
         if (result.status === 'created') {
           log(`✅ Cuenta creada: @${result.username}`);
           await notifyCuentaExitosa(result);
-          consecutiveFails = 0; // ✅ Resetea contador en éxito
+          consecutiveFails = 0;
         } else {
           const mensaje = result.error || '❌ Cuenta inválida';
           log(`❌ Fallo: ${mensaje}`);
@@ -129,7 +129,14 @@ process.on('SIGTERM', handleShutdown);
         consecutiveFails++;
       }
 
-      // ✅ Protección por fallos consecutivos
+      // 📊 Mostrar progreso en consola
+      const allAccounts = AccountManager.getAccounts();
+      const total = allAccounts.length;
+      const success = allAccounts.filter(a => a.status === 'created').length;
+      const failed = total - success;
+
+      console.log(`📊 Progreso: ${success} creadas ✅ / ${failed} fallidas ❌ / ${total} total`);
+
       if (consecutiveFails >= 10) {
         const msg = `🛑 Se detectaron ${consecutiveFails} fallos consecutivos.\nSe detiene el sistema para evitar sobrecarga.`;
         log(msg);
