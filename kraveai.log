@@ -2,3 +2,8 @@
 [2025-06-26T05:52:07.028Z] ✅ Plataforma: linux
 [2025-06-26T05:52:07.028Z] ✅ Modo: HEADLESS
 [2025-06-26T05:52:07.028Z] ✅ Cuentas a crear: 50
+[2025-06-26T05:52:07.787Z] 🔄 Inicializando sistema de proxies...
+[2025-06-26T05:52:07.987Z] ✅ Sistema de proxies listo
+[2025-06-26T05:52:07.988Z] 
+🚀 Creando cuenta 1/50
+[2025-06-26T05:52:08.861Z] ❌ Fallo: net::ERR_PROXY_CONNECTION_FAILED at https://www.instagram.com/accounts/emailsignup/
