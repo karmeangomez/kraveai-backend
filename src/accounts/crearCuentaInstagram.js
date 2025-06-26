@@ -8,7 +8,7 @@ puppeteer.use(StealthPlugin());
 
 async function crearCuentaInstagram() {
   try {
-    const proxy = ProxyRotationSystem.getProxy();
+    const proxy = ProxyRotationSystem.getNextProxy();
     const fingerprint = generateAdaptiveFingerprint();
     const name = generarNombreCompleto();
     const username = generarNombreUsuario();
