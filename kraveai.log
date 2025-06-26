@@ -14,3 +14,4 @@
 [2025-06-26T05:52:25.602Z] ⏳ Esperando 15 segundos...
 [2025-06-26T05:52:40.604Z] 
 🚀 Creando cuenta 3/50
+[2025-06-26T05:52:45.478Z] ❌ Fallo: net::ERR_PROXY_CONNECTION_FAILED at https://www.instagram.com/accounts/emailsignup/
