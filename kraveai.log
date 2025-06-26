@@ -75,3 +75,6 @@
 🚀 Creando cuenta 17/50
 [2025-06-26T03:10:11.837Z] ❌ Fallo: ProxyRotationSystem.getProxy is not a function
 [2025-06-26T03:10:13.089Z] ⏳ Esperando 15 segundos...
+2025-06-25 21:18:56,639 [INFO] instagrapi: https://i.instagram.com/api/v1/feed/timeline/
+2025-06-25 21:18:56,899 [INFO] private_request: None [403] POST https://i.instagram.com/api/v1/feed/timeline/ (269.0.0.18.75, OnePlus 6T Dev)
+2025-06-25 21:18:56,900 [INFO] KraveAI-Backend: Cliente Instagram inicializado
