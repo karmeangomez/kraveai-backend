@@ -180,3 +180,7 @@
 [2025-06-26T04:16:46.510Z] ⏳ Esperando 15 segundos...
 [2025-06-26T04:17:01.636Z] 
 🚀 Creando cuenta 44/50
+[2025-06-26T04:17:32.648Z] ❌ Fallo: Timed out after 30000 ms while waiting for the WS endpoint URL to appear in stdout!
+[2025-06-26T04:17:39.045Z] ⏳ Esperando 15 segundos...
+[2025-06-26T04:17:54.406Z] 
+🚀 Creando cuenta 45/50
