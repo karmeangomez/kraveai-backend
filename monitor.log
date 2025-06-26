@@ -2040,3 +2040,8 @@ bash: */5: No such file or directory
 ✅ Túnel activo
 ✅ Túnel activo
 ✅ Túnel activo
+⚠️ Túnel caído. Reiniciando...
+Failed to restart cloudflared.service: Connection timed out
+See system logs and 'systemctl status cloudflared.service' for details.
+❌ No se pudo restaurar el túnel
+⚠️ Túnel caído. Reiniciando...
