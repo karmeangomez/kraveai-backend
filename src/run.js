@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import AccountManager from './accounts/accountManager.js';
 import crearCuentaInstagram from './accounts/crearCuentaInstagram.js';
-import proxySystem from './proxies/proxyRotationSystem.js'; // ✅ CORRECTO
+import proxySystem from './proxies/proxyRotationSystem.js';
 import fs from 'fs';
 import axios from 'axios';
 import {
@@ -87,8 +87,10 @@ process.on('SIGTERM', handleShutdown);
     AccountManager.clearAccounts();
 
     log('🔄 Inicializando sistema de proxies...');
-    await proxySystem.initialize(); // ✅ CORREGIDO
+    await proxySystem.initialize();
     log('✅ Sistema de proxies listo');
+
+    let consecutiveFails = 0;
 
     for (let i = 0; i < CONFIG.ACCOUNTS_TO_CREATE; i++) {
       if (isShuttingDown) {
@@ -105,10 +107,12 @@ process.on('SIGTERM', handleShutdown);
         if (result.status === 'created') {
           log(`✅ Cuenta creada: @${result.username}`);
           await notifyCuentaExitosa(result);
+          consecutiveFails = 0; // ✅ Resetea contador en éxito
         } else {
           const mensaje = result.error || '❌ Cuenta inválida';
           log(`❌ Fallo: ${mensaje}`);
           await notifyErrorCuenta(result, mensaje);
+          consecutiveFails++;
         }
       } else {
         const fallback = {
@@ -122,6 +126,15 @@ process.on('SIGTERM', handleShutdown);
         AccountManager.addAccount(fallback);
         log(fallback.error);
         await notifyErrorCuenta(fallback, fallback.error);
+        consecutiveFails++;
+      }
+
+      // ✅ Protección por fallos consecutivos
+      if (consecutiveFails >= 10) {
+        const msg = `🛑 Se detectaron ${consecutiveFails} fallos consecutivos.\nSe detiene el sistema para evitar sobrecarga.`;
+        log(msg);
+        await notifyTelegram(msg);
+        break;
       }
 
       if (i < CONFIG.ACCOUNTS_TO_CREATE - 1 && !isShuttingDown) {
