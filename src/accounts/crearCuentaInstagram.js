@@ -13,21 +13,26 @@ export default async function crearCuentaInstagram(proxy) {
     const email = `${username.replace(/[^a-zA-Z0-9]/g, '')}@kraveapi.xyz`;
     const password = `Pass${Math.random().toString(36).slice(2, 10)}`;
 
-    // Construcción SEGURA de proxyUrl
-    let proxyUrl;
-    if (proxy.type === 'socks5') {
-      proxyUrl = `socks5://${proxy.auth?.username}:${proxy.auth?.password}@${proxy.ip}:${proxy.port}`;
-    } else if (proxy.auth?.username && proxy.auth?.password) {
-      proxyUrl = `http://${proxy.auth.username}:${proxy.auth.password}@${proxy.ip}:${proxy.port}`;
+    // Determinar estructura de proxy (cadena o objeto)
+    let proxyUrl, ipPort;
+    if (typeof proxy === 'string') {
+      proxyUrl = proxy; // Usar directamente si es una cadena (ej. http://username:password@ip:port)
+      ipPort = proxy.split('@')[1] || 'sin proxy';
+    } else if (proxy.ip && proxy.port) {
+      proxyUrl = proxy.type === 'socks5'
+        ? `socks5://${proxy.auth?.username}:${proxy.auth?.password}@${proxy.ip}:${proxy.port}`
+        : `http://${proxy.auth?.username}:${proxy.auth?.password}@${proxy.ip}:${proxy.port}`;
+      ipPort = `${proxy.ip}:${proxy.port}`;
     } else {
-      proxyUrl = `${proxy.ip}:${proxy.port}`;
+      proxyUrl = ''; // Fallback sin proxy
+      ipPort = 'sin proxy';
     }
 
     const args = [
-      `--proxy-server=${proxyUrl}`,
+      proxyUrl ? `--proxy-server=${proxyUrl}` : '',
       '--ignore-certificate-errors',
       '--disable-gpu'
-    ];
+    ].filter(arg => arg); // Filtrar argumentos vacíos
 
     // Lanzar Puppeteer con manejo de excepciones
     try {
@@ -58,11 +63,11 @@ export default async function crearCuentaInstagram(proxy) {
       });
     }
 
-    console.log(`[DEBUG] Iniciando creación para @${username} con proxy ${proxyUrl}`);
+    console.log(`[DEBUG] Iniciando creación para @${username} con proxy ${ipPort}`);
     console.log(`[DEBUG] Página creada para @${username}`);
     console.log(`[DEBUG] Autenticación proxy aplicada para @${username}`);
     console.log(`[DEBUG] Fingerprint aplicado para @${username}`);
-    console.log(`Creando cuenta: @${username} con proxy ${proxyUrl}`);
+    console.log(`Creando cuenta: @${username} con proxy ${ipPort}`);
 
     // Navegación con timeout ajustado
     try {
@@ -89,11 +94,12 @@ export default async function crearCuentaInstagram(proxy) {
       username,
       email,
       password,
-      proxy: `${proxy.ip}:${proxy.port}`,
+      proxy: ipPort,
       status: 'created'
     };
   } catch (error) {
-    console.error(`[ERROR] Error creando cuenta @${username || generarNombreUsuario()}:`, error.message);
+    const errorUsername = username || generarNombreUsuario(); // Usar username si existe, sino generar uno nuevo
+    console.error(`[ERROR] Error creando cuenta @${errorUsername}:`, error.message);
     if (browser) await browser.close();
     return {
       username: '',
