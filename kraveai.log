@@ -10,3 +10,4 @@
 [2025-06-27T04:36:35.481Z] ReferenceError: browser is not defined
     at crearCuentaInstagram (file:///home/karmean/kraveai-backend/src/accounts/crearCuentaInstagram.js:159:5)
     at async file:///home/karmean/kraveai-backend/src/run.js:102:22
+2025-06-26 22:37:44,038 [INFO] httpx: HTTP Request: POST https://api.telegram.org/bot8066723325:AAH1XgvTqjDZV8wt6TLqP58euK1OwBSd-9A/sendMessage "HTTP/1.1 200 OK"
