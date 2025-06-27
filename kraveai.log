@@ -64,3 +64,5 @@ Se detiene el sistema para evitar sobrecarga.
 2025-06-26 21:16:16,293 [INFO] KraveAI-Backend: Sesión Instagram iniciada: @kraveaibot
 2025-06-26 21:16:59,445 [INFO] public_request: [None] [201] GET https://www.instagram.com/mariobautista/?__a=1&__d=dis
 2025-06-26 21:16:59,445 [ERROR] public_request: Status 201: JSONDecodeError in public_request (url=https://www.instagram.com/mariobautista/?__a=1&__d=dis) >>> 
+2025-06-26 21:17:02,576 [INFO] public_request: [None] [201] GET https://www.instagram.com/mariobautista/?__a=1&__d=dis
+2025-06-26 21:17:02,577 [ERROR] public_request: Status 201: JSONDecodeError in public_request (url=https://www.instagram.com/mariobautista/?__a=1&__d=dis) >>> 
