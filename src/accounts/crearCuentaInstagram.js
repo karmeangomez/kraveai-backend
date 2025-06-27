@@ -7,7 +7,13 @@ puppeteer.use(StealthPlugin());
 
 export default async function crearCuentaInstagram(proxy) {
   const username = generarNombreUsuario();
-  const email = `${username.replace(/[^a-zA-Z0-9]/g, '')}@kraveapi.xyz`;
+  // Usar el dominio correcto @kraveapi.xyz
+  let email = `${username.replace(/[^a-zA-Z0-9]/g, '')}@kraveapi.xyz`;
+  // Añadir un sufijo aleatorio si hay duplicados o problemas
+  if (Math.random() > 0.9) { // 10% de chance de añadir sufijo
+    email = `${username.replace(/[^a-zA-Z0-9]/g, '')}${Math.floor(Math.random() * 1000)}@kraveapi.xyz`;
+    console.log('[DEBUG] Email con sufijo aleatorio:', email);
+  }
   const password = `Pass${Math.random().toString(36).slice(2, 10)}`;
   let browser;
 
@@ -17,12 +23,12 @@ export default async function crearCuentaInstagram(proxy) {
     if (typeof proxy === 'string') {
       proxyUrl = proxy;
       ipPort = proxy.split('@')[1] || 'sin proxy';
-    } else if (proxy.proxy) { // Usar el campo 'proxy' del objeto
+    } else if (proxy && proxy.proxy) { // Mantener la lógica de proxies como estaba
       proxyUrl = proxy.proxy.includes('socks5') || (proxy.type && proxy.type === 'socks5')
         ? `socks5://${proxy.auth?.username}:${proxy.auth?.password}@${proxy.proxy}`
         : `http://${proxy.auth?.username}:${proxy.auth?.password}@${proxy.proxy}`;
       ipPort = proxy.proxy;
-      console.log('[DEBUG] Proxy URL generada:', proxyUrl); // Depuración adicional
+      console.log('[DEBUG] Proxy URL generada:', proxyUrl);
     } else {
       proxyUrl = '';
       ipPort = 'sin proxy';
@@ -54,7 +60,7 @@ export default async function crearCuentaInstagram(proxy) {
     await page.setUserAgent(generateAdaptiveFingerprint().userAgent || 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36');
     await page.setViewport({ width: generateAdaptiveFingerprint().screen?.width || 1920, height: generateAdaptiveFingerprint().screen?.height || 1080 });
 
-    if (proxy.auth?.username && proxy.auth?.password) {
+    if (proxy && proxy.auth?.username && proxy.auth?.password) {
       await page.authenticate({
         username: proxy.auth.username,
         password: proxy.auth.password
