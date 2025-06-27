@@ -1,40 +1,65 @@
-import axios from 'axios';
+// src/proxies/proxyRotationSystem.js
+import UltimateProxyMaster from './ultimateProxyMaster.js';
+import { isProxyBlacklisted, addToBlacklist } from './proxyBlacklistManager.js';
+import { getGeo } from '../utils/geoUtils.js';
 
-export default function swiftShadowLoader() {
-  console.log('✅ swiftShadowLoader ejecutado');
-  
-  return {
-    initialize: async () => {
-      console.log('🔧 Inicializando SwiftShadow proxies');
-      return Promise.resolve();
-    },
-    
-    getProxy: () => ({
-      host: 'localhost',
-      port: 8080,
-      auth: {
-        username: 'user',
-        password: 'pass'
+class ProxyRotationSystem {
+  constructor() {
+    this.validProxies = [];
+    this.currentIndex = 0;
+    this.initialized = false;
+  }
+
+  async initialize() {
+    if (this.initialized) return;
+
+    const rawProxies = await UltimateProxyMaster.loadAllProxies();
+    const enriched = [];
+
+    for (const proxy of rawProxies) {
+      if (isProxyBlacklisted(proxy.proxy)) {
+        console.warn(`🚫 Proxy ignorado (blacklist): ${proxy.proxy}`);
+        continue;
       }
-    }),
-    
-    fetchMassiveProxies: async () => {
-      console.log('🌐 Obteniendo proxies masivos...');
+
       try {
-        const response = await axios.get('https://raw.githubusercontent.com/roosterkid/openproxylist/main/http.txt', {
-          timeout: 5000
+        const ip = proxy.proxy.split(':')[0];
+        const geo = await getGeo(ip);
+        enriched.push({
+          ...proxy,
+          country: geo.country,
+          region: geo.region,
+          city: geo.city
         });
-        
-        const proxies = response.data.split('\n')
-          .filter(p => p.includes(':'))
-          .map(p => p.trim());
-          
-        console.log(`✅ ${proxies.length} proxies obtenidos`);
-        return proxies.slice(0, 1000); // Limitar a 1000 para Raspberry Pi
-      } catch (error) {
-        console.error('⚠️ Error obteniendo proxies:', error.message);
-        return [];
+      } catch {
+        enriched.push({ ...proxy, country: 'XX', region: 'Unknown', city: 'Unknown' });
       }
     }
-  };
+
+    this.validProxies = enriched;
+    this.initialized = true;
+    console.log(`✅ ${this.validProxies.length} proxies válidos cargados con geolocalización`);
+  }
+
+  getNextProxy() {
+    if (!this.initialized) throw new Error('No inicializado');
+    if (!this.validProxies.length) throw new Error('No hay proxies disponibles');
+
+    const proxy = this.validProxies[this.currentIndex];
+    this.currentIndex = (this.currentIndex + 1) % this.validProxies.length;
+    return proxy;
+  }
+
+  getProxyCount() {
+    return this.validProxies.length;
+  }
+
+  markProxyAsBad(proxyString) {
+    console.warn(`⚠️ Proxy marcado como malo: ${proxyString}`);
+    addToBlacklist(proxyString);
+    this.validProxies = this.validProxies.filter(p => p.proxy !== proxyString);
+  }
 }
+
+const proxySystem = new ProxyRotationSystem();
+export default proxySystem;
