@@ -17,7 +17,12 @@ export default async function crearCuentaInstagram(proxy) {
     let proxyUrl = proxy.auth 
       ? `http://${proxy.auth.username}:${proxy.auth.password}@${proxy.ip}:${proxy.port}`
       : `http://${proxy.ip}:${proxy.port}`;
-    let args = [`--proxy-server=${proxyUrl}`, '--ignore-certificate-errors', '--disable-gpu'];
+    let args = [
+      `--proxy-server=${proxyUrl}`,
+      '--ignore-certificate-errors',
+      '--enable-features=NetworkService',
+      '--disable-gpu'
+    ];
 
     // Intentar lanzar Puppeteer con proxy
     try {
@@ -29,7 +34,6 @@ export default async function crearCuentaInstagram(proxy) {
       });
     } catch (launchError) {
       console.error(`[ERROR] Fallo al usar proxy ${proxyUrl}: ${launchError.message}. Intentando sin proxy...`);
-      // Fallback sin proxy
       browser = await puppeteer.launch({
         headless: process.env.HEADLESS === 'true',
         executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || '/usr/bin/chromium-browser',
@@ -41,6 +45,17 @@ export default async function crearCuentaInstagram(proxy) {
     await page.setUserAgent(fingerprint.userAgent);
     await page.setViewport({ width: fingerprint.screen?.width || 1920, height: fingerprint.screen?.height || 1080 });
 
+    // Autenticación adicional para proxies HTTP/HTTPS
+    if (proxy.auth) {
+      await page.authenticate({
+        username: proxy.auth.username,
+        password: proxy.auth.password
+      });
+      await page.setExtraHTTPHeaders({
+        'Proxy-Authorization': `Basic ${Buffer.from(`${proxy.auth.username}:${proxy.auth.password}`).toString('base64')}`
+      });
+    }
+
     console.log(`[DEBUG] Iniciando creación para @${generarNombreUsuario()} con proxy ${proxy.ip}:${proxy.port}`);
     console.log(`[DEBUG] Página creada para @${generarNombreUsuario()}`);
     console.log(`[DEBUG] Autenticación proxy aplicada para @${generarNombreUsuario()}`);
@@ -49,7 +64,7 @@ export default async function crearCuentaInstagram(proxy) {
 
     // Intentar navegar con manejo de errores
     try {
-      await page.goto('https://www.instagram.com/accounts/emailsignup/', { waitUntil: 'networkidle2', timeout: 30000 });
+      await page.goto('https://www.instagram.com/accounts/emailsignup/', { waitUntil: 'networkidle2', timeout: 60000 }); // Aumentado timeout
     } catch (navigationError) {
       throw new Error(`Proxy error: ${navigationError.message}`);
     }
