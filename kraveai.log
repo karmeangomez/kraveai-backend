@@ -42,3 +42,6 @@
 [2025-06-27T02:52:21.346Z] ⏳ Esperando 15 segundos...
 [2025-06-27T02:52:36.347Z] 
 🚀 Creando cuenta 10/50
+[2025-06-27T02:52:40.563Z] ❌ Fallo: page.waitForTimeout is not a function
+[2025-06-27T02:52:41.152Z] 🛑 Se detectaron 10 fallos consecutivos.
+Se detiene el sistema para evitar sobrecarga.
