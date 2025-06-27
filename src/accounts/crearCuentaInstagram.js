@@ -6,11 +6,11 @@ import rotateTorIP from '../proxies/torController.js';
 import puppeteer from 'puppeteer-extra';
 import StealthPlugin from 'puppeteer-extra-plugin-stealth';
 import fs from 'fs';
-import IONOSMail from '../email/IONOSMail.js'; // Ruta corregida
+import ionosMail from '../email/ionosMail.js'; // Ruta y nombre corregidos
 
 puppeteer.use(StealthPlugin());
 
-const ionosMail = new IONOSMail();
+const ionosMail = new ionosMail(); // Instancia con el nombre de clase correcto
 
 async function crearCuentaInstagram() {
   const fingerprint = generateAdaptiveFingerprint();
