@@ -58,3 +58,4 @@ Se detiene el sistema para evitar sobrecarga.
 2025-06-26 21:16:10,207 [INFO] private_request: kraveaibot [200] POST https://i.instagram.com/api/v1/accounts/login/ (269.0.0.18.75, OnePlus 6T Dev)
 2025-06-26 21:16:11,208 [INFO] instagrapi: https://i.instagram.com/api/v1/feed/reels_tray/
 2025-06-26 21:16:11,693 [INFO] private_request: kraveaibot [200] POST https://i.instagram.com/api/v1/feed/reels_tray/ (269.0.0.18.75, OnePlus 6T Dev)
+2025-06-26 21:16:12,694 [INFO] instagrapi: https://i.instagram.com/api/v1/feed/timeline/
