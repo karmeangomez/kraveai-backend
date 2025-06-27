@@ -69,7 +69,7 @@
     "password": "",
     "proxy": "38.153.132.214:5321",
     "status": "failed",
-    "error": "Target.createTarget timed out. Increase the 'protocolTimeout' setting in launch/connect calls for a higher timeout if needed."
+    "error": "page.waitForTimeout is not a function"
   },
   {
     "username": "",
@@ -77,6 +77,6 @@
     "password": "",
     "proxy": "38.154.197.2:6668",
     "status": "failed",
-    "error": "Timed out after 30000 ms while waiting for the WS endpoint URL to appear in stdout!"
+    "error": "page.waitForTimeout is not a function"
   }
 ]

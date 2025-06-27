@@ -45,3 +45,9 @@
 [2025-06-27T02:52:40.563Z] ❌ Fallo: page.waitForTimeout is not a function
 [2025-06-27T02:52:41.152Z] 🛑 Se detectaron 10 fallos consecutivos.
 Se detiene el sistema para evitar sobrecarga.
+[2025-06-27T02:52:41.417Z] 💾 Cuentas guardadas en cuentas_creadas.json
+[2025-06-27T02:52:41.417Z] 
+🎉 Proceso completado!
+[2025-06-27T02:52:41.417Z] ✅ Cuentas creadas: 0
+[2025-06-27T02:52:41.417Z] ❌ Fallidas: 10
+[2025-06-27T02:52:41.417Z] ⏱️ Tiempo total: 3.5 min
