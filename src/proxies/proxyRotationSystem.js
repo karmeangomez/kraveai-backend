@@ -1,44 +1,57 @@
-// src/proxies/proxyRotationSystem.js
+// 📁 src/proxies/proxyRotationSystem.js
+import proxies from './proxies.json' assert { type: 'json' };
+import { isProxyBlacklisted, addToBlacklist } from './proxyBlacklistManager.js';
+import testProxy from './proxyTester.js';
+import rotateTorIP from './torController.js';
+
 export default class ProxyRotationSystem {
-  constructor(proxies = []) {
-    this.proxies = proxies;
-    this.currentIndex = 0;
-    this.badProxies = new Set();
+  constructor() {
+    this.proxies = [];
+    this.index = 0;
+    this.cooldown = {};
   }
 
-  getNextProxy() {
-    if (!this.proxies.length) return null;
+  async initialize() {
+    this.proxies = proxies.filter(p => !isProxyBlacklisted(p));
+    this.proxies = await this._testAll(this.proxies);
+    console.log(`✅ ${this.proxies.length} proxies válidos cargados con geolocalización`);
+  }
 
-    let start = this.currentIndex;
-    let attempts = 0;
+  async _testAll(proxyList) {
+    const tested = [];
+    for (const proxy of proxyList) {
+      const result = await testProxy(proxy);
+      if (result.ok) tested.push(proxy);
+    }
+    return tested;
+  }
 
-    while (attempts < this.proxies.length) {
-      const proxy = this.proxies[this.currentIndex];
-      this.currentIndex = (this.currentIndex + 1) % this.proxies.length;
+  async getNextProxy() {
+    if (this.proxies.length === 0) return null;
+
+    for (let i = 0; i < this.proxies.length; i++) {
+      const proxy = this.proxies[this.index];
+      this.index = (this.index + 1) % this.proxies.length;
 
       const key = `${proxy.ip}:${proxy.port}`;
-      if (!this.badProxies.has(key)) {
-        return proxy;
-      }
+      const cooldownUntil = this.cooldown[key];
+      if (cooldownUntil && Date.now() < cooldownUntil) continue;
 
-      attempts++;
+      return proxy;
     }
 
-    console.warn('⚠️ Todos los proxies están en blacklist. Usando uno igualmente.');
-    return this.proxies[start];
+    // Si todos están en cooldown, forzar rotación Tor
+    await rotateTorIP();
+    return {
+      ip: '127.0.0.1',
+      port: 9050,
+      type: 'socks5'
+    };
   }
 
-  markProxyAsBad(proxy) {
+  async markProxyAsBad(proxy) {
     const key = `${proxy.ip}:${proxy.port}`;
-    this.badProxies.add(key);
-    console.log(`🚫 Proxy marcado como malo: ${key}`);
-  }
-
-  getGoodProxies() {
-    return this.proxies.filter(p => !this.badProxies.has(`${p.ip}:${p.port}`));
-  }
-
-  resetBlacklist() {
-    this.badProxies.clear();
+    addToBlacklist(proxy);
+    this.cooldown[key] = Date.now() + 30 * 60 * 1000; // 30 min de cooldown
   }
 }
