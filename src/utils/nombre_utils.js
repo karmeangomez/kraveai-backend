@@ -36,12 +36,12 @@ function generateUsername() {
   const nombre = nombres[Math.floor(Math.random() * nombres.length)].toLowerCase();
   const adjetivo = adjetivos[Math.floor(Math.random() * adjetivos.length)];
   const sustantivo = sustantivos[Math.floor(Math.random() * sustantivos.length)];
-  const numero = Math.floor(Math.random() * 1000); // Reducido a 3 dígitos para nombres más cortos
+  const numero = Math.floor(Math.random() * 1000);
   return `${nombre}${adjetivo}${sustantivo}${numero}`;
 }
 
 function generateEmail() {
-  return `${generateUsername()}@kraveai.xyz`;
+  return `${generateUsername().replace('@', '')}@kraveapi.xyz`; // Corregido a kraveapi.xyz
 }
 
 // Alias por compatibilidad
