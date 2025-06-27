@@ -1,41 +1,35 @@
-// src/proxies/proxyBlacklistManager.js
-import fs from 'fs';
-import path from 'path';
+// proxyBlacklistManager.js
 
-const BLACKLIST_PATH = path.resolve('./src/proxies/blacklist_auth.json');
-const COOLDOWN_MS = 30 * 60 * 1000; // 30 minutos
+const blacklistedProxies = new Set();
+const failureCounts = new Map();
 
-function loadBlacklist() {
-  if (!fs.existsSync(BLACKLIST_PATH)) return {};
-  try {
-    const data = fs.readFileSync(BLACKLIST_PATH, 'utf-8');
-    return JSON.parse(data);
-  } catch {
-    return {};
+const getProxyKey = (proxy) => {
+  if (typeof proxy === 'string') return proxy;
+  return `${proxy.ip}:${proxy.port}`;
+};
+
+export const isProxyBlacklisted = (proxy) => {
+  const key = getProxyKey(proxy);
+  return blacklistedProxies.has(key);
+};
+
+export const addToBlacklist = (proxy) => {
+  const key = getProxyKey(proxy);
+  blacklistedProxies.add(key);
+  console.log(`🚨 Proxy añadido a la blacklist: ${key}`);
+};
+
+export const markFailure = (proxy) => {
+  const key = getProxyKey(proxy);
+  const current = failureCounts.get(key) || 0;
+  failureCounts.set(key, current + 1);
+
+  if (failureCounts.get(key) >= 3) {
+    addToBlacklist(proxy);
   }
-}
+};
 
-function saveBlacklist(blacklist) {
-  fs.writeFileSync(BLACKLIST_PATH, JSON.stringify(blacklist, null, 2));
-}
-
-export function isProxyBlacklisted(proxy) {
-  const blacklist = loadBlacklist();
-  const timestamp = blacklist[proxy];
-  if (!timestamp) return false;
-
-  const expired = Date.now() - timestamp > COOLDOWN_MS;
-  if (expired) {
-    delete blacklist[proxy];
-    saveBlacklist(blacklist);
-    return false;
-  }
-  return true;
-}
-
-export function blacklistProxy(proxy) {
-  const blacklist = loadBlacklist();
-  blacklist[proxy] = Date.now();
-  saveBlacklist(blacklist);
-  console.warn(`⛔ Proxy enviado a blacklist por auth inválido: ${proxy}`);
-}
+export const resetFailure = (proxy) => {
+  const key = getProxyKey(proxy);
+  failureCounts.delete(key);
+};
