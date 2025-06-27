@@ -52,3 +52,6 @@ Se detiene el sistema para evitar sobrecarga.
 [2025-06-27T02:52:41.417Z] ❌ Fallidas: 10
 [2025-06-27T02:52:41.417Z] ⏱️ Tiempo total: 3.5 min
 2025-06-26 21:15:38,427 [INFO] httpx: HTTP Request: POST https://api.telegram.org/bot8066723325:AAH1XgvTqjDZV8wt6TLqP58euK1OwBSd-9A/sendMessage "HTTP/1.1 200 OK"
+2025-06-26 21:16:02,519 [INFO] instagrapi: https://i.instagram.com/api/v1/launcher/sync/
+2025-06-26 21:16:02,821 [INFO] private_request: kraveaibot [200] POST https://i.instagram.com/api/v1/launcher/sync/ (269.0.0.18.75, OnePlus 6T Dev)
+2025-06-26 21:16:03,039 [INFO] instagrapi: https://i.instagram.com/api/v1/accounts/login/
