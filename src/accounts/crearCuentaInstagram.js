@@ -6,7 +6,7 @@ import rotateTorIP from '../proxies/torController.js';
 import puppeteer from 'puppeteer-extra';
 import StealthPlugin from 'puppeteer-extra-plugin-stealth';
 import fs from 'fs';
-import IONOSMail from './IONOSMail.js'; // Ajusta la ruta si es necesaria
+import IONOSMail from '../email/IONOSMail.js'; // Ruta corregida
 
 puppeteer.use(StealthPlugin());
 
@@ -88,21 +88,24 @@ async function crearCuentaInstagram() {
       let verificationCode = null;
       if (ionosMail.isActive()) {
         verificationCode = await ionosMail.waitForVerificationCode(60000);
-        await page.type('input[name="code"]', verificationCode); // Ajusta el selector según la página
-        await page.click('button[type="submit"]');
-        await new Promise(resolve => setTimeout(resolve, 3000));
-        const newContent = await page.content();
-        if (newContent.includes('checkpoint')) {
-          console.log(`[DEBUG] Verificación falló para @${username}`);
-          await browser.close();
-          return {
-            username,
-            email,
-            password,
-            proxy: proxy.proxy,
-            status: 'created_pending_verification',
-            error: 'Requiere selfie u otra verificación'
-          };
+        await page.waitForSelector('input[name="code"]', { timeout: 5000 }).catch(() => {});
+        if (verificationCode && await page.$('input[name="code"]')) {
+          await page.type('input[name="code"]', verificationCode, { delay: 100 });
+          await page.click('button[type="submit"]');
+          await new Promise(resolve => setTimeout(resolve, 3000));
+          const newContent = await page.content();
+          if (newContent.includes('checkpoint')) {
+            console.log(`[DEBUG] Verificación falló para @${username}`);
+            await browser.close();
+            return {
+              username,
+              email,
+              password,
+              proxy: proxy.proxy,
+              status: 'created_pending_verification',
+              error: 'Requiere selfie u otra verificación'
+            };
+          }
         }
       }
     }
