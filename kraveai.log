@@ -51,3 +51,4 @@ Se detiene el sistema para evitar sobrecarga.
 [2025-06-27T02:52:41.417Z] ✅ Cuentas creadas: 0
 [2025-06-27T02:52:41.417Z] ❌ Fallidas: 10
 [2025-06-27T02:52:41.417Z] ⏱️ Tiempo total: 3.5 min
+2025-06-26 21:15:38,427 [INFO] httpx: HTTP Request: POST https://api.telegram.org/bot8066723325:AAH1XgvTqjDZV8wt6TLqP58euK1OwBSd-9A/sendMessage "HTTP/1.1 200 OK"
