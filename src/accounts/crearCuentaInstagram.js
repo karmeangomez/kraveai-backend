@@ -47,7 +47,7 @@ async function crearCuentaInstagram() {
 
     console.log(`Creando cuenta: @${username} con proxy ${proxy.proxy}`);
     await page.goto('https://www.instagram.com/accounts/emailsignup/');
-    await page.waitForTimeout(1000); // Aquí va el flujo real
+    await new Promise(resolve => setTimeout(resolve, 1000)); // Corrección de page.waitForTimeout
 
     await browser.close();
 
