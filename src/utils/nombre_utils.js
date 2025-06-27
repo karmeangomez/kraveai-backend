@@ -41,7 +41,7 @@ function generateUsername() {
 }
 
 function generateEmail() {
-  return `${generateUsername().replace('@', '')}@kraveapi.xyz`; // Corregido a kraveapi.xyz
+  return `${generateUsername().replace('@', '')}@kraveapi.xyz`;
 }
 
 // Alias por compatibilidad
