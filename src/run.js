@@ -1,6 +1,7 @@
 import crearCuentaInstagram from './accounts/crearCuentaInstagram.js';
 import proxySystem from './proxies/proxyRotationSystem.js';
 import axios from 'axios';
+import { sendTelegramMessage } from '../utils/telegram_utils.js'; // Intento de integración
 
 async function sendTelegramNotification(message) {
   try {
@@ -8,14 +9,20 @@ async function sendTelegramNotification(message) {
       console.warn('⚠️ Advertencia: TELEGRAM_BOT_TOKEN o TELEGRAM_CHAT_ID no definidos en .env');
       return;
     }
-    const response = await axios.post(`https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}/sendMessage`, {
-      chat_id: process.env.TELEGRAM_CHAT_ID,
-      text: message
-    });
-    if (response.data.ok) {
-      console.log('📲 Notificación enviada a Telegram.');
+    // Usar telegram_utils.js si está disponible, de lo contrario fallback a axios
+    if (typeof sendTelegramMessage === 'function') {
+      await sendTelegramMessage(message);
+      console.log('📲 Notificación enviada a Telegram via telegram_utils.');
     } else {
-      console.error('❌ Error en Telegram API:', response.data.description);
+      const response = await axios.post(`https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}/sendMessage`, {
+        chat_id: process.env.TELEGRAM_CHAT_ID,
+        text: message
+      });
+      if (response.data.ok) {
+        console.log('📲 Notificación enviada a Telegram via axios.');
+      } else {
+        console.error('❌ Error en Telegram API:', response.data.description);
+      }
     }
   } catch (error) {
     console.error('❌ Error al enviar mensaje:', error.response?.data || error.message);
@@ -23,7 +30,7 @@ async function sendTelegramNotification(message) {
 }
 
 async function main() {
-  console.log('[2025-06-27T11:15:00.000Z] 🔥 Iniciando KraveAI-Granja Rusa 🔥');
+  console.log('[2025-06-27T11:17:00.000Z] 🔥 Iniciando KraveAI-Granja Rusa 🔥');
   console.log(`✅ Plataforma: ${process.platform}`);
   console.log(`✅ Modo: ${process.env.HEADLESS || 'false'}`);
   console.log(`✅ Cuentas a crear: 50`);
@@ -33,12 +40,12 @@ async function main() {
 
   try {
     await proxySystem.initialize();
-    console.log('[2025-06-27T11:15:01.000Z] ✅ Sistema de proxies listo');
+    console.log('[2025-06-27T11:17:01.000Z] ✅ Sistema de proxies listo');
   } catch (error) {
     console.error('❌ Error inicializando proxies:', error.message);
-    await new Promise(resolve => setTimeout(resolve, 30000)); // Retraso de 30s antes de reintentar
+    await new Promise(resolve => setTimeout(resolve, 60000)); // Retraso de 60s antes de reintentar
     await proxySystem.initialize();
-    console.log('[2025-06-27T11:15:31.000Z] ✅ Sistema de proxies reiniciado');
+    console.log('[2025-06-27T11:18:01.000Z] ✅ Sistema de proxies reiniciado');
   }
 
   for (let i = 1; i <= 50; i++) {
@@ -61,7 +68,7 @@ async function main() {
       await sendTelegramNotification(`❌ Error inesperado: ${error.message}`);
       await new Promise(resolve => setTimeout(resolve, 30000)); // Retraso de 30s tras error
     }
-    if (i < 50) await new Promise(resolve => setTimeout(resolve, 5000)); // Retraso de 5s entre cuentas
+    if (i < 50) await new Promise(resolve => setTimeout(resolve, 10000)); // Retraso de 10s entre cuentas
   }
 }
 
