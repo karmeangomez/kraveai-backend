@@ -1,24 +1,31 @@
+// 📁 src/proxies/proxyTester.js
+import axios from 'axios';
+
 async function testProxy(proxy) {
+  const proxyUrl = `${proxy.type}://${proxy.auth.username}:${proxy.auth.password}@${proxy.ip}:${proxy.port}`;
   try {
-    const start = Date.now();
-    const response = await axios.get('https://www.instagram.com', {
+    const response = await axios.get('https://api.ipify.org?format=json', {
       proxy: {
+        protocol: proxy.type,
         host: proxy.ip,
         port: proxy.port,
-        auth: { username: proxy.user, password: proxy.pass }
+        auth: {
+          username: proxy.auth.username,
+          password: proxy.auth.password
+        }
       },
-      timeout: 6000 // 6 segundos máximo
+      timeout: 8000
     });
-    
-    const latency = Date.now() - start;
-    const isBlocked = response.data.includes('instagram.com/accounts/login');
-    
     return {
-      valid: response.status === 200 && !isBlocked,
-      latency,
-      country: parseGeoHeader(response.headers)
+      working: true,
+      ip: response.data.ip
     };
-  } catch {
-    return { valid: false };
+  } catch (err) {
+    return {
+      working: false,
+      error: err.message
+    };
   }
 }
+
+export default testProxy;
