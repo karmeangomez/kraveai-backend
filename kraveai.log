@@ -248,3 +248,5 @@
 2025-06-26 22:32:59,812 [INFO] KraveAI-Backend: Cliente Instagram inicializado
 2025-06-26 22:33:43,970 [INFO] httpx: HTTP Request: POST https://api.telegram.org/bot8066723325:AAH1XgvTqjDZV8wt6TLqP58euK1OwBSd-9A/sendMessage "HTTP/1.1 200 OK"
 2025-06-26 22:35:50,180 [INFO] instagrapi: https://i.instagram.com/api/v1/feed/timeline/
+2025-06-26 22:35:52,167 [INFO] private_request: None [200] POST https://i.instagram.com/api/v1/feed/timeline/ (269.0.0.18.75, OnePlus 6T Dev)
+2025-06-26 22:35:52,168 [INFO] KraveAI-Backend: Cliente Instagram inicializado
