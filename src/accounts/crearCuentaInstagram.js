@@ -1,5 +1,5 @@
 import { generarNombreCompleto, generarNombreUsuario } from '../utils/nombre_utils.js';
-import { generateAdaptiveFingerprint } from '../../fingerprints/generator.js';
+import { generateAdaptiveFingerprint } from '../../fingerprints/generator.js'; // Ruta correcta
 import puppeteer from 'puppeteer-extra';
 import StealthPlugin from 'puppeteer-extra-plugin-stealth';
 
@@ -34,7 +34,7 @@ export default async function crearCuentaInstagram(proxy) {
     await page.waitForSelector('input[name="emailOrPhone"]', { visible: true, timeout: 30000 });
 
     const username = generarNombreUsuario();
-    await page.type('input[name="emailOrPhone"]', `${username.replace(/[^a-zA-Z0-9]/g, '')}@kraveapi.xyz`); // Corregido a kraveapi.xyz
+    await page.type('input[name="emailOrPhone"]', `${username.replace(/[^a-zA-Z0-9]/g, '')}@kraveapi.xyz`);
     await page.type('input[name="fullName"]', generarNombreCompleto());
     await page.type('input[name="username"]', username);
     await page.type('input[name="password"]', `Pass${Math.random().toString(36).slice(2, 10)}`);
@@ -45,7 +45,7 @@ export default async function crearCuentaInstagram(proxy) {
 
     return {
       username,
-      email: `${username.replace(/[^a-zA-Z0-9]/g, '')}@kraveapi.xyz`, // Corregido a kraveapi.xyz
+      email: `${username.replace(/[^a-zA-Z0-9]/g, '')}@kraveapi.xyz`,
       password: `Pass${Math.random().toString(36).slice(2, 10)}`,
       proxy: proxy.proxy,
       status: 'created'
