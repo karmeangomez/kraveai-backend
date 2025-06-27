@@ -217,3 +217,4 @@
 [2025-06-27T03:49:42.534Z] ✅ Cuentas creadas: 49
 [2025-06-27T03:49:42.534Z] ❌ Fallidas: 1
 [2025-06-27T03:49:42.534Z] ⏱️ Tiempo total: 17.9 min
+2025-06-26 21:49:43,984 [INFO] httpx: HTTP Request: POST https://api.telegram.org/bot8066723325:AAH1XgvTqjDZV8wt6TLqP58euK1OwBSd-9A/sendMessage "HTTP/1.1 200 OK"
