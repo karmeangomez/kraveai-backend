@@ -21,8 +21,9 @@ jobs:
           echo "IONOS_PASSWORD=${{ secrets.IONOS_PASSWORD }}" >> secure_config/.env.temp
           echo "CRYPTO_KEY=${{ secrets.CRYPTO_KEY }}" >> secure_config/.env.temp
           echo "CRYPTO_IV=${{ secrets.CRYPTO_IV }}" >> secure_config/.env.temp
-          # AÑADIR AQUÍ LA NUEVA VARIABLE
           echo "MAILBOXVALIDATOR_KEY=${{ secrets.MAILBOXVALIDATOR_KEY }}" >> secure_config/.env.temp
+          echo "TELEGRAM_BOT_TOKEN=${{ secrets.TELEGRAM_BOT_TOKEN }}" >> secure_config/.env.temp
+          echo "TELEGRAM_CHAT_ID=${{ secrets.TELEGRAM_CHAT_ID }}" >> secure_config/.env.temp
 
       - name: 🔒 Cifrar .env.temp como .env.enc
         run: |
@@ -67,7 +68,7 @@ jobs:
             echo "🧪 Verificando variables de entorno..."
             node src/utils/checkEnv.js
             
-            # AÑADIR VERIFICACIÓN ESPECÍFICA
+            # Verificación opcional
             echo "🔑 Validando MAILBOXVALIDATOR_KEY..."
             if [ -z "$(grep MAILBOXVALIDATOR_KEY .env)" ]; then
               echo "❌ Error: MAILBOXVALIDATOR_KEY no encontrada en .env"
