@@ -1,35 +1,21 @@
-// proxyBlacklistManager.js
-
+// src/proxies/proxyBlacklistManager.js
 const blacklistedProxies = new Set();
-const failureCounts = new Map();
 
-const getProxyKey = (proxy) => {
-  if (typeof proxy === 'string') return proxy;
-  return `${proxy.ip}:${proxy.port}`;
-};
+export function isProxyBlacklisted(proxy) {
+  return blacklistedProxies.has(`${proxy.ip}:${proxy.port}`);
+}
 
-export const isProxyBlacklisted = (proxy) => {
-  const key = getProxyKey(proxy);
-  return blacklistedProxies.has(key);
-};
-
-export const addToBlacklist = (proxy) => {
-  const key = getProxyKey(proxy);
+export function addToBlacklist(proxy) {
+  const key = `${proxy.ip}:${proxy.port}`;
   blacklistedProxies.add(key);
-  console.log(`🚨 Proxy añadido a la blacklist: ${key}`);
-};
+  console.log(`⛔ Añadido a la blacklist: ${key}`);
+}
 
-export const markFailure = (proxy) => {
-  const key = getProxyKey(proxy);
-  const current = failureCounts.get(key) || 0;
-  failureCounts.set(key, current + 1);
+export function clearBlacklist() {
+  blacklistedProxies.clear();
+  console.log('✅ Blacklist limpiada');
+}
 
-  if (failureCounts.get(key) >= 3) {
-    addToBlacklist(proxy);
-  }
-};
-
-export const resetFailure = (proxy) => {
-  const key = getProxyKey(proxy);
-  failureCounts.delete(key);
-};
+export function getBlacklist() {
+  return Array.from(blacklistedProxies);
+}
