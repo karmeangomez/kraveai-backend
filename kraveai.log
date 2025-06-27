@@ -6,3 +6,7 @@
 [2025-06-27T18:13:35.634Z] ✅ Sistema de proxies listo
 [2025-06-27T18:13:35.634Z] 
 🚀 Creando cuenta 1/50
+[2025-06-27T18:13:36.586Z] 🔥 Error crítico: ProxyRotationSystem.markProxyAsBad is not a function
+[2025-06-27T18:13:36.586Z] TypeError: ProxyRotationSystem.markProxyAsBad is not a function
+    at crearCuentaInstagram (file:///home/karmean/kraveai-backend/src/accounts/crearCuentaInstagram.js:60:27)
+    at async file:///home/karmean/kraveai-backend/src/run.js:102:22
