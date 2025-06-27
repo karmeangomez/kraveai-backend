@@ -23,3 +23,5 @@
 [2025-06-27T03:33:41.086Z] 
 🚀 Creando cuenta 5/50
 2025-06-26 21:33:43,969 [INFO] httpx: HTTP Request: POST https://api.telegram.org/bot8066723325:AAH1XgvTqjDZV8wt6TLqP58euK1OwBSd-9A/sendMessage "HTTP/1.1 200 OK"
+[2025-06-27T03:33:44.439Z] ✅ Cuenta creada: @danielaserenosol95
+[2025-06-27T03:33:45.042Z] ⏳ Esperando 15 segundos...
