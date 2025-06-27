@@ -23,7 +23,7 @@ async function sendTelegramNotification(message) {
 }
 
 async function main() {
-  console.log('[2025-06-27T11:29:00.000Z] 🔥 Iniciando KraveAI-Granja Rusa 🔥');
+  console.log('[2025-06-27T11:36:00.000Z] 🔥 Iniciando KraveAI-Granja Rusa 🔥');
   console.log(`✅ Plataforma: ${process.platform}`);
   console.log(`✅ Modo: ${process.env.HEADLESS || 'false'}`);
   console.log(`✅ Cuentas a crear: 50`);
@@ -33,12 +33,12 @@ async function main() {
 
   try {
     await proxySystem.initialize();
-    console.log('[2025-06-27T11:29:01.000Z] ✅ Sistema de proxies listo');
+    console.log('[2025-06-27T11:36:01.000Z] ✅ Sistema de proxies listo');
   } catch (error) {
     console.error('❌ Error inicializando proxies:', error.message);
     await new Promise(resolve => setTimeout(resolve, 60000)); // Retraso de 60s antes de reintentar
     await proxySystem.initialize();
-    console.log('[2025-06-27T11:30:01.000Z] ✅ Sistema de proxies reiniciado');
+    console.log('[2025-06-27T11:37:01.000Z] ✅ Sistema de proxies reiniciado');
   }
 
   for (let i = 1; i <= 50; i++) {
