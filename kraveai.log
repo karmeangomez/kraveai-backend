@@ -72,3 +72,4 @@
 2025-06-27 00:21:50,974 [INFO] KraveAI-Backend: Cliente Instagram inicializado
 2025-06-27 00:23:44,017 [INFO] httpx: HTTP Request: POST https://api.telegram.org/bot8066723325:AAH1XgvTqjDZV8wt6TLqP58euK1OwBSd-9A/sendMessage "HTTP/1.1 200 OK"
 2025-06-27 00:25:44,067 [INFO] httpx: HTTP Request: POST https://api.telegram.org/bot8066723325:AAH1XgvTqjDZV8wt6TLqP58euK1OwBSd-9A/sendMessage "HTTP/1.1 200 OK"
+2025-06-27 00:27:13,834 [INFO] instagrapi: https://i.instagram.com/api/v1/feed/timeline/
