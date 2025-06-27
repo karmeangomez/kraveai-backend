@@ -2,3 +2,11 @@
 [2025-06-27T19:10:38.917Z] ✅ Plataforma: linux
 [2025-06-27T19:10:38.917Z] ✅ Modo: HEADLESS
 [2025-06-27T19:10:38.917Z] ✅ Cuentas a crear: 50
+[2025-06-27T19:10:39.599Z] 🔄 Inicializando sistema de proxies...
+[2025-06-27T19:10:39.683Z] ✅ Sistema de proxies listo
+[2025-06-27T19:10:39.683Z] 
+🚀 Creando cuenta 1/50
+[2025-06-27T19:10:40.446Z] 🔥 Error crítico: ProxyRotationSystem.markProxyAsBad is not a function
+[2025-06-27T19:10:40.446Z] TypeError: ProxyRotationSystem.markProxyAsBad is not a function
+    at crearCuentaInstagram (file:///home/karmean/kraveai-backend/src/accounts/crearCuentaInstagram.js:60:27)
+    at async file:///home/karmean/kraveai-backend/src/run.js:102:22
