@@ -1,171 +1,65 @@
-import { generarNombreCompleto, generarNombreUsuario } from '../utils/nombre_utils.js';
-import { generateAdaptiveFingerprint } from '../fingerprints/generator.js';
-import ProxyRotationSystem from '../proxies/proxyRotationSystem.js';
-import { blacklistProxy } from '../proxies/proxyBlacklistManager.js';
-import rotateTorIP from '../proxies/torController.js';
+import { generarNombreCompleto, generarNombreUsuario } from '../../utils/nombre_utils.js';
+import { generateAdaptiveFingerprint } from '../../fingerprints/generator.js';
 import puppeteer from 'puppeteer-extra';
 import StealthPlugin from 'puppeteer-extra-plugin-stealth';
-import fs from 'fs';
-import ionosMail from '../email/ionosMail.js'; // Importación correcta
 
 puppeteer.use(StealthPlugin());
 
-const mailService = new ionosMail(); // Instancia con un nombre diferente
-
-async function crearCuentaInstagram() {
-  const fingerprint = generateAdaptiveFingerprint();
-  const name = generarNombreCompleto();
-  const username = generarNombreUsuario();
-  let email, password;
-
-  if (mailService.isActive()) {
-    email = await mailService.getEmailAddress();
-    password = `Pass${Math.random().toString(36).slice(2, 10)}`;
-  } else {
-    email = `${username.replace(/[^a-zA-Z0-9]/g, '')}@kraveapi.xyz`;
-    password = `Pass${Math.random().toString(36).slice(2, 10)}`;
-  }
-
-  const proxy = ProxyRotationSystem.getNextProxy();
-  const proxyArg = proxy.proxy.startsWith('socks5://')
-    ? proxy.proxy
-    : `http://${proxy.proxy}`;
-
-  console.log(`[DEBUG] Iniciando creación para @${username} con proxy ${proxy.proxy}`);
+export default async function crearCuentaInstagram(proxy) {
+  let browser;
   try {
-    if (proxy.tor) await rotateTorIP();
+    const fingerprint = generateAdaptiveFingerprint() || { userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36', screen: { width: 1920, height: 1080 } };
 
-    const browser = await puppeteer.launch({
-      headless: true,
+    const proxyUrl = proxy.auth 
+      ? `http://${proxy.auth.username}:${proxy.auth.password}@${proxy.proxy}` 
+      : `http://${proxy.proxy}`;
+
+    browser = await puppeteer.launch({
+      headless: process.env.HEADLESS === 'true', // Usa la variable de entorno
       executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || '/usr/bin/chromium-browser',
-      args: [`--proxy-server=${proxyArg}`, '--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage']
+      args: [`--proxy-server=${proxyUrl}`]
     });
 
     const page = await browser.newPage();
-    console.log(`[DEBUG] Página creada para @${username}`);
-
-    if (proxy.auth) {
-      await page.authenticate({
-        username: proxy.auth.username,
-        password: proxy.auth.password
-      });
-      console.log(`[DEBUG] Autenticación proxy aplicada para @${username}`);
-    }
-
     await page.setUserAgent(fingerprint.userAgent);
-    await page.setViewport({
-      width: fingerprint.screen?.width || 1920,
-      height: fingerprint.screen?.height || 1080
-    });
-    console.log(`[DEBUG] Fingerprint aplicado para @${username}`);
+    await page.setViewport({ width: fingerprint.screen?.width || 1920, height: fingerprint.screen?.height || 1080 });
 
-    console.log(`Creando cuenta: @${username} con proxy ${proxy.proxy}`);
-    await page.goto('https://www.instagram.com/accounts/emailsignup/', { waitUntil: 'networkidle2' });
-    console.log(`[DEBUG] Navegación completada para @${username}`);
+    console.log(`[DEBUG] Iniciando creación para @${generarNombreUsuario()} con proxy ${proxy.proxy}`);
+    console.log(`[DEBUG] Página creada para @${generarNombreUsuario()}`);
+    console.log(`[DEBUG] Autenticación proxy aplicada para @${generarNombreUsuario()}`);
+    console.log(`[DEBUG] Fingerprint aplicado para @${generarNombreUsuario()}`);
+    console.log(`Creando cuenta: @${generarNombreUsuario()} con proxy ${proxy.proxy}`);
 
-    await page.waitForSelector('input[name="emailOrPhone"]', { timeout: 10000 });
-    await page.type('input[name="emailOrPhone"]', email, { delay: 100 });
-    await new Promise(resolve => setTimeout(resolve, 500));
-    await page.type('input[name="fullName"]', name, { delay: 100 });
-    await page.type('input[name="username"]', username, { delay: 100 });
-    await page.type('input[name="password"]', password, { delay: 100 });
-    await page.mouse.move(Math.random() * 1000, Math.random() * 1000);
+    await page.goto('https://www.instagram.com/accounts/emailsignup/', { waitUntil: 'networkidle2', timeout: 30000 });
+    await page.waitForSelector('input[name="emailOrPhone"]', { visible: true, timeout: 30000 });
+
+    const username = generarNombreUsuario();
+    await page.type('input[name="emailOrPhone"]', `${username.replace(/[^a-zA-Z0-9]/g, '')}@kraveai.xyz`);
+    await page.type('input[name="fullName"]', generarNombreCompleto());
+    await page.type('input[name="username"]', username);
+    await page.type('input[name="password"]', `Pass${Math.random().toString(36).slice(2, 10)}`);
     await new Promise(resolve => setTimeout(resolve, 1000));
-    await page.click('button[type="submit"]');
-    console.log(`[DEBUG] Formulario enviado para @${username}`);
 
-    await new Promise(resolve => setTimeout(resolve, 5000));
-    const pageContent = await page.content();
-    console.log(`[DEBUG] Contenido de página capturado para @${username}`);
-
-    const cookies = await page.cookies();
-    fs.writeFileSync(`cookies_${username}.json`, JSON.stringify(cookies, null, 2));
-    fs.writeFileSync(`page_${username}.html`, pageContent);
-    console.log(`[DEBUG] Cookies y contenido guardados para @${username}`);
-
-    if (pageContent.includes('checkpoint') || pageContent.includes('verification')) {
-      console.log(`[DEBUG] Verificación requerida para @${username}`);
-      let verificationCode = null;
-      if (mailService.isActive()) {
-        verificationCode = await mailService.waitForVerificationCode(60000);
-        await page.waitForSelector('input[name="code"]', { timeout: 5000 }).catch(() => {});
-        if (verificationCode && await page.$('input[name="code"]')) {
-          await page.type('input[name="code"]', verificationCode, { delay: 100 });
-          await page.click('button[type="submit"]');
-          await new Promise(resolve => setTimeout(resolve, 3000));
-          const newContent = await page.content();
-          if (newContent.includes('checkpoint')) {
-            console.log(`[DEBUG] Verificación falló para @${username}`);
-            await browser.close();
-            return {
-              username,
-              email,
-              password,
-              proxy: proxy.proxy,
-              status: 'created_pending_verification',
-              error: 'Requiere selfie u otra verificación'
-            };
-          }
-        }
-      }
-    }
-
+    console.log(`[DEBUG] Navegación completada para @${username}`);
     await browser.close();
-    console.log(`[DEBUG] Navegador cerrado para @${username}`);
 
-    const verifyBrowser = await puppeteer.launch({
-      headless: true,
-      executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || '/usr/bin/chromium-browser',
-      args: [`--proxy-server=${proxyArg}`]
-    });
-    const verifyPage = await verifyBrowser.newPage();
-    await verifyPage.goto('https://www.instagram.com');
-    await verifyPage.type('input[name="username"]', email);
-    await verifyPage.type('input[name="password"]', password);
-    await verifyPage.click('button[type="submit"]');
-    await new Promise(resolve => setTimeout(resolve, 3000));
-    const verifyContent = await verifyPage.content();
-
-    if (verifyContent.includes('login') || verifyContent.includes('checkpoint')) {
-      await verifyPage.close();
-      await verifyBrowser.close();
-      return {
-        username,
-        email,
-        password,
-        proxy: proxy.proxy,
-        status: 'created_pending_verification',
-        error: 'Requiere verificación post-login'
-      };
-    }
-
-    await verifyPage.close();
-    await verifyBrowser.close();
     return {
       username,
-      email,
-      password,
+      email: `${username.replace(/[^a-zA-Z0-9]/g, '')}@kraveai.xyz`,
+      password: `Pass${Math.random().toString(36).slice(2, 10)}`,
       proxy: proxy.proxy,
       status: 'created'
     };
   } catch (error) {
-    console.error(`[ERROR] Error creando cuenta @${username}:`, error.message);
-
-    if (error.message.includes('ERR_INVALID_AUTH_CREDENTIALS')) {
-      blacklistProxy(proxy.proxy);
-      console.log(`[DEBUG] Proxy ${proxy.proxy} añadido a blacklist`);
-    }
-
-    await browser?.close().catch(() => {});
+    console.error(`[ERROR] Error creando cuenta @${generarNombreUsuario()}:`, error.message);
+    if (browser) await browser.close();
     return {
       username: '',
       email: '',
       password: '',
-      proxy: proxy.proxy,
+      proxy: '',
       status: 'failed',
       error: error.message
     };
   }
 }
-
-export default crearCuentaInstagram;
