@@ -17,11 +17,11 @@ export default async function crearCuentaInstagram(proxy) {
     if (typeof proxy === 'string') {
       proxyUrl = proxy;
       ipPort = proxy.split('@')[1] || 'sin proxy';
-    } else if (proxy.ip && proxy.port) {
-      proxyUrl = proxy.type === 'socks5'
-        ? `socks5://${proxy.auth?.username}:${proxy.auth?.password}@${proxy.ip}:${proxy.port}`
-        : `http://${proxy.auth?.username}:${proxy.auth?.password}@${proxy.ip}:${proxy.port}`;
-      ipPort = `${proxy.ip}:${proxy.port}`;
+    } else if (proxy.proxy) { // Extraer el campo 'proxy' del objeto
+      proxyUrl = proxy.proxy.includes('socks5') || proxy.type === 'socks5'
+        ? `socks5://${proxy.auth?.username}:${proxy.auth?.password}@${proxy.proxy}`
+        : `http://${proxy.auth?.username}:${proxy.auth?.password}@${proxy.proxy}`;
+      ipPort = proxy.proxy;
     } else {
       proxyUrl = '';
       ipPort = 'sin proxy';
