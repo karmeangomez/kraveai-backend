@@ -15,7 +15,7 @@ export default async function crearCuentaInstagram(proxy) {
       : `http://${proxy.proxy}`;
 
     browser = await puppeteer.launch({
-      headless: process.env.HEADLESS === 'true', // Usa la variable de entorno
+      headless: process.env.HEADLESS === 'true',
       executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || '/usr/bin/chromium-browser',
       args: [`--proxy-server=${proxyUrl}`]
     });
