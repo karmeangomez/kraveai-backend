@@ -15,7 +15,7 @@ async function sendTelegramNotification(message) {
 }
 
 async function main() {
-  console.log('[2025-06-27T00:02:00.000Z] 🔥 Iniciando KraveAI-Granja Rusa 🔥'); // Ajustado a 12:02 AM CST
+  console.log('[2025-06-27T00:07:00.000Z] 🔥 Iniciando KraveAI-Granja Rusa 🔥'); // Ajustado a 12:07 AM CST
   console.log(`✅ Plataforma: ${process.platform}`);
   console.log(`✅ Modo: ${process.env.HEADLESS || 'false'}`);
   console.log(`✅ Cuentas a crear: 50`);
@@ -24,7 +24,7 @@ async function main() {
   console.log('🧹 Limpiando 0 cuentas...');
 
   await proxySystem.initialize();
-  console.log('[2025-06-27T00:02:01.000Z] ✅ Sistema de proxies listo');
+  console.log('[2025-06-27T00:07:01.000Z] ✅ Sistema de proxies listo');
 
   for (let i = 1; i <= 50; i++) {
     console.log(`\n🚀 Creando cuenta ${i}/50`);
