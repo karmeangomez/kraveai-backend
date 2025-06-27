@@ -13,28 +13,47 @@ export default async function crearCuentaInstagram(proxy) {
       screen: { width: 1920, height: 1080 } 
     };
 
-    const proxyUrl = proxy.auth 
-      ? `http://${proxy.auth.username}:${proxy.auth.password}@${proxy.proxy}` 
-      : `http://${proxy.proxy}`;
+    // Construir proxyUrl con protocolo explícito
+    let proxyUrl = proxy.auth 
+      ? `http://${proxy.auth.username}:${proxy.auth.password}@${proxy.ip}:${proxy.port}`
+      : `http://${proxy.ip}:${proxy.port}`;
+    let args = [`--proxy-server=${proxyUrl}`, '--ignore-certificate-errors', '--disable-gpu'];
 
-    browser = await puppeteer.launch({
-      headless: process.env.HEADLESS === 'true',
-      executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || '/usr/bin/chromium-browser',
-      args: [`--proxy-server=${proxyUrl}`],
-      ignoreHTTPSErrors: true
-    });
+    // Intentar lanzar Puppeteer con proxy
+    try {
+      browser = await puppeteer.launch({
+        headless: process.env.HEADLESS === 'true',
+        executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || '/usr/bin/chromium-browser',
+        args: args,
+        ignoreHTTPSErrors: true
+      });
+    } catch (launchError) {
+      console.error(`[ERROR] Fallo al usar proxy ${proxyUrl}: ${launchError.message}. Intentando sin proxy...`);
+      // Fallback sin proxy
+      browser = await puppeteer.launch({
+        headless: process.env.HEADLESS === 'true',
+        executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || '/usr/bin/chromium-browser',
+        ignoreHTTPSErrors: true
+      });
+    }
 
     const page = await browser.newPage();
     await page.setUserAgent(fingerprint.userAgent);
     await page.setViewport({ width: fingerprint.screen?.width || 1920, height: fingerprint.screen?.height || 1080 });
 
-    console.log(`[DEBUG] Iniciando creación para @${generarNombreUsuario()} con proxy ${proxy.proxy}`);
+    console.log(`[DEBUG] Iniciando creación para @${generarNombreUsuario()} con proxy ${proxy.ip}:${proxy.port}`);
     console.log(`[DEBUG] Página creada para @${generarNombreUsuario()}`);
     console.log(`[DEBUG] Autenticación proxy aplicada para @${generarNombreUsuario()}`);
     console.log(`[DEBUG] Fingerprint aplicado para @${generarNombreUsuario()}`);
-    console.log(`Creando cuenta: @${generarNombreUsuario()} con proxy ${proxy.proxy}`);
+    console.log(`Creando cuenta: @${generarNombreUsuario()} con proxy ${proxy.ip}:${proxy.port}`);
 
-    await page.goto('https://www.instagram.com/accounts/emailsignup/', { waitUntil: 'networkidle2', timeout: 30000 });
+    // Intentar navegar con manejo de errores
+    try {
+      await page.goto('https://www.instagram.com/accounts/emailsignup/', { waitUntil: 'networkidle2', timeout: 30000 });
+    } catch (navigationError) {
+      throw new Error(`Proxy error: ${navigationError.message}`);
+    }
+
     await page.waitForSelector('input[name="emailOrPhone"]', { visible: true, timeout: 30000 });
 
     const username = generarNombreUsuario();
@@ -51,7 +70,7 @@ export default async function crearCuentaInstagram(proxy) {
       username,
       email: `${username.replace(/[^a-zA-Z0-9]/g, '')}@kraveapi.xyz`,
       password: `Pass${Math.random().toString(36).slice(2, 10)}`,
-      proxy: proxy.proxy,
+      proxy: `${proxy.ip}:${proxy.port}`,
       status: 'created'
     };
   } catch (error) {
