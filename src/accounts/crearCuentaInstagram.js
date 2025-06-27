@@ -6,11 +6,11 @@ import rotateTorIP from '../proxies/torController.js';
 import puppeteer from 'puppeteer-extra';
 import StealthPlugin from 'puppeteer-extra-plugin-stealth';
 import fs from 'fs';
-import ionosMail from '../email/ionosMail.js'; // Ruta y nombre corregidos
+import ionosMail from '../email/ionosMail.js'; // Importación correcta
 
 puppeteer.use(StealthPlugin());
 
-const ionosMail = new ionosMail(); // Instancia con el nombre de clase correcto
+const mailService = new ionosMail(); // Instancia con un nombre diferente
 
 async function crearCuentaInstagram() {
   const fingerprint = generateAdaptiveFingerprint();
@@ -18,8 +18,8 @@ async function crearCuentaInstagram() {
   const username = generarNombreUsuario();
   let email, password;
 
-  if (ionosMail.isActive()) {
-    email = await ionosMail.getEmailAddress();
+  if (mailService.isActive()) {
+    email = await mailService.getEmailAddress();
     password = `Pass${Math.random().toString(36).slice(2, 10)}`;
   } else {
     email = `${username.replace(/[^a-zA-Z0-9]/g, '')}@kraveapi.xyz`;
@@ -86,8 +86,8 @@ async function crearCuentaInstagram() {
     if (pageContent.includes('checkpoint') || pageContent.includes('verification')) {
       console.log(`[DEBUG] Verificación requerida para @${username}`);
       let verificationCode = null;
-      if (ionosMail.isActive()) {
-        verificationCode = await ionosMail.waitForVerificationCode(60000);
+      if (mailService.isActive()) {
+        verificationCode = await mailService.waitForVerificationCode(60000);
         await page.waitForSelector('input[name="code"]', { timeout: 5000 }).catch(() => {});
         if (verificationCode && await page.$('input[name="code"]')) {
           await page.type('input[name="code"]', verificationCode, { delay: 100 });
