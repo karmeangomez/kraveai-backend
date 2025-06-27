@@ -6,3 +6,7 @@
 [2025-06-27T04:36:12.427Z] ✅ Sistema de proxies listo
 [2025-06-27T04:36:12.427Z] 
 🚀 Creando cuenta 1/50
+[2025-06-27T04:36:35.481Z] 🔥 Error crítico: browser is not defined
+[2025-06-27T04:36:35.481Z] ReferenceError: browser is not defined
+    at crearCuentaInstagram (file:///home/karmean/kraveai-backend/src/accounts/crearCuentaInstagram.js:159:5)
+    at async file:///home/karmean/kraveai-backend/src/run.js:102:22
