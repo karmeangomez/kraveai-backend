@@ -1,11 +1,17 @@
 import crearCuentaInstagram from './accounts/crearCuentaInstagram.js';
 import proxySystem from './proxies/proxyRotationSystem.js';
 import axios from 'axios';
+// Intentar usar secureEnv.js o checkEnv.js si están disponibles
+import { loadEnv } from '../utils/secureEnv.js'; // Ajusta según tu módulo
 
 async function sendTelegramNotification(message) {
   try {
+    // Cargar variables de entorno si secureEnv.js está disponible
+    if (typeof loadEnv === 'function') {
+      loadEnv(); // Asume que configura process.env
+    }
     if (!process.env.TELEGRAM_BOT_TOKEN || !process.env.TELEGRAM_CHAT_ID) {
-      console.warn('⚠️ Advertencia: TELEGRAM_BOT_TOKEN o TELEGRAM_CHAT_ID no definidos en .env');
+      console.warn('⚠️ Advertencia: TELEGRAM_BOT_TOKEN o TELEGRAM_CHAT_ID no definidos (incluso tras loadEnv)');
       return;
     }
     const response = await axios.post(`https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}/sendMessage`, {
@@ -23,7 +29,7 @@ async function sendTelegramNotification(message) {
 }
 
 async function main() {
-  console.log('[2025-06-27T11:20:00.000Z] 🔥 Iniciando KraveAI-Granja Rusa 🔥');
+  console.log('[2025-06-27T11:25:00.000Z] 🔥 Iniciando KraveAI-Granja Rusa 🔥');
   console.log(`✅ Plataforma: ${process.platform}`);
   console.log(`✅ Modo: ${process.env.HEADLESS || 'false'}`);
   console.log(`✅ Cuentas a crear: 50`);
@@ -33,12 +39,12 @@ async function main() {
 
   try {
     await proxySystem.initialize();
-    console.log('[2025-06-27T11:20:01.000Z] ✅ Sistema de proxies listo');
+    console.log('[2025-06-27T11:25:01.000Z] ✅ Sistema de proxies listo');
   } catch (error) {
     console.error('❌ Error inicializando proxies:', error.message);
     await new Promise(resolve => setTimeout(resolve, 60000)); // Retraso de 60s antes de reintentar
     await proxySystem.initialize();
-    console.log('[2025-06-27T11:21:01.000Z] ✅ Sistema de proxies reiniciado');
+    console.log('[2025-06-27T11:26:01.000Z] ✅ Sistema de proxies reiniciado');
   }
 
   for (let i = 1; i <= 50; i++) {
