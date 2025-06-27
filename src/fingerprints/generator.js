@@ -1,4 +1,3 @@
-// src/fingerprints/generator.js
 import UserAgent from 'user-agents';
 
 export function generateRussianFingerprint() {
