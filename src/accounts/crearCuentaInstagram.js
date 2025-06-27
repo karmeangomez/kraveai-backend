@@ -1,5 +1,5 @@
 import { generarNombreCompleto, generarNombreUsuario } from '../utils/nombre_utils.js';
-import { generateAdaptiveFingerprint } from '../fingerprints/generator.js'; // Ajustada la ruta
+import { generateAdaptiveFingerprint } from '../fingerprints/generator.js'; // Ruta ajustada
 import puppeteer from 'puppeteer-extra';
 import StealthPlugin from 'puppeteer-extra-plugin-stealth';
 
