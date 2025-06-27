@@ -24,8 +24,8 @@ export default class ProxyRotationSystem {
       attempts++;
     }
 
-    console.warn('⚠️ Todos los proxies están marcados como malos. Usando uno de todos modos.');
-    return this.proxies[start]; // fallback por si todos están en la blacklist
+    console.warn('⚠️ Todos los proxies están en blacklist. Usando uno igualmente.');
+    return this.proxies[start];
   }
 
   markProxyAsBad(proxy) {
