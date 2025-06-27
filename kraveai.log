@@ -114,3 +114,6 @@
 [2025-06-27T03:41:21.952Z] ⏳ Esperando 15 segundos...
 [2025-06-27T03:41:36.960Z] 
 🚀 Creando cuenta 27/50
+2025-06-26 21:41:42,035 [INFO] httpx: HTTP Request: POST https://api.telegram.org/bot8066723325:AAH1XgvTqjDZV8wt6TLqP58euK1OwBSd-9A/sendMessage "HTTP/1.1 200 OK"
+[2025-06-27T03:41:42.175Z] ✅ Cuenta creada: @danielvalienterío392
+[2025-06-27T03:41:42.794Z] ⏳ Esperando 15 segundos...
