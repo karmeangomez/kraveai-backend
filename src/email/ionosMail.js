@@ -29,8 +29,8 @@ export default class IONOSMail {
 
     this.active = true;
     this.transporter = nodemailer.createTransport(this.smtpConfig);
-    console.log('✅ Proveedor IONOSMail activado');
     this.verificationCode = null;
+    console.log('✅ Proveedor IONOSMail activado');
   }
 
   isActive() {
@@ -40,8 +40,7 @@ export default class IONOSMail {
   async getEmailAddress() {
     if (!this.active) throw new Error('IONOSMail no activo');
     const prefix = Math.random().toString(36).substring(2, 10);
-    const email = `${prefix}@kraveapi.xyz`;
-    return email;
+    return `${prefix}@kraveapi.xyz`;
   }
 
   async waitForVerificationCode(timeout = 60000) {
@@ -64,7 +63,7 @@ export default class IONOSMail {
                   simpleParser(stream, (err, mail) => {
                     if (err) return reject(err);
                     if (mail.from.text.includes('instagram') && mail.subject.includes('verify')) {
-                      const codeMatch = mail.text.match(/\b(\d{6})\b/); // Busca un código de 6 dígitos
+                      const codeMatch = mail.text.match(/\b(\d{6})\b/); // Busca código de 6 dígitos
                       if (codeMatch) {
                         this.verificationCode = codeMatch[1];
                         imap.end();
@@ -97,7 +96,7 @@ export default class IONOSMail {
     if (!this.active) throw new Error('IONOSMail no activo');
     const mailOptions = {
       from: this.username,
-      to: this.username, // O la dirección que Instagram usa
+      to: this.username,
       subject: 'Verification Code',
       text: `Your verification code is ${code}`
     };
