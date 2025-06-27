@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: 📥 Clonar Repositorio
+      - name: 📅 Clonar Repositorio
         uses: actions/checkout@v3
 
       - name: 🔐 Crear Archivo .env.temp
@@ -45,7 +45,7 @@ jobs:
           source: secure_config/.env.enc
           target: ~/kraveai-backend/
 
-      - name: 📡 Ejecutar Despliegue Seguro (SSH)
+      - name: 📱 Ejecutar Despliegue Seguro (SSH)
         uses: appleboy/ssh-action@v1
         with:
           host: ${{ secrets.SSH_HOST }}
@@ -65,10 +65,9 @@ jobs:
               --key "${{ secrets.CRYPTO_KEY }}" \
               --iv "${{ secrets.CRYPTO_IV }}"
 
-            echo "🧪 Verificando variables de entorno..."
+            echo "🧲 Verificando variables de entorno..."
             node src/utils/checkEnv.js
-            
-            # Verificación opcional
+
             echo "🔑 Validando MAILBOXVALIDATOR_KEY..."
             if [ -z "$(grep MAILBOXVALIDATOR_KEY .env)" ]; then
               echo "❌ Error: MAILBOXVALIDATOR_KEY no encontrada en .env"
@@ -90,7 +89,7 @@ jobs:
               echo "✅ Túnel activo"
             fi
 
-            echo "🩺 Verificando /health..."
+            echo "🦥 Verificando /health..."
             respuesta=$(curl -s http://localhost:8000/health || echo "")
             echo "Respuesta: $respuesta"
 
