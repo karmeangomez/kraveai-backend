@@ -1,71 +1,186 @@
+#!/usr/bin/env node
+import AccountManager from './accounts/accountManager.js';
 import crearCuentaInstagram from './accounts/crearCuentaInstagram.js';
 import proxySystem from './proxies/proxyRotationSystem.js';
+import fs from 'fs';
 import axios from 'axios';
+import {
+  notifyTelegram,
+  notifyCuentaExitosa,
+  notifyErrorCuenta,
+  notifyResumenFinal,
+  notifyInstanciaIniciada
+} from './utils/telegram_utils.js';
 
-async function sendTelegramNotification(message) {
+const isRaspberryPi = process.platform === 'linux' && process.arch === 'arm';
+const CONFIG = {
+  ACCOUNTS_TO_CREATE: 50,
+  DELAY_BETWEEN_ACCOUNTS: isRaspberryPi ? 30000 : 15000,
+  LOG_FILE: 'kraveai.log',
+  HEADLESS: isRaspberryPi ? true : (process.env.HEADLESS !== 'false')
+};
+
+export const PUPPETEER_CONFIG = {
+  headless: CONFIG.HEADLESS,
+  args: [
+    '--no-sandbox',
+    '--disable-setuid-sandbox',
+    '--disable-dev-shm-usage',
+    '--disable-accelerated-2d-canvas',
+    '--no-first-run',
+    '--no-zygote',
+    '--single-process',
+    '--disable-gpu',
+    '--disable-software-rasterizer',
+    '--disable-features=site-per-process'
+  ],
+  ...(isRaspberryPi && {
+    executablePath: '/usr/bin/chromium-browser',
+    ignoreDefaultArgs: ['--disable-extensions']
+  })
+};
+
+function log(message) {
+  const timestamp = new Date().toISOString();
+  const logMessage = `[${timestamp}] ${message}`;
+  console.log(logMessage);
+  fs.appendFileSync(CONFIG.LOG_FILE, logMessage + '\n');
+}
+
+let isShuttingDown = false;
+function handleShutdown() {
+  if (isShuttingDown) return;
+  isShuttingDown = true;
+
+  log('🚫 Recibida señal de apagado. Guardando estado actual...');
+  const allAccounts = AccountManager.getAccounts();
+  if (allAccounts.length) {
+    fs.writeFileSync('cuentas_creadas_partial.json', JSON.stringify(allAccounts, null, 2));
+    log('💾 Cuentas parciales guardadas en cuentas_creadas_partial.json');
+  }
+
+  setTimeout(() => process.exit(0), 3000);
+}
+
+process.on('SIGINT', handleShutdown);
+process.on('SIGTERM', handleShutdown);
+
+(async () => {
   try {
-    if (!process.env.TELEGRAM_BOT_TOKEN || !process.env.TELEGRAM_CHAT_ID) {
-      console.warn('⚠️ Advertencia: TELEGRAM_BOT_TOKEN o TELEGRAM_CHAT_ID no definidos en .env');
-      return;
+    if (fs.existsSync(CONFIG.LOG_FILE)) {
+      fs.writeFileSync(CONFIG.LOG_FILE, '');
     }
-    const response = await axios.post(`https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}/sendMessage`, {
-      chat_id: process.env.TELEGRAM_CHAT_ID,
-      text: message
+
+    log('🔥 Iniciando KraveAI-Granja Rusa 🔥');
+    log(`✅ Plataforma: ${isRaspberryPi ? 'RASPBERRY PI' : process.platform}`);
+    log(`✅ Modo: ${CONFIG.HEADLESS ? 'HEADLESS' : 'VISUAL'}`);
+    log(`✅ Cuentas a crear: ${CONFIG.ACCOUNTS_TO_CREATE}`);
+
+    const inicio = new Date();
+    await notifyInstanciaIniciada({
+      hora: inicio.toLocaleTimeString(),
+      entorno: 'Producción',
+      plataforma: isRaspberryPi ? 'Raspberry Pi' : process.platform,
+      modo: CONFIG.HEADLESS ? 'Headless' : 'Visual'
     });
-    if (response.data.ok) {
-      console.log('📲 Notificación enviada a Telegram via axios.');
-    } else {
-      console.error('❌ Error en Telegram API:', response.data.description);
-    }
-  } catch (error) {
-    console.error('❌ Error al enviar mensaje:', error.response?.data || error.message);
-  }
-}
 
-async function main() {
-  console.log('[2025-06-27T11:36:00.000Z] 🔥 Iniciando KraveAI-Granja Rusa 🔥');
-  console.log(`✅ Plataforma: ${process.platform}`);
-  console.log(`✅ Modo: ${process.env.HEADLESS || 'false'}`);
-  console.log(`✅ Cuentas a crear: 50`);
+    AccountManager.clearAccounts();
 
-  await sendTelegramNotification('🔥 Iniciando KraveAI-Granja Rusa 🔥');
-  console.log('🧹 Limpiando 0 cuentas...');
-
-  try {
+    log('🔄 Inicializando sistema de proxies...');
     await proxySystem.initialize();
-    console.log('[2025-06-27T11:36:01.000Z] ✅ Sistema de proxies listo');
-  } catch (error) {
-    console.error('❌ Error inicializando proxies:', error.message);
-    await new Promise(resolve => setTimeout(resolve, 60000)); // Retraso de 60s antes de reintentar
-    await proxySystem.initialize();
-    console.log('[2025-06-27T11:37:01.000Z] ✅ Sistema de proxies reiniciado');
-  }
+    log('✅ Sistema de proxies listo');
 
-  for (let i = 1; i <= 50; i++) {
-    console.log(`\n🚀 Creando cuenta ${i}/50`);
-    try {
-      const proxy = proxySystem.getNextProxy();
-      const account = await crearCuentaInstagram(proxy);
-      const timestamp = new Date().toISOString();
-      console.log(`[${timestamp}] ${account.status === 'created' ? '✅' : '❌'} ${account.status}: ${account.error || `@${account.username}`}`);
+    let consecutiveFails = 0;
 
-      if (account.status === 'created') {
-        await sendTelegramNotification(`✅ Cuenta añadida: @${account.username}`);
-      } else {
-        await sendTelegramNotification(`❌ Fallo: ${account.error}`);
-        await new Promise(resolve => setTimeout(resolve, 30000)); // Retraso de 30s tras fallo
+    for (let i = 0; i < CONFIG.ACCOUNTS_TO_CREATE; i++) {
+      if (isShuttingDown) {
+        log('⏹️ Deteniendo ejecución debido a señal de apagado');
+        break;
       }
-    } catch (error) {
-      const timestamp = new Date().toISOString();
-      console.error(`[${timestamp}] ❌ Error inesperado: ${error.message}`);
-      await sendTelegramNotification(`❌ Error inesperado: ${error.message}`);
-      await new Promise(resolve => setTimeout(resolve, 30000)); // Retraso de 30s tras error
-    }
-    if (i < 50) await new Promise(resolve => setTimeout(resolve, 10000)); // Retraso de 10s entre cuentas
-  }
-}
 
-main().catch(error => {
-  console.error('❌ Error fatal en main:', error.message);
-  sendTelegramNotification(`❌ Error fatal: ${error.message}`).catch(console.error);
-});
+      log(`\n🚀 Creando cuenta ${i + 1}/${CONFIG.ACCOUNTS_TO_CREATE}`);
+      const result = await crearCuentaInstagram(PUPPETEER_CONFIG);
+
+      if (result) {
+        AccountManager.addAccount(result);
+
+        if (result.status === 'created') {
+          log(`✅ Cuenta creada: @${result.username}`);
+          await notifyCuentaExitosa(result);
+          consecutiveFails = 0;
+        } else {
+          const mensaje = result.error || '❌ Cuenta inválida';
+          log(`❌ Fallo: ${mensaje}`);
+          await notifyErrorCuenta(result, mensaje);
+          consecutiveFails++;
+        }
+      } else {
+        const fallback = {
+          username: 'unknown',
+          email: 'unknown',
+          password: 'unknown',
+          proxy: 'none',
+          status: 'failed',
+          error: '❌ crearCuentaInstagram devolvió null'
+        };
+        AccountManager.addAccount(fallback);
+        log(fallback.error);
+        await notifyErrorCuenta(fallback, fallback.error);
+        consecutiveFails++;
+      }
+
+      // 📊 Mostrar progreso en consola
+      const allAccounts = AccountManager.getAccounts();
+      const total = allAccounts.length;
+      const success = allAccounts.filter(a => a.status === 'created').length;
+      const failed = total - success;
+
+      console.log(`📊 Progreso: ${success} creadas ✅ / ${failed} fallidas ❌ / ${total} total`);
+
+      if (consecutiveFails >= 10) {
+        const msg = `🛑 Se detectaron ${consecutiveFails} fallos consecutivos.\nSe detiene el sistema para evitar sobrecarga.`;
+        log(msg);
+        await notifyTelegram(msg);
+        break;
+      }
+
+      if (i < CONFIG.ACCOUNTS_TO_CREATE - 1 && !isShuttingDown) {
+        log(`⏳ Esperando ${CONFIG.DELAY_BETWEEN_ACCOUNTS / 1000} segundos...`);
+        await new Promise(r => setTimeout(r, CONFIG.DELAY_BETWEEN_ACCOUNTS));
+      }
+    }
+
+    if (!isShuttingDown) {
+      const allAccounts = AccountManager.getAccounts();
+      if (allAccounts.length) {
+        fs.writeFileSync('cuentas_creadas.json', JSON.stringify(allAccounts, null, 2));
+        log('💾 Cuentas guardadas en cuentas_creadas.json');
+      }
+
+      const successCount = allAccounts.filter(a => a.status === 'created').length;
+      const failCount = allAccounts.length - successCount;
+      const fin = new Date();
+      const tiempo = ((fin - inicio) / 60000).toFixed(1) + ' min';
+
+      log('\n🎉 Proceso completado!');
+      log(`✅ Cuentas creadas: ${successCount}`);
+      log(`❌ Fallidas: ${failCount}`);
+      log(`⏱️ Tiempo total: ${tiempo}`);
+
+      await notifyResumenFinal({
+        total: allAccounts.length,
+        success: successCount,
+        fail: failCount,
+        tiempo,
+        plataforma: isRaspberryPi ? 'Raspberry Pi' : process.platform
+      });
+    }
+  } catch (error) {
+    log(`🔥 Error crítico: ${error.message}`);
+    log(error.stack);
+    await notifyTelegram(`🔥 Error crítico en ejecución:\n${error.message}\n${error.stack}`);
+    process.exit(1);
+  } finally {
+    if (!isShuttingDown) process.exit(0);
+  }
+})();
