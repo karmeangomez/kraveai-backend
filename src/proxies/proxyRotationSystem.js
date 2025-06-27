@@ -1,59 +1,44 @@
 // src/proxies/proxyRotationSystem.js
-import UltimateProxyMaster from './ultimateProxyMaster.js';
-import { isProxyBlacklisted } from './proxyBlacklistManager.js';
-import { getGeo } from '../utils/geoUtils.js';
-
-class ProxyRotationSystem {
-  constructor() {
-    this.validProxies = [];
+export default class ProxyRotationSystem {
+  constructor(proxies = []) {
+    this.proxies = proxies;
     this.currentIndex = 0;
-    this.initialized = false;
-  }
-
-  async initialize() {
-    if (this.initialized) return;
-
-    const rawProxies = await UltimateProxyMaster.loadAllProxies();
-    const enriched = [];
-
-    for (const proxy of rawProxies) {
-      if (isProxyBlacklisted(proxy.proxy)) {
-        console.warn(`🚫 Proxy ignorado (blacklist): ${proxy.proxy}`);
-        continue;
-      }
-
-      try {
-        const ip = proxy.proxy.split(':')[0];
-        const geo = await getGeo(ip);
-        enriched.push({
-          ...proxy,
-          country: geo.country,
-          region: geo.region,
-          city: geo.city
-        });
-      } catch {
-        enriched.push({ ...proxy, country: 'XX', region: 'Unknown', city: 'Unknown' });
-      }
-    }
-
-    this.validProxies = enriched;
-    this.initialized = true;
-    console.log(`✅ ${this.validProxies.length} proxies válidos cargados con geolocalización`);
+    this.badProxies = new Set();
   }
 
   getNextProxy() {
-    if (!this.initialized) throw new Error('No inicializado');
-    if (!this.validProxies.length) throw new Error('No hay proxies disponibles');
+    if (!this.proxies.length) return null;
 
-    const proxy = this.validProxies[this.currentIndex];
-    this.currentIndex = (this.currentIndex + 1) % this.validProxies.length;
-    return proxy;
+    let start = this.currentIndex;
+    let attempts = 0;
+
+    while (attempts < this.proxies.length) {
+      const proxy = this.proxies[this.currentIndex];
+      this.currentIndex = (this.currentIndex + 1) % this.proxies.length;
+
+      const key = `${proxy.ip}:${proxy.port}`;
+      if (!this.badProxies.has(key)) {
+        return proxy;
+      }
+
+      attempts++;
+    }
+
+    console.warn('⚠️ Todos los proxies están marcados como malos. Usando uno de todos modos.');
+    return this.proxies[start]; // fallback por si todos están en la blacklist
   }
 
-  getProxyCount() {
-    return this.validProxies.length;
+  markProxyAsBad(proxy) {
+    const key = `${proxy.ip}:${proxy.port}`;
+    this.badProxies.add(key);
+    console.log(`🚫 Proxy marcado como malo: ${key}`);
+  }
+
+  getGoodProxies() {
+    return this.proxies.filter(p => !this.badProxies.has(`${p.ip}:${p.port}`));
+  }
+
+  resetBlacklist() {
+    this.badProxies.clear();
   }
 }
-
-const proxySystem = new ProxyRotationSystem();
-export default proxySystem;
