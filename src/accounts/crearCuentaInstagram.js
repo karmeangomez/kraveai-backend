@@ -1,115 +1,82 @@
 import { generarNombreCompleto, generarNombreUsuario } from '../utils/nombre_utils.js';
 import { generateAdaptiveFingerprint } from '../fingerprints/generator.js';
+import ProxyRotationSystem from '../proxies/proxyRotationSystem.js';
+import { blacklistProxy } from '../proxies/proxyBlacklistManager.js';
+import rotateTorIP from '../proxies/torController.js';
 import puppeteer from 'puppeteer-extra';
 import StealthPlugin from 'puppeteer-extra-plugin-stealth';
 
 puppeteer.use(StealthPlugin());
 
-export default async function crearCuentaInstagram(proxy) {
+async function crearCuentaInstagram() {
+  const fingerprint = generateAdaptiveFingerprint();
+  const name = generarNombreCompleto();
   const username = generarNombreUsuario();
-  // Usar el dominio correcto @kraveapi.xyz
-  let email = `${username.replace(/[^a-zA-Z0-9]/g, '')}@kraveapi.xyz`;
-  // Añadir un sufijo aleatorio si hay duplicados o problemas
-  if (Math.random() > 0.9) { // 10% de chance de añadir sufijo
-    email = `${username.replace(/[^a-zA-Z0-9]/g, '')}${Math.floor(Math.random() * 1000)}@kraveapi.xyz`;
-    console.log('[DEBUG] Email con sufijo aleatorio:', email);
-  }
+  const email = `${username.replace(/[^a-zA-Z0-9]/g, '')}@kraveai.xyz`;
   const password = `Pass${Math.random().toString(36).slice(2, 10)}`;
-  let browser;
+  const proxy = ProxyRotationSystem.getNextProxy();
+
+  // Proxy URL completo
+  const proxyUrl = proxy.proxy.startsWith('socks5://')
+    ? proxy.proxy
+    : `http://${proxy.proxy}`;
 
   try {
-    let proxyUrl, ipPort;
-    console.log('[DEBUG] Proxy recibido completo:', JSON.stringify(proxy));
-    if (typeof proxy === 'string') {
-      proxyUrl = proxy;
-      ipPort = proxy.split('@')[1] || 'sin proxy';
-    } else if (proxy && proxy.proxy) { // Mantener la lógica de proxies como estaba
-      proxyUrl = proxy.proxy.includes('socks5') || (proxy.type && proxy.type === 'socks5')
-        ? `socks5://${proxy.auth?.username}:${proxy.auth?.password}@${proxy.proxy}`
-        : `http://${proxy.auth?.username}:${proxy.auth?.password}@${proxy.proxy}`;
-      ipPort = proxy.proxy;
-      console.log('[DEBUG] Proxy URL generada:', proxyUrl);
-    } else {
-      proxyUrl = '';
-      ipPort = 'sin proxy';
-    }
+    // Si es proxy Tor, rotamos IP
+    if (proxy.tor) await rotateTorIP();
 
-    const args = [
-      proxyUrl ? `--proxy-server=${proxyUrl}` : '',
-      '--ignore-certificate-errors',
-      '--disable-gpu'
-    ].filter(arg => arg);
-
-    try {
-      browser = await puppeteer.launch({
-        headless: process.env.HEADLESS === 'true',
-        executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || '/usr/bin/chromium-browser',
-        args: args,
-        ignoreHTTPSErrors: true
-      });
-    } catch (launchError) {
-      console.error(`[ERROR] Fallo al usar proxy ${proxyUrl}: ${launchError.message}. Intentando sin proxy...`);
-      browser = await puppeteer.launch({
-        headless: process.env.HEADLESS === 'true',
-        executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || '/usr/bin/chromium-browser',
-        ignoreHTTPSErrors: true
-      });
-    }
+    const browser = await puppeteer.launch({
+      headless: true,
+      executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || '/usr/bin/chromium-browser',
+      args: [`--proxy-server=${proxyUrl}`]
+    });
 
     const page = await browser.newPage();
-    await page.setUserAgent(generateAdaptiveFingerprint().userAgent || 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36');
-    await page.setViewport({ width: generateAdaptiveFingerprint().screen?.width || 1920, height: generateAdaptiveFingerprint().screen?.height || 1080 });
 
-    if (proxy && proxy.auth?.username && proxy.auth?.password) {
+    // Si tiene autenticación
+    if (proxy.auth) {
       await page.authenticate({
         username: proxy.auth.username,
         password: proxy.auth.password
       });
     }
 
-    console.log(`[DEBUG] Iniciando creación para @${username} con proxy ${ipPort}`);
-    console.log(`[DEBUG] Página creada para @${username}`);
-    console.log(`[DEBUG] Autenticación proxy aplicada para @${username}`);
-    console.log(`[DEBUG] Fingerprint aplicado para @${username}`);
-    console.log(`Creando cuenta: @${username} con proxy ${ipPort}`);
+    await page.setUserAgent(fingerprint.userAgent);
+    await page.setViewport({
+      width: fingerprint.screen?.width || 1920,
+      height: fingerprint.screen?.height || 1080
+    });
 
-    try {
-      await page.goto('https://www.instagram.com/accounts/emailsignup/', { 
-        waitUntil: 'domcontentloaded', 
-        timeout: 90000 
-      });
-    } catch (navigationError) {
-      throw new Error(`Proxy error: ${navigationError.message}`);
-    }
+    console.log(`Creando cuenta: @${username} con proxy ${proxy.proxy}`);
+    await page.goto('https://www.instagram.com/accounts/emailsignup/');
+    await new Promise(resolve => setTimeout(resolve, 1000)); // ✅ reemplazo de waitForTimeout
 
-    await page.waitForSelector('input[name="emailOrPhone"]', { visible: true, timeout: 30000 });
-
-    await page.type('input[name="emailOrPhone"]', email);
-    await page.type('input[name="fullName"]', generarNombreCompleto());
-    await page.type('input[name="username"]', username);
-    await page.type('input[name="password"]', password);
-    await new Promise(resolve => setTimeout(resolve, 1000));
-
-    console.log(`[DEBUG] Navegación completada para @${username}`);
     await browser.close();
 
     return {
       username,
       email,
       password,
-      proxy: ipPort,
+      proxy: proxy.proxy,
       status: 'created'
     };
   } catch (error) {
-    console.error(`[ERROR] Error creando cuenta @${username}:`, error.message);
-    if (browser) await browser.close();
+    console.error('Error creando cuenta:', error.message);
+
+    // Si falló por auth inválida → blacklist
+    if (error.message.includes('ERR_INVALID_AUTH_CREDENTIALS')) {
+      blacklistProxy(proxy.proxy);
+    }
+
     return {
       username: '',
       email: '',
       password: '',
-      proxy: '',
+      proxy: proxy.proxy,
       status: 'failed',
       error: error.message
     };
   }
 }
+
+export default crearCuentaInstagram;
