@@ -10,3 +10,4 @@
 [2025-06-27T18:13:36.586Z] TypeError: ProxyRotationSystem.markProxyAsBad is not a function
     at crearCuentaInstagram (file:///home/karmean/kraveai-backend/src/accounts/crearCuentaInstagram.js:60:27)
     at async file:///home/karmean/kraveai-backend/src/run.js:102:22
+2025-06-27 13:05:17,420 [INFO] instagrapi: https://i.instagram.com/api/v1/feed/timeline/
