@@ -5,7 +5,10 @@ import path from 'path';
 import crearCuentaInstagram from './accounts/crearCuentaInstagram.js';
 import AccountManager from './accounts/accountManager.js';
 import proxySystem from './proxies/proxyRotationSystem.js';
-import notifyTelegram from './utils/telegramNotifier.js';
+import {
+  notifyTelegram,
+  notifyResumenFinal
+} from './utils/telegram_utils.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -27,6 +30,7 @@ console.log('✅ Sistema de proxies listo\n');
 
 let cuentasCreadas = 0;
 let errores = 0;
+const tiempoInicio = Date.now();
 
 for (let i = 0; i < CUENTAS_A_CREAR; i++) {
   console.log(`🚀 Creando cuenta ${i + 1}/${CUENTAS_A_CREAR}`);
@@ -53,9 +57,16 @@ for (let i = 0; i < CUENTAS_A_CREAR; i++) {
   }
 }
 
+const tiempoTotal = ((Date.now() - tiempoInicio) / 1000).toFixed(1);
+
 console.log(`\n📊 Resumen:`);
 console.log(chalk.green(`✅ Creadas: ${cuentasCreadas}`));
 console.log(chalk.red(`❌ Fallidas: ${errores}`));
 console.log(chalk.yellow(`📁 Total en memoria: ${AccountManager.getAccounts().length}`));
 
-await notifyTelegram(`📊 Producción finalizada.\n✅ Creadas: ${cuentasCreadas}\n❌ Fallidas: ${errores}`);
+await notifyResumenFinal({
+  total: cuentasCreadas + errores,
+  success: cuentasCreadas,
+  fail: errores,
+  tiempo: `${tiempoTotal}s`
+});
