@@ -6,8 +6,8 @@ import { isProxyBlacklisted } from './proxyBlacklistManager.js';
 
 export default class UltimateProxyMaster extends ProxyRotationSystem {
   constructor() {
-    const proxies = UltimateProxyMaster.loadProxies(); // carga antes de super()
-    super(proxies);
+    const proxies = UltimateProxyMaster.loadProxies();
+    super(proxies); // 👈 Herencia correctamente inicializada
   }
 
   static loadProxies() {
