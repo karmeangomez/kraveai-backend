@@ -1,98 +1,34 @@
-// telegram_utils.js - Centro de notificaciones funcionales para KraveAI
-import dotenv from 'dotenv';
-import axios from 'axios';
-import fs from 'fs';
-import FormData from 'form-data';
+import fetch from 'node-fetch';
 
-dotenv.config();
-
-const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
-const CHAT_ID = process.env.TELEGRAM_CHAT_ID;
-const BASE_URL = `https://api.telegram.org/bot${BOT_TOKEN}`;
-
-function validarCredenciales() {
-  if (!BOT_TOKEN || !CHAT_ID) {
-    console.error('❌ TELEGRAM_BOT_TOKEN o TELEGRAM_CHAT_ID no configurados');
-    return false;
-  }
-  return true;
-}
+const TELEGRAM_BOT_TOKEN = 'TU_BOT_TOKEN';
+const TELEGRAM_CHAT_ID = 'TU_CHAT_ID';
 
 export async function notifyTelegram(message) {
-  if (!validarCredenciales()) return;
+  if (!TELEGRAM_BOT_TOKEN || !TELEGRAM_CHAT_ID) {
+    console.warn('⚠️ Configuración de Telegram incompleta');
+    return false;
+  }
+
   try {
-    await axios.post(`${BASE_URL}/sendMessage`, {
-      chat_id: CHAT_ID,
-      text: message,
-      parse_mode: 'Markdown'
+    const url = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`;
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        chat_id: TELEGRAM_CHAT_ID,
+        text: message,
+        parse_mode: 'HTML'
+      })
     });
-    console.log('📲 Notificación enviada a Telegram.');
-  } catch (err) {
-    console.error(`❌ Error al enviar mensaje: ${err.message}`);
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    console.log('📲 Notificación enviada a Telegram');
+    return true;
+  } catch (error) {
+    console.error('❌ Error al enviar mensaje:', error.message);
+    return false;
   }
-}
-
-export async function notifyTelegramWithImage(filePath, caption) {
-  if (!validarCredenciales()) return;
-  try {
-    const form = new FormData();
-    form.append('chat_id', CHAT_ID);
-    form.append('caption', caption);
-    form.append('photo', fs.createReadStream(filePath));
-
-    await axios.post(`${BASE_URL}/sendPhoto`, form, {
-      headers: form.getHeaders()
-    });
-  } catch (err) {
-    console.error(`❌ Error al enviar imagen: ${err.message}`);
-  }
-}
-
-export async function notifyCuentaExitosa(data) {
-  const msg = `✅ *Cuenta creada:*
-👤 Usuario: @${data.username}
-📧 Email: ${data.email}
-🌍 Proxy: ${data.proxy || 'sin proxy'}
-🔗 https://instagram.com/${data.username}`;
-  await notifyTelegram(msg);
-  if (data.screenshotPath) {
-    await notifyTelegramWithImage(data.screenshotPath, `📸 Captura de @${data.username}`);
-  }
-}
-
-export async function notifyErrorCuenta(data, motivo) {
-  const msg = `❌ *Error creando cuenta:*
-👤 Usuario: @${data.username}
-📧 Email: ${data.email}
-🌍 Proxy: ${data.proxy || 'sin proxy'}
-💥 Motivo: ${motivo}`;
-  await notifyTelegram(msg);
-}
-
-export async function notifyResumenFinal({ total, success, fail, tiempo }) {
-  const msg = `📊 *Resumen de ejecución:*
-🧪 Total intentos: ${total}
-✅ Éxitos: ${success}
-❌ Fallos: ${fail}
-⏱️ Duración: ${tiempo}`;
-  await notifyTelegram(msg);
-}
-
-export async function notifyCaptchaDetected(usuario) {
-  await notifyTelegram(`⚠️ *CAPTCHA detectado* para @${usuario}`);
-}
-
-export async function notifyCookiesGuardadas(path) {
-  await notifyTelegram(`💾 Cookies guardadas en: ${path}`);
-}
-
-export async function notifyProxyFallido(proxy) {
-  await notifyTelegram(`🚫 Proxy marcado como fallido:
-${proxy}`);
-}
-
-export async function notifyInstanciaIniciada({ hora, entorno }) {
-  await notifyTelegram(`👋 Hola Karmean, tu sistema se ha iniciado.
-🕒 Hora: ${hora}
-🧠 Entorno: ${entorno}`);
 }
