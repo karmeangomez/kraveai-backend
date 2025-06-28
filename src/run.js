@@ -2,9 +2,11 @@
 import chalk from 'chalk';
 import { notifyTelegram } from './utils/telegram_utils.js';
 import UltimateProxyMaster from './proxies/ultimateProxyMaster.js';
+import ProxyRotationSystem from './proxies/proxyRotationSystem.js';
 import crearCuentaInstagram from './accounts/crearCuentaInstagram.js';
 
 const TOTAL_CUENTAS = 50;
+
 let proxySystem = null;
 
 async function main() {
@@ -16,8 +18,11 @@ async function main() {
   try {
     await notifyTelegram('🚀 Iniciando KraveAI - Granja Rusa');
 
-    proxySystem = new UltimateProxyMaster();
-    await proxySystem.initialize();
+    const ultimate = new UltimateProxyMaster();
+    const proxyList = await ultimate.getProxyList();
+
+    proxySystem = new ProxyRotationSystem();
+    await proxySystem.initialize(proxyList);
 
     console.log(`✅ Sistema de proxies listo\n`);
 
@@ -36,7 +41,7 @@ async function main() {
           creadas++;
           console.log(chalk.green(`✅ Cuenta creada: @${cuenta.username}`));
         } else {
-          throw new Error(cuenta?.error || 'Cuenta inválida');
+          throw new Error('Cuenta inválida');
         }
 
       } catch (error) {
