@@ -1,10 +1,12 @@
 // 📁 src/run.js
 import chalk from 'chalk';
+import { notifyTelegram } from './utils/telegram_utils.js'; // ✅ Importación corregida
 import UltimateProxyMaster from './proxies/ultimateProxyMaster.js';
 import crearCuentaInstagram from './accounts/crearCuentaInstagram.js';
-import { notifyTelegram } from './utils/telegram.js';
 
 const TOTAL_CUENTAS = 50;
+
+let proxySystem = null;
 
 async function main() {
   console.log(`[${new Date().toISOString()}] 🔥 Iniciando KraveAI-Granja Rusa 🔥`);
@@ -12,41 +14,52 @@ async function main() {
   console.log(`✅ Modo: HEADLESS`);
   console.log(`✅ Cuentas a crear: ${TOTAL_CUENTAS}`);
 
-  await notifyTelegram('📲 Iniciando creación de 50 cuentas en KraveAI.');
+  try {
+    await notifyTelegram('🚀 Iniciando KraveAI - Granja Rusa');
 
-  const proxySystem = new UltimateProxyMaster();
-  await proxySystem.initialize();
+    proxySystem = new UltimateProxyMaster();
+    await proxySystem.initialize();
 
-  console.log('✅ Sistema de proxies listo\n');
+    console.log(`✅ Sistema de proxies listo\n`);
 
-  let errores = 0;
+    let creadas = 0;
+    let fallidas = 0;
 
-  for (let i = 1; i <= TOTAL_CUENTAS; i++) {
-    console.log(chalk.blue(`🚀 Creando cuenta ${i}/${TOTAL_CUENTAS}`));
-    const proxy = proxySystem.getNextProxy();
+    for (let i = 1; i <= TOTAL_CUENTAS; i++) {
+      console.log(chalk.blue(`🚀 Creando cuenta ${i}/${TOTAL_CUENTAS}`));
+      let proxy = null;
 
-    if (!proxy) {
-      console.error(`❌ Sin proxies válidos disponibles. Deteniendo.`);
-      break;
-    }
+      try {
+        proxy = proxySystem.getNextProxy();
+        const cuenta = await crearCuentaInstagram(proxy);
 
-    try {
-      const cuenta = await crearCuentaInstagram(proxy);
-      if (cuenta && cuenta.username) {
-        console.log(chalk.green(`✅ Cuenta creada: @${cuenta.username}`));
-      } else {
-        throw new Error('Cuenta inválida');
+        if (cuenta && cuenta.usuario) {
+          creadas++;
+          console.log(chalk.green(`✅ Cuenta creada: @${cuenta.usuario}`));
+        } else {
+          throw new Error('Cuenta inválida');
+        }
+
+      } catch (error) {
+        fallidas++;
+        if (proxy) proxySystem.markProxyAsBad(proxy);
+        console.log(chalk.red(`🔥 Error creando cuenta #${i}: ${error.message}`));
       }
-    } catch (err) {
-      console.error(`🔥 Error creando cuenta #${i}: ${err.message}`);
-      proxySystem.markProxyAsBad(proxy);
-      errores++;
-      if (errores >= 10) {
-        console.log('🛑 Se alcanzaron 10 errores. Deteniendo producción.');
-        await notifyTelegram('❌ Se alcanzaron 10 errores consecutivos. KraveAI detuvo la producción.');
+
+      if (fallidas >= 10) {
+        console.log(chalk.red(`🛑 Se alcanzaron 10 errores. Deteniendo producción.`));
+        await notifyTelegram('🛑 Se alcanzaron 10 errores. KraveAI detuvo la creación.');
         break;
       }
     }
+
+    console.log(chalk.bold(`\nResumen Final:`));
+    console.log(`✔️ Creadas: ${creadas}`);
+    console.log(`❌ Fallidas: ${fallidas}`);
+
+  } catch (err) {
+    console.error('❌ Error general:', err.message);
+    await notifyTelegram(`❌ Error crítico en KraveAI: ${err.message}`);
   }
 }
 
