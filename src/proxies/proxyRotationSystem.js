@@ -1,57 +1,42 @@
 // 📁 src/proxies/proxyRotationSystem.js
-import proxies from './proxies.json' assert { type: 'json' };
-import { isProxyBlacklisted, addToBlacklist } from './proxyBlacklistManager.js';
-import testProxy from './proxyTester.js';
-import rotateTorIP from './torController.js';
-
 export default class ProxyRotationSystem {
-  constructor() {
-    this.proxies = [];
-    this.index = 0;
-    this.cooldown = {};
+  constructor(proxies = []) {
+    this.proxies = proxies;
+    this.currentIndex = 0;
+    this.badProxies = new Set();
   }
 
   async initialize() {
-    this.proxies = proxies.filter(p => !isProxyBlacklisted(p));
-    this.proxies = await this._testAll(this.proxies);
-    console.log(`✅ ${this.proxies.length} proxies válidos cargados con geolocalización`);
+    console.log(`🔄 Inicializando ${this.proxies.length} proxies...`);
+    return true;
   }
 
-  async _testAll(proxyList) {
-    const tested = [];
-    for (const proxy of proxyList) {
-      const result = await testProxy(proxy);
-      if (result.ok) tested.push(proxy);
-    }
-    return tested;
-  }
-
-  async getNextProxy() {
-    if (this.proxies.length === 0) return null;
+  getNextProxy() {
+    if (!this.proxies.length) return null;
 
     for (let i = 0; i < this.proxies.length; i++) {
-      const proxy = this.proxies[this.index];
-      this.index = (this.index + 1) % this.proxies.length;
-
+      const index = (this.currentIndex + i) % this.proxies.length;
+      const proxy = this.proxies[index];
       const key = `${proxy.ip}:${proxy.port}`;
-      const cooldownUntil = this.cooldown[key];
-      if (cooldownUntil && Date.now() < cooldownUntil) continue;
 
-      return proxy;
+      if (!this.badProxies.has(key)) {
+        this.currentIndex = (index + 1) % this.proxies.length;
+        return proxy;
+      }
     }
 
-    // Si todos están en cooldown, forzar rotación Tor
-    await rotateTorIP();
-    return {
-      ip: '127.0.0.1',
-      port: 9050,
-      type: 'socks5'
-    };
+    return null; // Todos bloqueados
   }
 
-  async markProxyAsBad(proxy) {
+  markProxyAsBad(proxy) {
     const key = `${proxy.ip}:${proxy.port}`;
-    addToBlacklist(proxy);
-    this.cooldown[key] = Date.now() + 30 * 60 * 1000; // 30 min de cooldown
+    this.badProxies.add(key);
+    console.log(`⛔ Añadido a la blacklist: ${key}`);
+  }
+
+  resetRotation() {
+    this.badProxies.clear();
+    this.currentIndex = 0;
+    console.log('🔁 Rotación reiniciada');
   }
 }
