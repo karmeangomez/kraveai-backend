@@ -1,12 +1,15 @@
 // 📁 src/proxies/proxyRotationSystem.js
 export default class ProxyRotationSystem {
-  constructor(proxies = []) {
-    this.proxies = proxies;
+  constructor() {
+    this.proxies = [];
     this.currentIndex = 0;
     this.badProxies = new Set();
   }
 
-  async initialize() {
+  async initialize(proxyArray) {
+    this.proxies = proxyArray;
+    this.currentIndex = 0;
+    this.badProxies.clear();
     console.log(`🔄 Inicializando ${this.proxies.length} proxies...`);
     return true;
   }
@@ -21,13 +24,14 @@ export default class ProxyRotationSystem {
       const proxy = this.proxies[this.currentIndex];
       this.currentIndex = (this.currentIndex + 1) % this.proxies.length;
 
-      if (!this.badProxies.has(this._formatProxyKey(proxy))) {
+      const key = this._formatProxyKey(proxy);
+      if (!this.badProxies.has(key)) {
         return proxy;
       }
 
     } while (this.currentIndex !== startIndex);
 
-    return null; // Todos están en blacklist
+    return null; // Todos en blacklist
   }
 
   markProxyAsBad(proxy) {
@@ -43,6 +47,8 @@ export default class ProxyRotationSystem {
   }
 
   _formatProxyKey(proxy) {
+    // Admite objetos del tipo { proxy: 'ip:puerto' } o { ip, port }
+    if (proxy.proxy) return proxy.proxy;
     return `${proxy.ip}:${proxy.port}`;
   }
 }
