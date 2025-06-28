@@ -1,79 +1,53 @@
 // 📁 src/run.js
 import chalk from 'chalk';
-import fs from 'fs';
-import path from 'path';
-import { fileURLToPath } from 'url';
-import AccountManager from './accounts/accountManager.js';
-import crearCuentaInstagram from './accounts/crearCuentaInstagram.js';
 import UltimateProxyMaster from './proxies/ultimateProxyMaster.js';
-import { notifyTelegram } from './utils/telegram_utils.js';
+import crearCuentaInstagram from './accounts/crearCuentaInstagram.js';
+import { notifyTelegram } from './utils/telegram.js';
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const TOTAL_CUENTAS = 50;
-const MAX_ERRORES = 10;
 
-let errores = 0;
-let creadas = 0;
-let proxySystem;
+async function main() {
+  console.log(`[${new Date().toISOString()}] 🔥 Iniciando KraveAI-Granja Rusa 🔥`);
+  console.log(`✅ Plataforma: ${process.platform}`);
+  console.log(`✅ Modo: HEADLESS`);
+  console.log(`✅ Cuentas a crear: ${TOTAL_CUENTAS}`);
 
-console.log(chalk.magenta.bold(`[${new Date().toISOString()}] 🔥 Iniciando KraveAI-Granja Rusa 🔥`));
-console.log(chalk.green(`✅ Plataforma: ${process.platform}`));
-console.log(chalk.green(`✅ Modo: ${process.env.HEADLESS === 'true' ? 'HEADLESS' : 'VISIBLE'}`));
-console.log(chalk.green(`✅ Cuentas a crear: ${TOTAL_CUENTAS}`));
+  await notifyTelegram('📲 Iniciando creación de 50 cuentas en KraveAI.');
 
-await notifyTelegram(`🚀 Iniciando creación de ${TOTAL_CUENTAS} cuentas de Instagram`);
-
-try {
-  proxySystem = new UltimateProxyMaster();
+  const proxySystem = new UltimateProxyMaster();
   await proxySystem.initialize();
-  console.log(chalk.green(`✅ Sistema de proxies listo\n`));
-} catch (err) {
-  console.error(`❌ Error inicializando sistema de proxies:`, err);
-  process.exit(1);
-}
 
-if (AccountManager.getAccounts().length > 0) {
-  console.log(`🧹 Limpiando ${AccountManager.getAccounts().length} cuentas...`);
-  AccountManager.clearAccounts();
-}
+  console.log('✅ Sistema de proxies listo\n');
 
-for (let i = 1; i <= TOTAL_CUENTAS; i++) {
-  console.log(chalk.blue(`🚀 Creando cuenta ${i}/${TOTAL_CUENTAS}`));
+  let errores = 0;
 
-  const proxy = proxySystem.getNextProxy();
-  if (!proxy) {
-    console.error(`❌ Sin proxies válidos disponibles. Deteniendo.`);
-    break;
-  }
+  for (let i = 1; i <= TOTAL_CUENTAS; i++) {
+    console.log(chalk.blue(`🚀 Creando cuenta ${i}/${TOTAL_CUENTAS}`));
+    const proxy = proxySystem.getNextProxy();
 
-  try {
-    const cuenta = await crearCuentaInstagram(proxy);
-
-    if (cuenta?.usuario && cuenta?.password) {
-      creadas++;
-      AccountManager.addAccount(cuenta);
-      console.log(chalk.green(`✅ Cuenta creada: @${cuenta.usuario}`));
-    } else {
-      throw new Error('Cuenta inválida');
-    }
-  } catch (error) {
-    errores++;
-    console.log(chalk.red(`🔥 Error creando cuenta #${i}: ${error.message || error}`));
-    proxySystem.markProxyAsBad(proxy);
-
-    if (errores >= MAX_ERRORES) {
-      console.log(chalk.bgRed(`🛑 Se alcanzaron ${errores} errores. Deteniendo producción.`));
-      await notifyTelegram(`❌ Detenido tras ${errores} errores. Se crearon ${creadas} cuentas.`);
+    if (!proxy) {
+      console.error(`❌ Sin proxies válidos disponibles. Deteniendo.`);
       break;
     }
+
+    try {
+      const cuenta = await crearCuentaInstagram(proxy);
+      if (cuenta && cuenta.username) {
+        console.log(chalk.green(`✅ Cuenta creada: @${cuenta.username}`));
+      } else {
+        throw new Error('Cuenta inválida');
+      }
+    } catch (err) {
+      console.error(`🔥 Error creando cuenta #${i}: ${err.message}`);
+      proxySystem.markProxyAsBad(proxy);
+      errores++;
+      if (errores >= 10) {
+        console.log('🛑 Se alcanzaron 10 errores. Deteniendo producción.');
+        await notifyTelegram('❌ Se alcanzaron 10 errores consecutivos. KraveAI detuvo la producción.');
+        break;
+      }
+    }
   }
 }
 
-if (creadas > 0) {
-  const ruta = path.join(__dirname, 'cuentas_creadas.json');
-  fs.writeFileSync(ruta, JSON.stringify(AccountManager.getAccounts(), null, 2));
-  console.log(chalk.green(`💾 ${creadas} cuentas guardadas en cuentas_creadas.json`));
-  await notifyTelegram(`✅ ${creadas} cuentas creadas correctamente.`);
-} else {
-  console.log(chalk.yellow(`⚠️ No se creó ninguna cuenta válida.`));
-}
+main();
