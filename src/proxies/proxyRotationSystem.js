@@ -13,26 +13,25 @@ export default class ProxyRotationSystem {
 
   getNextProxy() {
     if (!this.proxies || this.proxies.length === 0) {
-      throw new Error('❌ No hay proxies disponibles');
+      throw new Error('No hay proxies disponibles');
     }
 
-    for (let i = 0; i < this.proxies.length; i++) {
+    let startIndex = this.currentIndex;
+    do {
       const proxy = this.proxies[this.currentIndex];
       this.currentIndex = (this.currentIndex + 1) % this.proxies.length;
 
-      const key = `${proxy.ip}:${proxy.port}`;
-      if (!this.badProxies.has(key)) {
-        console.log(`✅ Proxy seleccionado: ${key}`);
+      if (!this.badProxies.has(this._formatProxyKey(proxy))) {
         return proxy;
       }
-    }
 
-    console.warn('⚠️ Todos los proxies están bloqueados. Usando primero como fallback.');
-    return this.proxies[0]; // fallback
+    } while (this.currentIndex !== startIndex);
+
+    return null; // Todos están en blacklist
   }
 
   markProxyAsBad(proxy) {
-    const key = `${proxy.ip}:${proxy.port}`;
+    const key = this._formatProxyKey(proxy);
     this.badProxies.add(key);
     console.log(`⛔ Añadido a la blacklist: ${key}`);
   }
@@ -41,5 +40,9 @@ export default class ProxyRotationSystem {
     this.currentIndex = 0;
     this.badProxies.clear();
     console.log('🔁 Rotación reiniciada');
+  }
+
+  _formatProxyKey(proxy) {
+    return `${proxy.ip}:${proxy.port}`;
   }
 }
