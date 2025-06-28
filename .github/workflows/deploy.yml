@@ -1,118 +1,130 @@
 name: 🚀 Despliegue Seguro KraveAI
 
-on: push: branches: - main
+on:
+  push:
+    branches:
+      - main
 
-jobs: build-and-deploy: name: 🔐 Despliegue en Raspberry Pi runs-on: ubuntu-latest
+jobs:
+  build-and-deploy:
+    name: 🔐 Despliegue en Raspberry Pi
+    runs-on: ubuntu-latest
 
-steps:
-  - name: 📅 Clonar Repositorio
-    uses: actions/checkout@v3
+    steps:
+      - name: 📅 Clonar Repositorio
+        uses: actions/checkout@v3
 
-  - name: 🔐 Crear Archivo .env.temp
-    run: |
-      mkdir -p secure_config
-      echo "IONOS_EMAIL=${{ secrets.IONOS_EMAIL }}" > secure_config/.env.temp
-      echo "IONOS_PASSWORD=${{ secrets.IONOS_PASSWORD }}" >> secure_config/.env.temp
-      echo "IONOS_USER=${{ secrets.IONOS_USER }}" >> secure_config/.env.temp
-      echo "IONOS_PASS=${{ secrets.IONOS_PASS }}" >> secure_config/.env.temp
-      echo "CRYPTO_KEY=${{ secrets.CRYPTO_KEY }}" >> secure_config/.env.temp
-      echo "CRYPTO_IV=${{ secrets.CRYPTO_IV }}" >> secure_config/.env.temp
-      echo "MAILBOXVALIDATOR_KEY=${{ secrets.MAILBOXVALIDATOR_KEY }}" >> secure_config/.env.temp
-      echo "TELEGRAM_BOT_TOKEN=${{ secrets.TELEGRAM_BOT_TOKEN }}" >> secure_config/.env.temp
-      echo "TELEGRAM_CHAT_ID=${{ secrets.TELEGRAM_CHAT_ID }}" >> secure_config/.env.temp
+      - name: 🔐 Crear Archivo .env.temp
+        run: |
+          mkdir -p secure_config
+          echo "IONOS_EMAIL=${{ secrets.IONOS_EMAIL }}" > secure_config/.env.temp
+          echo "IONOS_PASSWORD=${{ secrets.IONOS_PASSWORD }}" >> secure_config/.env.temp
+          echo "IONOS_USER=${{ secrets.IONOS_USER }}" >> secure_config/.env.temp
+          echo "IONOS_PASS=${{ secrets.IONOS_PASS }}" >> secure_config/.env.temp
+          echo "CRYPTO_KEY=${{ secrets.CRYPTO_KEY }}" >> secure_config/.env.temp
+          echo "CRYPTO_IV=${{ secrets.CRYPTO_IV }}" >> secure_config/.env.temp
+          echo "MAILBOXVALIDATOR_KEY=${{ secrets.MAILBOXVALIDATOR_KEY }}" >> secure_config/.env.temp
+          echo "TELEGRAM_BOT_TOKEN=${{ secrets.TELEGRAM_BOT_TOKEN }}" >> secure_config/.env.temp
+          echo "TELEGRAM_CHAT_ID=${{ secrets.TELEGRAM_CHAT_ID }}" >> secure_config/.env.temp
+          # Añadimos la clave de Webshare
+          echo "WEBSHARE_API_KEY=${{ secrets.WEBSHARE_API_KEY }}" >> secure_config/.env.temp
 
-  - name: 🔒 Cifrar .env.temp como .env.enc
-    run: |
-      node src/utils/secureEnv.js encrypt \
-        --input secure_config/.env.temp \
-        --output secure_config/.env.enc \
-        --key "${{ secrets.CRYPTO_KEY }}" \
-        --iv "${{ secrets.CRYPTO_IV }}"
-      rm secure_config/.env.temp
-      echo "✅ .env.enc generado"
+      - name: 🔒 Cifrar .env.temp como .env.enc
+        run: |
+          node src/utils/secureEnv.js encrypt \
+            --input secure_config/.env.temp \
+            --output secure_config/.env.enc \
+            --key "${{ secrets.CRYPTO_KEY }}" \
+            --iv "${{ secrets.CRYPTO_IV }}"
+          rm secure_config/.env.temp
+          echo "✅ .env.enc generado"
 
-  - name: 🚀 Subir .env.enc a Raspberry Pi (SCP)
-    uses: appleboy/scp-action@v0.1.5
-    with:
-      host: ${{ secrets.SSH_HOST }}
-      username: ${{ secrets.SSH_USER }}
-      key: ${{ secrets.SSH_PRIVATE_KEY }}
-      port: ${{ secrets.SSH_PORT }}
-      source: secure_config/.env.enc
-      target: ~/kraveai-backend/
+      - name: 🚀 Subir .env.enc a Raspberry Pi (SCP)
+        uses: appleboy/scp-action@v0.1.5
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: ${{ secrets.SSH_PORT }}
+          source: secure_config/.env.enc
+          target: ~/kraveai-backend/
 
-  - name: 📰 Ejecutar Despliegue Seguro (SSH)
-    uses: appleboy/ssh-action@v1
-    with:
-      host: ${{ secrets.SSH_HOST }}
-      username: ${{ secrets.SSH_USER }}
-      key: ${{ secrets.SSH_PRIVATE_KEY }}
-      port: ${{ secrets.SSH_PORT }}
-      script: |
-        echo "📦 Iniciando despliegue..."
-        cd ~/kraveai-backend
-        git fetch --all
-        git reset --hard origin/main
+      - name: 📰 Ejecutar Despliegue Seguro (SSH)
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: ${{ secrets.SSH_PORT }}
+          script: |
+            echo "📦 Iniciando despliegue..."
+            cd ~/kraveai-backend
+            git fetch --all
+            git reset --hard origin/main
 
-        echo "🔓 Descifrando .env..."
-        node src/utils/secureEnv.js decrypt \
-          --input .env.enc \
-          --output .env \
-          --key "${{ secrets.CRYPTO_KEY }}" \
-          --iv "${{ secrets.CRYPTO_IV }}"
+            echo "🔓 Descifrando .env..."
+            node src/utils/secureEnv.js decrypt \
+              --input .env.enc \
+              --output .env \
+              --key "${{ secrets.CRYPTO_KEY }}" \
+              --iv "${{ secrets.CRYPTO_IV }}"
 
-        echo "🧪 Verificando variables de entorno..."
-        node src/utils/checkEnv.js
+            echo "🧪 Verificando variables de entorno..."
+            node src/utils/checkEnv.js
 
-        echo "🔑 Validando variables..."
-        for var in \
-          IONOS_EMAIL \
-          IONOS_PASSWORD \
-          IONOS_USER \
-          IONOS_PASS \
-          CRYPTO_KEY \
-          CRYPTO_IV \
-          MAILBOXVALIDATOR_KEY \
-          TELEGRAM_BOT_TOKEN \
-          TELEGRAM_CHAT_ID; do
-          if [ -z "$(grep $var .env)" ]; then
-            echo "❌ Error: $var no encontrada en .env"
-            exit 1
-          else
-            echo "✅ $var configurada correctamente"
-          fi
-        done
+            echo "🔑 Validando variables..."
+            # Añadimos WEBSHARE_API_KEY a la lista de variables a verificar
+            for var in \
+              IONOS_EMAIL \
+              IONOS_PASSWORD \
+              IONOS_USER \
+              IONOS_PASS \
+              CRYPTO_KEY \
+              CRYPTO_IV \
+              MAILBOXVALIDATOR_KEY \
+              TELEGRAM_BOT_TOKEN \
+              TELEGRAM_CHAT_ID \
+              WEBSHARE_API_KEY; do
+              if [ -z "$(grep $var .env)" ]; then
+                echo "❌ Error: $var no encontrada en .env"
+                exit 1
+              else
+                echo "✅ $var configurada correctamente"
+              fi
+            done
 
-        echo "🔀 Reiniciando servicios..."
-        sudo systemctl restart kraveai-python.service
-        sudo systemctl restart crear-cuentas.service
+            echo "🔄 Actualizando proxies de Webshare..."
+            node -e "import('./src/proxies/webshareApi.js').then(m => m.default.refreshProxies().catch(e => { console.error(e); process.exit(1); }))"
+            
+            echo "🔀 Reiniciando servicios..."
+            sudo systemctl restart kraveai-python.service
+            sudo systemctl restart crear-cuentas.service
 
-        echo "🌐 Verificando túnel Cloudflare..."
-        estado=$(systemctl is-active cloudflared.service)
-        if [ "$estado" != "active" ]; then
-          echo "Túnel inactivo. Reiniciando..."
-          sudo systemctl restart cloudflared.service
-        else
-          echo "✅ Túnel activo"
-        fi
+            echo "🌐 Verificando túnel Cloudflare..."
+            estado=$(systemctl is-active cloudflared.service)
+            if [ "$estado" != "active" ]; then
+              echo "Túnel inactivo. Reiniciando..."
+              sudo systemctl restart cloudflared.service
+            else
+              echo "✅ Túnel activo"
+            fi
 
-        echo "🪺 Verificando /health..."
-        respuesta=$(curl -s http://localhost:8000/health || echo "")
-        echo "Respuesta: $respuesta"
+            echo "🪺 Verificando /health..."
+            respuesta=$(curl -s http://localhost:8000/health || echo "")
+            echo "Respuesta: $respuesta"
 
-        if echo "$respuesta" | grep -q "\"status\": \"OK\""; then
-          mensaje="✅ *KraveAI actualizado con éxito*\n🕒 $(date '+%H:%M')\n🔐 Configuración segura activa\n🟢 Backend OK"
-          status=0
-        else
-          mensaje="⚠️ *Error en despliegue KraveAI*\n🔴 /health falló\n🕒 $(date '+%H:%M')\nRevisar: journalctl -u kraveai-python.service"
-          status=1
-        fi
+            if echo "$respuesta" | grep -q "\"status\": \"OK\""; then
+              mensaje="✅ *KraveAI actualizado con éxito*\n🕒 $(date '+%H:%M')\n🔐 Configuración segura activa\n🟢 Backend OK\n🔄 Proxies actualizados"
+              status=0
+            else
+              mensaje="⚠️ *Error en despliegue KraveAI*\n🔴 /health falló\n🕒 $(date '+%H:%M')\nRevisar: journalctl -u kraveai-python.service"
+              status=1
+            fi
 
-        echo "📨 Enviando alerta a Telegram..."
-        curl -s -X POST https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage \
-          -d chat_id=${{ secrets.TELEGRAM_CHAT_ID }} \
-          -d text="$mensaje" \
-          -d parse_mode=Markdown
+            echo "📨 Enviando alerta a Telegram..."
+            curl -s -X POST https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage \
+              -d chat_id=${{ secrets.TELEGRAM_CHAT_ID }} \
+              -d text="$mensaje" \
+              -d parse_mode=Markdown
 
-        exit $status
-
+            exit $status
