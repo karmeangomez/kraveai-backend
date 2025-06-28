@@ -5,7 +5,11 @@ export default class ProxyRotationSystem {
     this.proxies = proxies;
     this.currentIndex = 0;
     this.badProxies = new Set();
-    console.log(`🔄 Sistema de proxies creado con ${proxies.length} proxies`);
+    this.stats = {
+      totalRequests: 0,
+      successCount: 0,
+      failCount: 0
+    };
   }
 
   async initialize() {
@@ -19,34 +23,54 @@ export default class ProxyRotationSystem {
       return null;
     }
 
-    let attempts = 0;
-    while (attempts < this.proxies.length) {
-      const proxy = this.proxies[this.currentIndex];
-      this.currentIndex = (this.currentIndex + 1) % this.proxies.length;
-      
+    // Ordenar proxies por calidad (éxitos - fallos) y antigüedad
+    const sortedProxies = [...this.proxies].sort((a, b) => {
+      const scoreA = (a.successCount || 0) * 2 - (a.failCount || 0);
+      const scoreB = (b.successCount || 0) * 2 - (b.failCount || 0);
+      return scoreB - scoreA;
+    });
+
+    // Buscar el mejor proxy disponible
+    for (const proxy of sortedProxies) {
       const key = `${proxy.ip}:${proxy.port}`;
       
-      if (!this.badProxies.has(key) && !isProxyBlacklisted(proxy)) {
-        console.log(`✅ Proxy seleccionado: ${key}`);
+      if (!this.badProxies.has(key) && 
+          !isProxyBlacklisted(proxy) &&
+          (!proxy.lastUsed || (Date.now() - proxy.lastUsed) > 10 * 60 * 1000)) {
+        
+        proxy.lastUsed = Date.now();
+        this.stats.totalRequests++;
+        console.log(`✅ Proxy seleccionado: ${key} (Score: ${(proxy.successCount || 0) - (proxy.failCount || 0)})`);
         return proxy;
       }
-      
-      attempts++;
     }
 
-    console.warn('⚠️ Todos los proxies están bloqueados! Usando uno de emergencia');
-    return this.proxies[0]; // Fallback
+    console.warn('⚠️ Todos los proxies están bloqueados o en uso! Usando el mejor disponible');
+    return sortedProxies[0];
   }
 
   markProxyAsBad(proxy) {
     if (!proxy || !proxy.ip) {
-      console.error('❌ Intento de marcar proxy inválido:', proxy);
+      console.error('❌ Intento de marcar proxy inválido');
       return;
     }
     
     const key = `${proxy.ip}:${proxy.port}`;
     this.badProxies.add(key);
-    console.log(`🚫 Proxy añadido a lista negra: ${key}`);
+    proxy.failCount = (proxy.failCount || 0) + 1;
+    this.stats.failCount++;
+    
+    console.log(`🚫 Proxy añadido a lista negra: ${key} (Fallos: ${proxy.failCount})`);
+  }
+
+  markProxySuccess(proxy) {
+    if (!proxy || !proxy.ip) return;
+    
+    proxy.successCount = (proxy.successCount || 0) + 1;
+    this.stats.successCount++;
+    
+    const key = `${proxy.ip}:${proxy.port}`;
+    console.log(`🏆 Proxy exitoso: ${key} (Éxitos: ${proxy.successCount})`);
   }
 
   resetRotation() {
@@ -55,10 +79,12 @@ export default class ProxyRotationSystem {
     console.log('🔁 Rotación reiniciada');
   }
   
-  getActiveProxies() {
-    return this.proxies.filter(proxy => {
-      const key = `${proxy.ip}:${proxy.port}`;
-      return !this.badProxies.has(key) && !isProxyBlacklisted(proxy);
-    });
+  getStats() {
+    return {
+      ...this.stats,
+      successRate: this.stats.totalRequests > 0 
+        ? (this.stats.successCount / this.stats.totalRequests * 100).toFixed(1) 
+        : 0
+    };
   }
 }
