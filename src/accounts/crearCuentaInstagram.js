@@ -1,7 +1,4 @@
-// 📁 src/accounts/crearCuentaInstagram.js
 import puppeteer from 'puppeteer';
-import pkg from 'uuid';  // Importación corregida
-const { v4: uuidv4 } = pkg;  // Desestructuración correcta
 
 export default async (proxy) => {
   const browser = await puppeteer.launch({
@@ -36,11 +33,13 @@ export default async (proxy) => {
       timeout: 60000
     });
 
-    // Generar datos aleatorios (versión corregida)
-    const randomString = Math.random().toString(36).substring(2, 10);
-    const username = `user_${randomString}`;
-    const email = `email_${randomString}@gmail.com`;
-    const password = `P@ss${randomString}`;
+    // Generar datos aleatorios SIN UUID
+    const randomString = () => Math.random().toString(36).substring(2, 10);
+    const timestamp = Date.now().toString().substring(7);
+    
+    const username = `user_${randomString()}${timestamp}`;
+    const email = `email_${randomString()}${timestamp}@gmail.com`;
+    const password = `P@ss${randomString()}`;
 
     // Rellenar formulario
     await page.type('input[name="emailOrPhone"]', email);
@@ -50,10 +49,11 @@ export default async (proxy) => {
     
     // Enviar formulario
     await page.click('button[type="submit"]');
-    await page.waitForTimeout(5000);  // Esperar 5 segundos
-
-    // Verificar creación exitosa
+    
+    // Esperar y verificar
+    await page.waitForNavigation({timeout: 15000});
     const currentUrl = await page.url();
+    
     if (!currentUrl.includes('/onboarding')) {
       throw new Error('Fallo en creación de cuenta');
     }
