@@ -21,11 +21,10 @@ console.log(chalk.green(`✅ Plataforma: ${process.platform}`));
 console.log(chalk.green(`✅ Modo: ${process.env.HEADLESS === 'true' ? 'HEADLESS' : 'VISIBLE'}`));
 console.log(chalk.green(`✅ Cuentas a crear: ${TOTAL_CUENTAS}`));
 
-// Notifica inicio por Telegram
 await notifyTelegram(`🚀 Iniciando creación de ${TOTAL_CUENTAS} cuentas de Instagram`);
 
 try {
-  proxySystem = new UltimateProxyMaster(); // ✅ Instanciación correcta
+  proxySystem = new UltimateProxyMaster();
   await proxySystem.initialize();
   console.log(chalk.green(`✅ Sistema de proxies listo\n`));
 } catch (err) {
@@ -33,17 +32,15 @@ try {
   process.exit(1);
 }
 
-// 🧹 Limpieza previa
 if (AccountManager.getAccounts().length > 0) {
   console.log(`🧹 Limpiando ${AccountManager.getAccounts().length} cuentas...`);
   AccountManager.clearAccounts();
 }
 
-// 🚀 Inicio de creación de cuentas
 for (let i = 1; i <= TOTAL_CUENTAS; i++) {
   console.log(chalk.blue(`🚀 Creando cuenta ${i}/${TOTAL_CUENTAS}`));
 
-  const proxy = await proxySystem.getNextProxy();
+  const proxy = proxySystem.getNextProxy();
   if (!proxy) {
     console.error(`❌ Sin proxies válidos disponibles. Deteniendo.`);
     break;
@@ -52,7 +49,7 @@ for (let i = 1; i <= TOTAL_CUENTAS; i++) {
   try {
     const cuenta = await crearCuentaInstagram(proxy);
 
-    if (cuenta && cuenta.usuario && cuenta.password) {
+    if (cuenta?.usuario && cuenta?.password) {
       creadas++;
       AccountManager.addAccount(cuenta);
       console.log(chalk.green(`✅ Cuenta creada: @${cuenta.usuario}`));
@@ -62,22 +59,21 @@ for (let i = 1; i <= TOTAL_CUENTAS; i++) {
   } catch (error) {
     errores++;
     console.log(chalk.red(`🔥 Error creando cuenta #${i}: ${error.message || error}`));
-    await proxySystem.markProxyAsBad(proxy);
+    proxySystem.markProxyAsBad(proxy);
 
     if (errores >= MAX_ERRORES) {
       console.log(chalk.bgRed(`🛑 Se alcanzaron ${errores} errores. Deteniendo producción.`));
-      await notifyTelegram(`❌ Se detuvo la creación tras ${errores} errores. Solo se crearon ${creadas} cuentas.`);
+      await notifyTelegram(`❌ Detenido tras ${errores} errores. Se crearon ${creadas} cuentas.`);
       break;
     }
   }
 }
 
-// 💾 Guardar cuentas si hubo éxito
 if (creadas > 0) {
   const ruta = path.join(__dirname, 'cuentas_creadas.json');
   fs.writeFileSync(ruta, JSON.stringify(AccountManager.getAccounts(), null, 2));
   console.log(chalk.green(`💾 ${creadas} cuentas guardadas en cuentas_creadas.json`));
-  await notifyTelegram(`✅ Proceso finalizado: ${creadas} cuentas creadas correctamente.`);
+  await notifyTelegram(`✅ ${creadas} cuentas creadas correctamente.`);
 } else {
   console.log(chalk.yellow(`⚠️ No se creó ninguna cuenta válida.`));
 }
