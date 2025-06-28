@@ -1,27 +1,23 @@
 // 📁 src/accounts/crearCuentaInstagram.js
 import puppeteer from 'puppeteer';
-import { v4 as uuidv4 } from 'uuid';
+import pkg from 'uuid';  // Importación corregida
+const { v4: uuidv4 } = pkg;  // Desestructuración correcta
 
 export default async (proxy) => {
   const browser = await puppeteer.launch({
     headless: process.env.HEADLESS === 'true',
     executablePath: process.env.PUPPETEER_EXECUTABLE_PATH,
     args: [
-      // ⭐⭐ USAR AUTENTICACIÓN EN URL ⭐⭐
       `--proxy-server=socks5://${proxy.auth.username}:${proxy.auth.password}@${proxy.ip}:${proxy.port}`,
       '--no-sandbox',
       '--disable-setuid-sandbox',
-      '--disable-dev-shm-usage',
-      '--disable-accelerated-2d-canvas',
-      '--no-first-run',
-      '--no-zygote',
-      '--single-process'
+      '--disable-dev-shm-usage'
     ]
   });
 
   const page = await browser.newPage();
   
-  // ⭐⭐ AUTENTICACIÓN ADICIONAL (requerida para algunos proxies) ⭐⭐
+  // Autenticación adicional
   await page.authenticate({
     username: proxy.auth.username,
     password: proxy.auth.password
@@ -40,10 +36,11 @@ export default async (proxy) => {
       timeout: 60000
     });
 
-    // Generar datos aleatorios
-    const username = `user_${Math.random().toString(36).substring(2, 8)}`;
-    const email = `${uuidv4()}@gmail.com`;
-    const password = `P@ss${Math.random().toString(36).substring(2, 10)}`;
+    // Generar datos aleatorios (versión corregida)
+    const randomString = Math.random().toString(36).substring(2, 10);
+    const username = `user_${randomString}`;
+    const email = `email_${randomString}@gmail.com`;
+    const password = `P@ss${randomString}`;
 
     // Rellenar formulario
     await page.type('input[name="emailOrPhone"]', email);
@@ -52,15 +49,19 @@ export default async (proxy) => {
     await page.type('input[name="password"]', password);
     
     // Enviar formulario
-    await Promise.all([
-      page.waitForNavigation(),
-      page.click('button[type="submit"]')
-    ]);
+    await page.click('button[type="submit"]');
+    await page.waitForTimeout(5000);  // Esperar 5 segundos
+
+    // Verificar creación exitosa
+    const currentUrl = await page.url();
+    if (!currentUrl.includes('/onboarding')) {
+      throw new Error('Fallo en creación de cuenta');
+    }
 
     await browser.close();
-    return { usuario: username, password };
+    return { usuario: username, password, email };
   } catch (error) {
     await browser.close();
-    throw new Error(`net::${error.message.split('net::')[1] || error.message}`);
+    throw new Error(`Error en creación: ${error.message}`);
   }
 };
