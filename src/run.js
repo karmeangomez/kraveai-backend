@@ -1,70 +1,57 @@
-// 📁 src/run.js
-import chalk from 'chalk';
-import { notifyTelegram } from './utils/telegram_utils.js';
-import UltimateProxyMaster from './proxies/ultimateProxyMaster.js';
-import ProxyRotationSystem from './proxies/proxyRotationSystem.js';
-import crearCuentaInstagram from './accounts/crearCuentaInstagram.js';
-
-const TOTAL_CUENTAS = 50;
-
-let proxySystem = null;
+// ... importaciones ...
 
 async function main() {
-  console.log(`[${new Date().toISOString()}] 🔥 Iniciando KraveAI-Granja Rusa 🔥`);
-  console.log(`✅ Plataforma: ${process.platform}`);
-  console.log(`✅ Modo: HEADLESS`);
-  console.log(`✅ Cuentas a crear: ${TOTAL_CUENTAS}`);
-
   try {
-    await notifyTelegram('🚀 Iniciando KraveAI - Granja Rusa');
-
-    const ultimate = new UltimateProxyMaster();
-    const proxyList = await ultimate.getProxyList();
-
-    proxySystem = new ProxyRotationSystem();
-    await proxySystem.initialize(proxyList);
-
-    console.log(`✅ Sistema de proxies listo\n`);
-
-    let creadas = 0;
-    let fallidas = 0;
-
+    // ⭐ 1. Crear instancia de UltimateProxyMaster
+    const proxySystem = new UltimateProxyMaster();
+    
+    // ⭐ 2. Inicializar el sistema de proxies
+    await proxySystem.initialize();
+    
+    console.log('✅ Sistema de proxies listo\n');
+    
     for (let i = 1; i <= TOTAL_CUENTAS; i++) {
       console.log(chalk.blue(`🚀 Creando cuenta ${i}/${TOTAL_CUENTAS}`));
-      let proxy = null;
+
+      // ⭐ 3. Obtener proxy usando el sistema heredado
+      const proxy = proxySystem.getNextProxy();
+      
+      if (!proxy) {
+        console.error(`❌ Sin proxies válidos disponibles. Deteniendo.`);
+        break;
+      }
 
       try {
-        proxy = proxySystem.getNextProxy();
         const cuenta = await crearCuentaInstagram(proxy);
-
-        if (cuenta && cuenta.username) {
+        
+        if (cuenta?.usuario && cuenta?.password) {
           creadas++;
-          console.log(chalk.green(`✅ Cuenta creada: @${cuenta.username}`));
+          AccountManager.addAccount(cuenta);
+          console.log(chalk.green(`✅ Cuenta creada: @${cuenta.usuario}`));
         } else {
           throw new Error('Cuenta inválida');
         }
-
       } catch (error) {
-        fallidas++;
-        if (proxy) proxySystem.markProxyAsBad(proxy);
-        console.log(chalk.red(`🔥 Error creando cuenta #${i}: ${error.message}`));
-      }
+        errores++;
+        console.log(chalk.red(`🔥 Error creando cuenta #${i}: ${error.message || error}`));
+        
+        // ⭐ 4. Marcar proxy como malo
+        proxySystem.markProxyAsBad(proxy);
 
-      if (fallidas >= 10) {
-        console.log(chalk.red(`🛑 Se alcanzaron 10 errores. Deteniendo producción.`));
-        await notifyTelegram('🛑 Se alcanzaron 10 errores. KraveAI detuvo la creación.');
-        break;
+        if (errores >= MAX_ERRORES) {
+          console.log(chalk.bgRed(`🛑 Se alcanzaron ${errores} errores. Deteniendo producción.`));
+          await notifyTelegram(`❌ Detenido tras ${errores} errores. Se crearon ${creadas} cuentas.`);
+          break;
+        }
       }
     }
-
-    console.log(chalk.bold(`\nResumen Final:`));
-    console.log(`✔️ Creadas: ${creadas}`);
-    console.log(`❌ Fallidas: ${fallidas}`);
-
-  } catch (err) {
-    console.error('❌ Error general:', err.message);
-    await notifyTelegram(`❌ Error crítico en KraveAI: ${err.message}`);
+    
+    // ... resto del código ...
+  } catch (error) {
+    console.error('❌ Error general:', error);
+    await notifyTelegram(`❌ Error crítico: ${error.message}`);
   }
 }
 
+// Iniciar la aplicación
 main();
