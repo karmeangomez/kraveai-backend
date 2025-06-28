@@ -5,21 +5,17 @@ import { isProxyBlacklisted } from './proxyBlacklistManager.js';
 
 export default class UltimateProxyMaster extends ProxyRotationSystem {
   constructor() {
-    // Cargar proxies primero
-    const proxies = this.loadProxies();
-    
-    // Llamar al constructor padre con los proxies
+    const proxies = UltimateProxyMaster.loadProxies();
     super(proxies);
-    
-    console.log(`✅ ${proxies.length} proxies válidos cargados`);
   }
 
-  loadProxies() {
+  static loadProxies() {
     try {
       const filePath = path.resolve('src/proxies/proxies.json');
       const data = fs.readFileSync(filePath, 'utf-8');
       const proxies = JSON.parse(data);
       
+      console.log(`✅ ${proxies.length} proxies cargados desde proxies.json`);
       return proxies.filter(p => !isProxyBlacklisted(p));
     } catch (err) {
       console.error('❌ Error cargando proxies:', err.message);
@@ -28,16 +24,9 @@ export default class UltimateProxyMaster extends ProxyRotationSystem {
   }
 
   async initialize() {
+    await super.initialize();
     this.resetRotation();
-    console.log('🔁 Rotación reiniciada');
+    console.log(`🔁 ${this.getActiveProxies().length} proxies activos`);
     return true;
-  }
-
-  // ⭐⭐ MÉTODO AÑADIDO ⭐⭐
-  getProxyList() {
-    return this.proxies.filter(proxy => {
-      const key = `${proxy.ip}:${proxy.port}`;
-      return !this.badProxies.has(key);
-    });
   }
 }
