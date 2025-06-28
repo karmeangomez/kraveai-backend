@@ -1,54 +1,64 @@
-// 📁 src/proxies/proxyRotationSystem.js
+import { isProxyBlacklisted } from './proxyBlacklistManager.js';
+
 export default class ProxyRotationSystem {
-  constructor() {
-    this.proxies = [];
+  constructor(proxies = []) {
+    this.proxies = proxies;
     this.currentIndex = 0;
     this.badProxies = new Set();
+    console.log(`🔄 Sistema de proxies creado con ${proxies.length} proxies`);
   }
 
-  async initialize(proxyArray) {
-    this.proxies = proxyArray;
-    this.currentIndex = 0;
-    this.badProxies.clear();
+  async initialize() {
     console.log(`🔄 Inicializando ${this.proxies.length} proxies...`);
     return true;
   }
 
   getNextProxy() {
     if (!this.proxies || this.proxies.length === 0) {
-      throw new Error('No hay proxies disponibles');
+      console.error('❌ No hay proxies disponibles');
+      return null;
     }
 
-    let startIndex = this.currentIndex;
-    do {
+    let attempts = 0;
+    while (attempts < this.proxies.length) {
       const proxy = this.proxies[this.currentIndex];
       this.currentIndex = (this.currentIndex + 1) % this.proxies.length;
-
-      const key = this._formatProxyKey(proxy);
-      if (!this.badProxies.has(key)) {
+      
+      const key = `${proxy.ip}:${proxy.port}`;
+      
+      if (!this.badProxies.has(key) && !isProxyBlacklisted(proxy)) {
+        console.log(`✅ Proxy seleccionado: ${key}`);
         return proxy;
       }
+      
+      attempts++;
+    }
 
-    } while (this.currentIndex !== startIndex);
-
-    return null; // Todos en blacklist
+    console.warn('⚠️ Todos los proxies están bloqueados! Usando uno de emergencia');
+    return this.proxies[0]; // Fallback
   }
 
   markProxyAsBad(proxy) {
-    const key = this._formatProxyKey(proxy);
+    if (!proxy || !proxy.ip) {
+      console.error('❌ Intento de marcar proxy inválido:', proxy);
+      return;
+    }
+    
+    const key = `${proxy.ip}:${proxy.port}`;
     this.badProxies.add(key);
-    console.log(`⛔ Añadido a la blacklist: ${key}`);
+    console.log(`🚫 Proxy añadido a lista negra: ${key}`);
   }
 
   resetRotation() {
-    this.currentIndex = 0;
     this.badProxies.clear();
+    this.currentIndex = 0;
     console.log('🔁 Rotación reiniciada');
   }
-
-  _formatProxyKey(proxy) {
-    // Admite objetos del tipo { proxy: 'ip:puerto' } o { ip, port }
-    if (proxy.proxy) return proxy.proxy;
-    return `${proxy.ip}:${proxy.port}`;
+  
+  getActiveProxies() {
+    return this.proxies.filter(proxy => {
+      const key = `${proxy.ip}:${proxy.port}`;
+      return !this.badProxies.has(key) && !isProxyBlacklisted(proxy);
+    });
   }
 }
