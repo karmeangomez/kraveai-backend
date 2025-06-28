@@ -18,11 +18,13 @@ export async function notifyTelegram(message) {
         chat_id: TELEGRAM_CHAT_ID,
         text: message,
         parse_mode: 'HTML'
-      })
+      }),
+      timeout: 10000
     });
 
     if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
+      const errorData = await response.json();
+      throw new Error(`HTTP error! status: ${response.status}, ${errorData.description || ''}`);
     }
 
     console.log('📲 Notificación enviada a Telegram');
