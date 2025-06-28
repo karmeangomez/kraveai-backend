@@ -1,32 +1,35 @@
-import fs from 'fs';
-import path from 'path';
 import ProxyRotationSystem from './proxyRotationSystem.js';
-import { isProxyBlacklisted } from './proxyBlacklistManager.js';
+import WebshareProxyManager from './webshareApi.js';
 
 export default class UltimateProxyMaster extends ProxyRotationSystem {
   constructor() {
-    const proxies = UltimateProxyMaster.loadProxies();
-    super(proxies);
+    super([]); // Iniciar vacío
   }
 
-  static loadProxies() {
-    try {
-      const filePath = path.resolve('src/proxies/proxies.json');
-      const data = fs.readFileSync(filePath, 'utf-8');
-      const proxies = JSON.parse(data);
-      
-      console.log(`✅ ${proxies.length} proxies cargados desde proxies.json`);
-      return proxies.filter(p => !isProxyBlacklisted(p));
-    } catch (err) {
-      console.error('❌ Error cargando proxies:', err.message);
-      return [];
+  async initialize(forceRefresh = false) {
+    // Obtener proxies de Webshare
+    const proxies = await WebshareProxyManager.getProxies(forceRefresh);
+    
+    if (proxies.length === 0) {
+      throw new Error('No se pudieron obtener proxies de Webshare');
     }
-  }
 
-  async initialize() {
+    this.proxies = proxies;
     await super.initialize();
     this.resetRotation();
-    console.log(`🔁 ${this.getActiveProxies().length} proxies activos`);
+    
+    console.log(`♻️ ${this.proxies.length} proxies de Webshare activos`);
     return true;
+  }
+
+  async refreshProxies() {
+    this.proxies = await WebshareProxyManager.refreshProxies();
+    this.resetRotation();
+    this.stats = {
+      totalRequests: 0,
+      successCount: 0,
+      failCount: 0
+    };
+    console.log(`🔄 Proxies actualizados: ${this.proxies.length} disponibles`);
   }
 }
