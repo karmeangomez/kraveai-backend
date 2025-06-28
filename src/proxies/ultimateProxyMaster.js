@@ -6,22 +6,26 @@ import { isProxyBlacklisted } from './proxyBlacklistManager.js';
 
 export default class UltimateProxyMaster extends ProxyRotationSystem {
   constructor() {
-    // ✅ Leer proxies de archivo y filtrar blacklist
-    let proxies = [];
-    try {
-      const data = fs.readFileSync(path.resolve('src/proxies/proxies.json'), 'utf-8');
-      proxies = JSON.parse(data).filter(p => !isProxyBlacklisted(p));
-      console.log(`✅ ${proxies.length} proxies cargados desde proxies.json`);
-    } catch (err) {
-      console.error('❌ Error leyendo proxies.json:', err.message);
-    }
-
-    // ✅ Inicializar clase padre con proxies válidos
+    const proxies = UltimateProxyMaster.loadProxies(); // carga antes de super()
     super(proxies);
   }
 
+  static loadProxies() {
+    try {
+      const filePath = path.resolve('src/proxies/proxies.json');
+      const data = fs.readFileSync(filePath, 'utf-8');
+      const proxies = JSON.parse(data);
+      return proxies.filter(p => !isProxyBlacklisted(p));
+    } catch (err) {
+      console.error('❌ Error cargando proxies:', err.message);
+      return [];
+    }
+  }
+
   async initialize() {
-    this.resetRotation(); // ✅ Limpia index y blacklist al iniciar
+    await super.initialize();
+    this.resetRotation();
+    console.log(`✅ ${this.proxies.length} proxies válidos cargados`);
     return true;
   }
 }
