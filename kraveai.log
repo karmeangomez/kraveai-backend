@@ -53,3 +53,5 @@
 2025-06-27 20:41:23,408 [INFO] private_request: None [403] POST https://i.instagram.com/api/v1/feed/timeline/ (269.0.0.18.75, OnePlus 6T Dev)
 2025-06-27 20:41:23,410 [INFO] KraveAI-Backend: Cliente Instagram inicializado
 2025-06-27 20:45:12,626 [INFO] instagrapi: https://i.instagram.com/api/v1/feed/timeline/
+2025-06-27 20:45:12,908 [INFO] private_request: None [403] POST https://i.instagram.com/api/v1/feed/timeline/ (269.0.0.18.75, OnePlus 6T Dev)
+2025-06-27 20:45:12,909 [INFO] KraveAI-Backend: Cliente Instagram inicializado
