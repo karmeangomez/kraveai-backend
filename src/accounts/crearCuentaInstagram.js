@@ -1,14 +1,12 @@
-// src/accounts/crearCuentaInstagram.js
+// 📁 src/accounts/crearCuentaInstagram.js
 import { generarNombreCompleto, generarNombreUsuario } from '../utils/nombre_utils.js';
 import { generateAdaptiveFingerprint } from '../fingerprints/generator.js';
-import ProxyRotationSystem from '../proxies/proxyRotationSystem.js';
 import puppeteer from 'puppeteer-extra';
 import StealthPlugin from 'puppeteer-extra-plugin-stealth';
 
 puppeteer.use(StealthPlugin());
 
-async function crearCuentaInstagram() {
-  const proxy = ProxyRotationSystem.getNextProxy();
+export default async function crearCuentaInstagram(proxy) {
   const fingerprint = generateAdaptiveFingerprint() || {
     userAgent: 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36',
     screen: { width: 1920, height: 1080 }
@@ -19,10 +17,9 @@ async function crearCuentaInstagram() {
   const email = `${username.replace(/[^a-zA-Z0-9]/g, '')}@kraveai.xyz`;
   const password = `Pass${Math.random().toString(36).slice(2, 10)}`;
 
-  // Armado de proxy con autenticación (si aplica)
   const proxyUrl = proxy.auth
-    ? `http://${proxy.auth.username}:${proxy.auth.password}@${proxy.proxy}`
-    : `http://${proxy.proxy}`;
+    ? `http://${proxy.auth.username}:${proxy.auth.password}@${proxy.ip}:${proxy.port}`
+    : `http://${proxy.ip}:${proxy.port}`;
 
   try {
     const browser = await puppeteer.launch({
@@ -39,9 +36,9 @@ async function crearCuentaInstagram() {
       height: fingerprint.screen?.height || 1080
     });
 
-    console.log(`Creando cuenta: @${username} con proxy ${proxy.proxy}`);
+    console.log(`✅ Creando cuenta: @${username} usando ${proxy.ip}:${proxy.port}`);
     await page.goto('https://www.instagram.com/accounts/emailsignup/');
-    await new Promise(resolve => setTimeout(resolve, 1000)); // espera simulada
+    await new Promise(resolve => setTimeout(resolve, 1000)); // simulación humana
 
     await browser.close();
 
@@ -49,26 +46,19 @@ async function crearCuentaInstagram() {
       username,
       email,
       password,
-      proxy: proxy.proxy,
+      proxy: `${proxy.ip}:${proxy.port}`,
       status: 'created'
     };
   } catch (error) {
-    console.error(`Error creando cuenta @${username}:`, error.message);
-
-    // Marcar el proxy como fallido si fue error de proxy no compatible
-    if (error.message.includes('net::ERR_NO_SUPPORTED_PROXIES')) {
-      ProxyRotationSystem.markProxyAsBad(proxy.proxy, 'NO_SUPPORTED_PROXIES');
-    }
+    console.error(`🔥 Error creando cuenta @${username}:`, error.message);
 
     return {
       username: '',
       email: '',
       password: '',
-      proxy: proxy.proxy,
+      proxy: `${proxy.ip}:${proxy.port}`,
       status: 'failed',
       error: error.message
     };
   }
 }
-
-export default crearCuentaInstagram;
