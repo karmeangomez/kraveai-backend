@@ -5,7 +5,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import AccountManager from './accounts/accountManager.js';
 import crearCuentaInstagram from './accounts/crearCuentaInstagram.js';
-import UltimateProxyMaster from './proxies/ultimateProxyMaster.js';
+import ultimateProxyMaster from './proxies/ultimateProxyMaster.js';
 import { notifyTelegram } from './utils/telegram_utils.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -25,10 +25,8 @@ console.log(chalk.green(`✅ Cuentas a crear: ${TOTAL_CUENTAS}`));
 await notifyTelegram(`🚀 Iniciando creación de ${TOTAL_CUENTAS} cuentas de Instagram`);
 
 try {
-  // 🔄 Iniciar sistema de proxies rotativos avanzados
-  proxySystem = new UltimateProxyMaster();
-  await proxySystem.initialize();
-
+  // ✅ Corrección: usar función async directamente
+  proxySystem = await ultimateProxyMaster();
   console.log(chalk.green(`✅ Sistema de proxies listo\n`));
 } catch (err) {
   console.error(`❌ Error inicializando sistema de proxies:`, err);
