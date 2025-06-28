@@ -1,11 +1,10 @@
 // 📁 src/run.js
 import chalk from 'chalk';
-import { notifyTelegram } from './utils/telegram_utils.js'; // ✅ Importación corregida
+import { notifyTelegram } from './utils/telegram_utils.js';
 import UltimateProxyMaster from './proxies/ultimateProxyMaster.js';
 import crearCuentaInstagram from './accounts/crearCuentaInstagram.js';
 
 const TOTAL_CUENTAS = 50;
-
 let proxySystem = null;
 
 async function main() {
@@ -33,11 +32,11 @@ async function main() {
         proxy = proxySystem.getNextProxy();
         const cuenta = await crearCuentaInstagram(proxy);
 
-        if (cuenta && cuenta.usuario) {
+        if (cuenta && cuenta.username) {
           creadas++;
-          console.log(chalk.green(`✅ Cuenta creada: @${cuenta.usuario}`));
+          console.log(chalk.green(`✅ Cuenta creada: @${cuenta.username}`));
         } else {
-          throw new Error('Cuenta inválida');
+          throw new Error(cuenta?.error || 'Cuenta inválida');
         }
 
       } catch (error) {
