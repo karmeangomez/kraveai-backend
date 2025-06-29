@@ -81,3 +81,5 @@
 2025-06-28 21:30:16,684 [INFO] private_request: Kraveaibot [200] POST https://i.instagram.com/api/v1/feed/timeline/ (269.0.0.18.75, OnePlus 6T Dev)
 2025-06-28 21:30:17,351 [INFO] httpx: HTTP Request: POST https://api.telegram.org/bot8066723325:AAH1XgvTqjDZV8wt6TLqP58euK1OwBSd-9A/sendMessage "HTTP/1.1 200 OK"
 2025-06-28 21:30:17,352 [INFO] KraveAI-Backend: Sesión Instagram iniciada: @Kraveaibot
+2025-06-28 21:30:25,286 [INFO] public_request: [None] [201] GET https://www.instagram.com/cd9/?__a=1&__d=dis
+2025-06-28 21:30:25,286 [ERROR] public_request: Status 201: JSONDecodeError in public_request (url=https://www.instagram.com/cd9/?__a=1&__d=dis) >>> 
