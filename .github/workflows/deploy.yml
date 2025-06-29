@@ -17,17 +17,19 @@ jobs:
       - name: 🔐 Crear Archivo .env.temp
         run: |
           mkdir -p secure_config
-          echo "IONOS_EMAIL=${{ secrets.IONOS_EMAIL }}" > secure_config/.env.temp
-          echo "IONOS_PASSWORD=${{ secrets.IONOS_PASSWORD }}" >> secure_config/.env.temp
-          echo "IONOS_USER=${{ secrets.IONOS_USER }}" >> secure_config/.env.temp
-          echo "IONOS_PASS=${{ secrets.IONOS_PASS }}" >> secure_config/.env.temp
-          echo "CRYPTO_KEY=${{ secrets.CRYPTO_KEY }}" >> secure_config/.env.temp
-          echo "CRYPTO_IV=${{ secrets.CRYPTO_IV }}" >> secure_config/.env.temp
-          echo "MAILBOXVALIDATOR_KEY=${{ secrets.MAILBOXVALIDATOR_KEY }}" >> secure_config/.env.temp
-          echo "TELEGRAM_BOT_TOKEN=${{ secrets.TELEGRAM_BOT_TOKEN }}" >> secure_config/.env.temp
-          echo "TELEGRAM_CHAT_ID=${{ secrets.TELEGRAM_CHAT_ID }}" >> secure_config/.env.temp
-          # Añadimos la clave de Webshare
-          echo "WEBSHARE_API_KEY=${{ secrets.WEBSHARE_API_KEY }}" >> secure_config/.env.temp
+          # Usar printf para evitar espacios en blanco adicionales
+          printf "IONOS_EMAIL=${{ secrets.IONOS_EMAIL }}\n" > secure_config/.env.temp
+          printf "IONOS_PASSWORD=${{ secrets.IONOS_PASSWORD }}\n" >> secure_config/.env.temp
+          printf "IONOS_USER=${{ secrets.IONOS_USER }}\n" >> secure_config/.env.temp
+          printf "IONOS_PASS=${{ secrets.IONOS_PASS }}\n" >> secure_config/.env.temp
+          printf "CRYPTO_KEY=${{ secrets.CRYPTO_KEY }}\n" >> secure_config/.env.temp
+          printf "CRYPTO_IV=${{ secrets.CRYPTO_IV }}\n" >> secure_config/.env.temp
+          printf "MAILBOXVALIDATOR_KEY=${{ secrets.MAILBOXVALIDATOR_KEY }}\n" >> secure_config/.env.temp
+          printf "TELEGRAM_BOT_TOKEN=${{ secrets.TELEGRAM_BOT_TOKEN }}\n" >> secure_config/.env.temp
+          printf "TELEGRAM_CHAT_ID=${{ secrets.TELEGRAM_CHAT_ID }}\n" >> secure_config/.env.temp
+          # Añadir clave de Webshare con trim
+          WEBSHARE_API_KEY=$(echo -n "${{ secrets.WEBSHARE_API_KEY }}" | tr -d '[:space:]')
+          printf "WEBSHARE_API_KEY=$WEBSHARE_API_KEY\n" >> secure_config/.env.temp
 
       - name: 🔒 Cifrar .env.temp como .env.enc
         run: |
@@ -36,7 +38,8 @@ jobs:
             --output secure_config/.env.enc \
             --key "${{ secrets.CRYPTO_KEY }}" \
             --iv "${{ secrets.CRYPTO_IV }}"
-          rm secure_config/.env.temp
+          # Eliminar archivo temporal de forma segura
+          shred -u -z -n 5 secure_config/.env.temp
           echo "✅ .env.enc generado"
 
       - name: 🚀 Subir .env.enc a Raspberry Pi (SCP)
@@ -59,8 +62,11 @@ jobs:
           script: |
             echo "📦 Iniciando despliegue..."
             cd ~/kraveai-backend
+            
+            # Actualizar código
             git fetch --all
             git reset --hard origin/main
+            npm install --omit=dev
 
             echo "🔓 Descifrando .env..."
             node src/utils/secureEnv.js decrypt \
@@ -72,24 +78,18 @@ jobs:
             echo "🧪 Verificando variables de entorno..."
             node src/utils/checkEnv.js
 
-            echo "🔑 Validando variables..."
-            # Añadimos WEBSHARE_API_KEY a la lista de variables a verificar
+            echo "🔍 Validando variables críticas..."
             for var in \
-              IONOS_EMAIL \
-              IONOS_PASSWORD \
-              IONOS_USER \
-              IONOS_PASS \
-              CRYPTO_KEY \
-              CRYPTO_IV \
-              MAILBOXVALIDATOR_KEY \
+              WEBSHARE_API_KEY \
               TELEGRAM_BOT_TOKEN \
-              TELEGRAM_CHAT_ID \
-              WEBSHARE_API_KEY; do
-              if [ -z "$(grep $var .env)" ]; then
-                echo "❌ Error: $var no encontrada en .env"
+              TELEGRAM_CHAT_ID; do
+              
+              value=$(grep "^$var=" .env | cut -d'=' -f2-)
+              if [ -z "$value" ]; then
+                echo "❌ ERROR: $var está vacía o ausente"
                 exit 1
               else
-                echo "✅ $var configurada correctamente"
+                echo "✅ $var: ${#value} caracteres"
               fi
             done
 
@@ -122,9 +122,11 @@ jobs:
             fi
 
             echo "📨 Enviando alerta a Telegram..."
-            curl -s -X POST https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage \
-              -d chat_id=${{ secrets.TELEGRAM_CHAT_ID }} \
+            # Usar variables del .env para Telegram
+            source .env
+            curl -s -X POST https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/sendMessage \
+              -d chat_id="$TELEGRAM_CHAT_ID" \
               -d text="$mensaje" \
-              -d parse_mode=Markdown
+              -d parse_mode="Markdown"
 
             exit $status
