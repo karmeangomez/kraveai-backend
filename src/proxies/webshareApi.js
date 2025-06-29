@@ -3,9 +3,9 @@ import axios from 'axios';
 import fs from 'fs';
 import path from 'path';
 
-// 1. Usar variable de entorno para la API key
 const API_KEY = process.env.WEBSHARE_API_KEY || 'pviun7nhput7prysuda9v3i5s53pdulwjothsdnj';
 const PROXY_FILE = path.resolve('src/proxies/proxies.json');
+const CACHE_TIME = 30 * 60 * 1000; // 30 minutos
 
 const PROXY_TYPES = {
   RESIDENTIAL: 'residential',
@@ -16,37 +16,38 @@ const PROXY_TYPES = {
 export default class WebshareProxyManager {
   static async fetchProxies(proxyType = PROXY_TYPES.RESIDENTIAL, limit = 50) {
     try {
-      const response = await axios.get('https://proxy.webshare.io/api/v2/proxy/list/', {  // Corregido a v2
+      const response = await axios.get('https://proxy.webshare.io/api/v2/proxy/list/', {
         headers: {
           'Authorization': `Token ${API_KEY}`,
-          'Content-Type': 'application/json'  // Añadido encabezado
+          'Content-Type': 'application/json'
         },
         params: {
           mode: 'direct',
           page: 1,
           page_size: limit,
           proxy_type: proxyType,
-          countries: 'us,gb,ca,de,fr,es',  // Más países
-          valid: true  // Solo proxies válidos
+          countries: 'us,gb,ca,de,fr,es',
+          valid: true
         },
-        timeout: 10000  // Timeout añadido
+        timeout: 15000
       });
 
+      // Manejo de nueva estructura de respuesta
       return response.data.results.map(proxy => ({
         ip: proxy.proxy_address,
-        port: proxy.ports.http,  // Usar siempre HTTP (SOCKS no funciona bien en ARM)
+        port: proxy.ports.http || Object.values(proxy.ports)[0], // Solución para estructura cambiada
         auth: {
           username: proxy.username,
           password: proxy.password
         },
         country: proxy.country_code,
         city: proxy.city_name,
-        type: 'http',  // Cambiado a HTTP
+        type: 'http',
         lastUsed: 0,
         successCount: 0,
         failCount: 0,
-        lastChecked: Date.now(),  // Campo añadido
-        isp: proxy.isp  // Campo añadido
+        lastChecked: Date.now(),
+        isp: proxy.isp
       }));
     } catch (error) {
       console.error('❌ Error obteniendo proxies de Webshare:', error.response?.data || error.message);
@@ -83,7 +84,17 @@ export default class WebshareProxyManager {
     try {
       if (fs.existsSync(PROXY_FILE)) {
         const data = fs.readFileSync(PROXY_FILE, 'utf-8');
-        return JSON.parse(data);
+        const proxies = JSON.parse(data);
+        
+        // Filtrar proxies verificados recientemente
+        const freshProxies = proxies.filter(p => 
+          p.lastChecked && (Date.now() - p.lastChecked) < 48 * 60 * 60 * 1000
+        );
+        
+        if (freshProxies.length > 0) {
+          console.log(`♻️ Usando ${freshProxies.length} proxies en caché`);
+          return freshProxies;
+        }
       }
     } catch (error) {
       console.error('❌ Error cargando proxies en caché:', error.message);
@@ -92,7 +103,9 @@ export default class WebshareProxyManager {
   }
 
   static async getProxies(forceRefresh = false) {
-    if (forceRefresh || !fs.existsSync(PROXY_FILE)) {
+    // Forzar refresco si no hay proxies o si pasó el tiempo de caché
+    if (forceRefresh || !fs.existsSync(PROXY_FILE) || 
+        (Date.now() - fs.statSync(PROXY_FILE).mtimeMs) > CACHE_TIME) {
       return await this.refreshProxies();
     }
     return this.getCachedProxies();
