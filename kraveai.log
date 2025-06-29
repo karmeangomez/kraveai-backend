@@ -83,3 +83,5 @@
 2025-06-28 21:30:17,352 [INFO] KraveAI-Backend: Sesión Instagram iniciada: @Kraveaibot
 2025-06-28 21:30:25,286 [INFO] public_request: [None] [201] GET https://www.instagram.com/cd9/?__a=1&__d=dis
 2025-06-28 21:30:25,286 [ERROR] public_request: Status 201: JSONDecodeError in public_request (url=https://www.instagram.com/cd9/?__a=1&__d=dis) >>> 
+2025-06-28 21:30:28,416 [INFO] public_request: [None] [201] GET https://www.instagram.com/cd9/?__a=1&__d=dis
+2025-06-28 21:30:28,416 [ERROR] public_request: Status 201: JSONDecodeError in public_request (url=https://www.instagram.com/cd9/?__a=1&__d=dis) >>> 
