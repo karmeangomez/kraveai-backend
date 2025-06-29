@@ -170,3 +170,4 @@
 2025-06-29 16:57:04,610 [INFO] private_request: Kraveaibot [200] POST https://i.instagram.com/api/v1/challenge/ASgmNpUX0SK7EOB4OMNznKTqhQ5sOscRj_fHTOfdUzU2XIyzzgUJEIENHaqAmgefvjAkSww/ASRgsVvD4TdO0nmqsuMsc54yzxXBxCXU8XXJkJi3G1BJAIVxK3v_4c2X235lYqeo94d4AQfmkiAJ4g/ (269.0.0.18.75, OnePlus 6T Dev)
 2025-06-29 16:57:04,610 [ERROR] KraveAI-Backend: Error inicio sesión: EOF when reading a line
 2025-06-29 16:58:17,884 [INFO] httpx: HTTP Request: POST https://api.telegram.org/bot8066723325:AAH1XgvTqjDZV8wt6TLqP58euK1OwBSd-9A/sendMessage "HTTP/1.1 200 OK"
+2025-06-29 16:59:19,513 [INFO] httpx: HTTP Request: POST https://api.telegram.org/bot8066723325:AAH1XgvTqjDZV8wt6TLqP58euK1OwBSd-9A/sendMessage "HTTP/1.1 200 OK"
