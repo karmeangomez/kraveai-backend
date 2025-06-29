@@ -162,3 +162,4 @@
 2025-06-29 16:56:33,273 [INFO] httpx: HTTP Request: POST https://api.telegram.org/bot8066723325:AAH1XgvTqjDZV8wt6TLqP58euK1OwBSd-9A/sendMessage "HTTP/1.1 200 OK"
 2025-06-29 16:56:55,963 [INFO] instagrapi: https://i.instagram.com/api/v1/launcher/sync/
 2025-06-29 16:56:56,271 [INFO] private_request: Kraveaibot [200] POST https://i.instagram.com/api/v1/launcher/sync/ (269.0.0.18.75, OnePlus 6T Dev)
+2025-06-29 16:56:56,460 [INFO] instagrapi: https://i.instagram.com/api/v1/accounts/login/
