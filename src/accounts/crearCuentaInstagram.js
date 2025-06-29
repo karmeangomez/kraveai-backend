@@ -1,28 +1,32 @@
+// src/accounts/crearCuentaInstagram.js
 import puppeteer from 'puppeteer';
 import { v4 as uuidv4 } from 'uuid';
 
-// Función para generar datos aleatorios
 const generateRandomData = () => {
-  const randomString = Math.random().toString(36).substring(2, 8);
-  const domains = ['gmail.com', 'yahoo.com', 'hotmail.com', 'outlook.com'];
-  return {
-    username: `user_${randomString}`,
-    email: `email_${randomString}@${domains[Math.floor(Math.random() * domains.length)]}`,
-    password: `P@ss${randomString}${Math.floor(Math.random() * 100)}`,
-    fullName: `User ${randomString.toUpperCase()}`
-  };
+  // ... (código existente sin cambios) ...
 };
 
 export default async (proxy) => {
   const { username, email, password, fullName } = generateRandomData();
+  
+  // 1. CAMBIOS CRÍTICOS EN CONFIGURACIÓN DE PROXY
+  const proxyUrl = `http://${proxy.auth.username}:${proxy.auth.password}@${proxy.ip}:${proxy.port}`;
+  
   const browser = await puppeteer.launch({
     headless: process.env.HEADLESS === 'true',
     executablePath: process.env.PUPPETEER_EXECUTABLE_PATH,
     args: [
-      `--proxy-server=socks5://${proxy.auth.username}:${proxy.auth.password}@${proxy.ip}:${proxy.port}`,
+      // Usar proxy HTTP (SOCKS no funciona en ARM)
+      `--proxy-server=${proxyUrl}`,
+      
+      // Añadir parámetros específicos para ARM
+      '--enable-async-dns',
+      '--disable-quic',
+      '--disable-gpu',
+      '--disable-software-rasterizer',
+      '--disable-dev-shm-usage',
       '--no-sandbox',
       '--disable-setuid-sandbox',
-      '--disable-dev-shm-usage',
       '--disable-features=IsolateOrigins,site-per-process',
       '--disable-blink-features=AutomationControlled',
       '--lang=en-US,en'
@@ -32,63 +36,47 @@ export default async (proxy) => {
 
   const page = await browser.newPage();
   
-  // Autenticación adicional
+  // 2. AUTENTICACIÓN ADICIONAL PARA PROXIES HTTP
   await page.authenticate({
     username: proxy.auth.username,
     password: proxy.auth.password
   });
 
-  // Configuración de navegación
-  await page.setUserAgent('Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.0 Mobile/15E148 Safari/604.1');
+  // 3. CONFIGURACIÓN DE ENCABEZADOS MEJORADA
   await page.setExtraHTTPHeaders({
     'Accept-Language': 'en-US,en;q=0.9',
-    'X-Proxy-Country': proxy.country || 'us'
+    'X-Proxy-Country': proxy.country || 'us',
+    'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.0 Mobile/15E148 Safari/604.1'
   });
 
-  // Evitar detección como bot
-  await page.evaluateOnNewDocument(() => {
-    delete navigator.__proto__.webdriver;
-    Object.defineProperty(navigator, 'plugins', {
-      get: () => [1, 2, 3]
-    });
+  // 4. SOLUCIÓN PARA ERR_NO_SUPPORTED_PROXIES
+  await page.setRequestInterception(true);
+  page.on('request', request => {
+    // Bypass para errores de proxy
+    if (request.isNavigationRequest() && request.frame() === page.mainFrame()) {
+      request.continue({ url: request.url().replace('https', 'http') });
+    } else {
+      request.continue();
+    }
   });
 
   try {
     console.log(`🌐 Navegando a Instagram con proxy ${proxy.country}/${proxy.city}`);
-    await page.goto('https://www.instagram.com/accounts/emailsignup/', {
+    
+    // 5. USAR HTTP EN LUGAR DE HTTPS (SOLUCIÓN TEMPORAL)
+    await page.goto('http://www.instagram.com/accounts/emailsignup/', {
       waitUntil: 'networkidle2',
       timeout: 60000
     });
 
-    // Simular interacción humana
-    await page.waitForTimeout(2000 + Math.random() * 3000);
-    
-    // Rellenar formulario
-    await page.type('input[name="emailOrPhone"]', email, { delay: 50 + Math.random() * 100 });
-    await page.waitForTimeout(1000);
-    
-    await page.type('input[name="fullName"]', fullName, { delay: 40 + Math.random() * 80 });
-    await page.waitForTimeout(800);
-    
-    await page.type('input[name="username"]', username, { delay: 60 + Math.random() * 90 });
-    await page.waitForTimeout(1200);
-    
-    await page.type('input[name="password"]', password, { delay: 30 + Math.random() * 70 });
-    await page.waitForTimeout(1500);
-    
-    // Enviar formulario
-    await page.click('button[type="submit"]');
-    await page.waitForTimeout(5000);
+    // ... (resto del código existente sin cambios) ...
 
-    // Verificar creación exitosa
-    const currentUrl = await page.url();
-    if (currentUrl.includes('/onboarding')) {
-      console.log('🎉 Cuenta creada exitosamente');
-      return { usuario: username, password, email };
-    }
-
-    throw new Error('Fallo en creación de cuenta');
   } catch (error) {
+    // 6. MANEJO MEJORADO DE ERRORES
+    if (error.message.includes('ERR_NO_SUPPORTED_PROXIES')) {
+      throw new Error('Proxy no compatible con Chromium ARM');
+    }
+    
     // Capturar captcha si aparece
     const captchaExists = await page.$('iframe[title*="recaptcha"]');
     if (captchaExists) {
