@@ -87,3 +87,5 @@
 2025-06-28 21:30:28,416 [ERROR] public_request: Status 201: JSONDecodeError in public_request (url=https://www.instagram.com/cd9/?__a=1&__d=dis) >>> 
 2025-06-28 21:30:31,553 [INFO] public_request: [None] [201] GET https://www.instagram.com/cd9/?__a=1&__d=dis
 2025-06-28 21:30:31,553 [ERROR] public_request: Status 201: JSONDecodeError in public_request (url=https://www.instagram.com/cd9/?__a=1&__d=dis) >>> 
+2025-06-28 21:30:32,554 [INFO] instagrapi: https://i.instagram.com/api/v1/users/cd9/usernameinfo/
+2025-06-28 21:30:32,954 [INFO] private_request: Kraveaibot [200] GET https://i.instagram.com/api/v1/users/cd9/usernameinfo/ (269.0.0.18.75, OnePlus 6T Dev)
