@@ -164,3 +164,4 @@
 2025-06-29 16:56:56,271 [INFO] private_request: Kraveaibot [200] POST https://i.instagram.com/api/v1/launcher/sync/ (269.0.0.18.75, OnePlus 6T Dev)
 2025-06-29 16:56:56,460 [INFO] instagrapi: https://i.instagram.com/api/v1/accounts/login/
 2025-06-29 16:57:00,735 [INFO] private_request: Kraveaibot [400] POST https://i.instagram.com/api/v1/accounts/login/ (269.0.0.18.75, OnePlus 6T Dev)
+2025-06-29 16:57:01,735 [INFO] instagrapi: https://i.instagram.com/api/v1/challenge/ASgmNpUX0SK7EOB4OMNznKTqhQ5sOscRj_fHTOfdUzU2XIyzzgUJEIENHaqAmgefvjAkSww/ASRgsVvD4TdO0nmqsuMsc54yzxXBxCXU8XXJkJi3G1BJAIVxK3v_4c2X235lYqeo94d4AQfmkiAJ4g/
