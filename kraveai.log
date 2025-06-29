@@ -90,3 +90,5 @@
 2025-06-28 21:30:32,554 [INFO] instagrapi: https://i.instagram.com/api/v1/users/cd9/usernameinfo/
 2025-06-28 21:30:32,954 [INFO] private_request: Kraveaibot [200] GET https://i.instagram.com/api/v1/users/cd9/usernameinfo/ (269.0.0.18.75, OnePlus 6T Dev)
 2025-06-28 22:06:33,584 [INFO] httpx: HTTP Request: POST https://api.telegram.org/bot8066723325:AAH1XgvTqjDZV8wt6TLqP58euK1OwBSd-9A/sendMessage "HTTP/1.1 200 OK"
+2025-06-29 15:51:38,077 [INFO] instagrapi: https://i.instagram.com/api/v1/feed/timeline/
+2025-06-29 15:51:38,352 [INFO] private_request: None [400] POST https://i.instagram.com/api/v1/feed/timeline/ (269.0.0.18.75, OnePlus 6T Dev)
