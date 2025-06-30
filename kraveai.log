@@ -300,3 +300,5 @@
 2025-06-29 21:50:28,156 [INFO] httpx: HTTP Request: POST https://api.telegram.org/bot8066723325:AAH1XgvTqjDZV8wt6TLqP58euK1OwBSd-9A/sendMessage "HTTP/1.1 200 OK"
 2025-06-29 21:51:03,060 [INFO] httpx: HTTP Request: POST https://api.telegram.org/bot8066723325:AAH1XgvTqjDZV8wt6TLqP58euK1OwBSd-9A/sendMessage "HTTP/1.1 200 OK"
 2025-06-29 21:51:06,315 [INFO] httpx: HTTP Request: POST https://api.telegram.org/bot8066723325:AAH1XgvTqjDZV8wt6TLqP58euK1OwBSd-9A/sendMessage "HTTP/1.1 200 OK"
+2025-06-29 21:52:01,179 [INFO] public_request: [None] [201] GET https://www.instagram.com/cd9/?__a=1&__d=dis
+2025-06-29 21:52:01,181 [ERROR] public_request: Status 201: JSONDecodeError in public_request (url=https://www.instagram.com/cd9/?__a=1&__d=dis) >>> 
