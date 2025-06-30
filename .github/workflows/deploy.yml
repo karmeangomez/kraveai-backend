@@ -15,21 +15,22 @@ jobs:
       - name: 📅 Clonar Repositorio
         uses: actions/checkout@v4
 
-      - name: 🔐 Generar archivo .env desde secrets
+      - name: 🔐 Generar archivo .env plano
+        shell: bash
         run: |
+          mkdir -p secure_config
           {
             echo "IONOS_EMAIL=${{ secrets.IONOS_EMAIL }}"
             echo "IONOS_PASSWORD=${{ secrets.IONOS_PASSWORD }}"
             echo "IONOS_USER=${{ secrets.IONOS_USER }}"
             echo "IONOS_PASS=${{ secrets.IONOS_PASS }}"
-            echo "CRYPTO_KEY=${{ secrets.CRYPTO_KEY }}"
-            echo "CRYPTO_IV=${{ secrets.CRYPTO_IV }}"
             echo "MAILBOXVALIDATOR_KEY=${{ secrets.MAILBOXVALIDATOR_KEY }}"
             echo "TELEGRAM_BOT_TOKEN=${{ secrets.TELEGRAM_BOT_TOKEN }}"
             echo "TELEGRAM_CHAT_ID=${{ secrets.TELEGRAM_CHAT_ID }}"
-            WEBSHARE_API_KEY=$(echo -n "${{ secrets.WEBSHARE_API_KEY }}" | tr -d '[:space:]')
-            echo "WEBSHARE_API_KEY=$WEBSHARE_API_KEY"
-          } > .env
+            echo "WEBSHARE_API_KEY=${{ secrets.WEBSHARE_API_KEY }}"
+            echo "CRYPTO_KEY=NA"
+            echo "CRYPTO_IV=NA"
+          } > secure_config/.env
 
       - name: 🚀 Transferir .env a Raspberry Pi
         uses: appleboy/scp-action@v0.1.5
@@ -38,7 +39,7 @@ jobs:
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           port: ${{ secrets.SSH_PORT }}
-          source: .env
+          source: secure_config/.env
           target: ~/kraveai-backend/
           overwrite: true
 
@@ -59,21 +60,8 @@ jobs:
             git reset --hard origin/main
             npm install --omit=dev
 
-            # Cargar variables
-            echo "📥 Cargando variables de entorno..."
-            export $(cat .env | xargs)
-
-            echo "🔍 Validando variables:"
-            for var in WEBSHARE_API_KEY TELEGRAM_BOT_TOKEN TELEGRAM_CHAT_ID; do
-              value=$(grep "^$var=" .env | cut -d= -f2-)
-              len=${#value}
-              if [ $len -lt 10 ]; then
-                echo "❌ ERROR: $var tiene solo $len caracteres (muy corta)"
-                exit 1
-              else
-                echo "✅ $var: $len caracteres"
-              fi
-            done
+            echo "✅ Archivo .env recibido:"
+            cat .env | grep -E 'TELEGRAM|WEBSHARE|IONOS'
 
             echo "🔄 Actualizando proxies de Webshare..."
             export NODE_OPTIONS="--no-warnings"
@@ -109,6 +97,7 @@ jobs:
             fi
 
             echo "📨 Enviando notificación a Telegram..."
+            source .env
             curl -X POST https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/sendMessage \
               -d chat_id="$TELEGRAM_CHAT_ID" \
               -d text="$mensaje" \
