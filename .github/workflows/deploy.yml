@@ -20,14 +20,17 @@ jobs:
         run: |
           mkdir -p secure_config
           {
-            echo "IONOS_EMAIL=${{ secrets.IONOS_EMAIL }}"
-            echo "IONOS_PASSWORD=${{ secrets.IONOS_PASSWORD }}"
-            echo "IONOS_USER=${{ secrets.IONOS_USER }}"
-            echo "IONOS_PASS=${{ secrets.IONOS_PASS }}"
-            echo "MAILBOXVALIDATOR_KEY=${{ secrets.MAILBOXVALIDATOR_KEY }}"
+            echo "IG_USERNAME=kraveaibot"
+            echo "INSTAGRAM_PASS=Andrick99"
+            echo "PROXY_LIST=http://pdsmombq:terqdq67j6mp@31.57.90.48:5617,http://pdsmombq:terqdq67j6mp@45.39.7.214:5645,http://pdsmombq:terqdq67j6mp@..."
+            echo "WEBSHARE_API_KEY=${{ secrets.WEBSHARE_API_KEY }}"
             echo "TELEGRAM_BOT_TOKEN=${{ secrets.TELEGRAM_BOT_TOKEN }}"
             echo "TELEGRAM_CHAT_ID=${{ secrets.TELEGRAM_CHAT_ID }}"
-            echo "WEBSHARE_API_KEY=${{ secrets.WEBSHARE_API_KEY }}"
+            echo "NOPECHA_APIKEY="
+            echo "PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser"
+            echo "PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true"
+            echo "OPENAI_API_KEY="
+            echo "BITLY_TOKEN="
             echo "CRYPTO_KEY=NA"
             echo "CRYPTO_IV=NA"
           } > secure_config/.env
@@ -42,16 +45,6 @@ jobs:
           source: secure_config/.env
           target: ~/kraveai-backend/
           overwrite: true
-
-      - name: ✅ Mover .env a raíz
-        uses: appleboy/ssh-action@v1
-        with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USER }}
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          port: ${{ secrets.SSH_PORT }}
-          script: |
-            mv ~/kraveai-backend/secure_config/.env ~/kraveai-backend/.env
 
       - name: 🛠 Ejecutar despliegue
         uses: appleboy/ssh-action@v1
@@ -69,8 +62,8 @@ jobs:
             git reset --hard origin/main
             npm install --omit=dev
 
-            echo "✅ Variables de entorno cargadas:"
-            cat .env | grep -E 'WEBSHARE|TELEGRAM|IONOS'
+            echo "✅ Archivo .env recibido:"
+            cat .env | grep -E 'WEBSHARE|TELEGRAM|IG_|PROXY_LIST'
 
             echo "🔄 Actualizando proxies de Webshare..."
             export NODE_OPTIONS="--no-warnings"
