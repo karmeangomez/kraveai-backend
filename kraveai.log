@@ -270,3 +270,5 @@
 2025-06-29 21:24:19,728 [INFO] httpx: HTTP Request: POST https://api.telegram.org/bot8066723325:AAH1XgvTqjDZV8wt6TLqP58euK1OwBSd-9A/sendMessage "HTTP/1.1 200 OK"
 2025-06-29 21:26:19,741 [INFO] httpx: HTTP Request: POST https://api.telegram.org/bot8066723325:AAH1XgvTqjDZV8wt6TLqP58euK1OwBSd-9A/sendMessage "HTTP/1.1 200 OK"
 2025-06-29 21:27:24,229 [INFO] httpx: HTTP Request: POST https://api.telegram.org/bot8066723325:AAH1XgvTqjDZV8wt6TLqP58euK1OwBSd-9A/sendMessage "HTTP/1.1 200 OK"
+2025-06-29 21:27:44,063 [INFO] public_request: [None] [201] GET https://www.instagram.com/mariobautista/?__a=1&__d=dis
+2025-06-29 21:27:44,063 [ERROR] public_request: Status 201: JSONDecodeError in public_request (url=https://www.instagram.com/mariobautista/?__a=1&__d=dis) >>> 
