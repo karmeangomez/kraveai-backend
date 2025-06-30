@@ -304,3 +304,5 @@
 2025-06-29 21:52:01,181 [ERROR] public_request: Status 201: JSONDecodeError in public_request (url=https://www.instagram.com/cd9/?__a=1&__d=dis) >>> 
 2025-06-29 21:52:01,589 [INFO] public_request: [None] [201] GET https://www.instagram.com/cd9/?__a=1&__d=dis
 2025-06-29 21:52:01,589 [ERROR] public_request: Status 201: JSONDecodeError in public_request (url=https://www.instagram.com/cd9/?__a=1&__d=dis) >>> 
+2025-06-29 21:52:06,849 [INFO] public_request: [None] [201] GET https://www.instagram.com/cd9/?__a=1&__d=dis
+2025-06-29 21:52:06,849 [ERROR] public_request: Status 201: JSONDecodeError in public_request (url=https://www.instagram.com/cd9/?__a=1&__d=dis) >>> 
