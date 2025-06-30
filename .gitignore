@@ -16,3 +16,4 @@ Thumbs.db
 
 # Puppeteer local chromium
 .local-chromium/
+kraveai.log
