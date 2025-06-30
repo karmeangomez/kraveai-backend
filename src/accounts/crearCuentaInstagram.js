@@ -17,33 +17,25 @@ async function crearCuentaInstagram(proxy) {
   const password = `Pass${Math.random().toString(36).slice(2, 10)}`;
 
   let proxyUrl = '';
-  try {
-    proxyUrl = proxy.auth
-      ? `http://${encodeURIComponent(proxy.auth.username)}:${encodeURIComponent(proxy.auth.password)}@${proxy.ip}:${proxy.port}`
-      : `http://${proxy.ip}:${proxy.port}`;
-  } catch {
-    console.error('❌ Error construyendo proxy URL');
-    return {
-      usuario: '',
-      email: '',
-      password: '',
-      proxy: `${proxy.ip}:${proxy.port}`,
-      status: 'failed',
-      error: 'Proxy malformado'
-    };
-  }
+  let usandoTor = false;
 
-  // Validación extra de formato
-  if (!proxyUrl.startsWith('http://') && !proxyUrl.startsWith('socks5://')) {
-    console.error(`❌ Proxy URL inválida: ${proxyUrl}`);
-    return {
-      usuario: '',
-      email: '',
-      password: '',
-      proxy: `${proxy.ip}:${proxy.port}`,
-      status: 'failed',
-      error: 'Proxy URL inválida'
-    };
+  try {
+    if (proxy?.ip && proxy?.port) {
+      proxyUrl = proxy.auth
+        ? `http://${encodeURIComponent(proxy.auth.username)}:${encodeURIComponent(proxy.auth.password)}@${proxy.ip}:${proxy.port}`
+        : `http://${proxy.ip}:${proxy.port}`;
+    } else {
+      throw new Error('Proxy inválido, usando Tor');
+    }
+
+    if (!proxyUrl.startsWith('http://') && !proxyUrl.startsWith('socks5://')) {
+      throw new Error('Formato de proxy no válido, usando Tor');
+    }
+  } catch {
+    // Fallback a Tor
+    usandoTor = true;
+    proxyUrl = 'socks5://127.0.0.1:9050';
+    console.warn('🧅 Usando Tor como fallback (proxy inválido)');
   }
 
   let browser;
@@ -66,7 +58,7 @@ async function crearCuentaInstagram(proxy) {
 
     const page = await browser.newPage();
 
-    if (proxy.auth) {
+    if (proxy?.auth && !usandoTor) {
       await page.authenticate({
         username: proxy.auth.username,
         password: proxy.auth.password
@@ -79,13 +71,13 @@ async function crearCuentaInstagram(proxy) {
       height: fingerprint.screen?.height || 1080
     });
 
-    if (proxy.auth) {
+    if (proxy?.auth && !usandoTor) {
       await page.setExtraHTTPHeaders({
         'Proxy-Authorization': `Basic ${Buffer.from(`${proxy.auth.username}:${proxy.auth.password}`).toString('base64')}`
       });
     }
 
-    console.log(`✅ Creando cuenta: @${username} usando ${proxy.ip}:${proxy.port}`);
+    console.log(`✅ Creando cuenta: @${username} usando ${usandoTor ? 'Tor (socks5://127.0.0.1:9050)' : `${proxy.ip}:${proxy.port}`}`);
     await page.goto('https://www.instagram.com/accounts/emailsignup/', {
       waitUntil: 'networkidle2',
       timeout: 60000
@@ -113,7 +105,7 @@ async function crearCuentaInstagram(proxy) {
         usuario: username,
         email,
         password,
-        proxy: `${proxy.ip}:${proxy.port}`,
+        proxy: usandoTor ? 'TOR' : `${proxy.ip}:${proxy.port}`,
         status: 'created'
       };
     }
@@ -121,7 +113,7 @@ async function crearCuentaInstagram(proxy) {
     throw new Error('No se llegó a la página de onboarding después del registro');
   } catch (error) {
     console.error(`🔥 Error creando cuenta @${username}: ${error.message}`);
-    
+
     let captchaExists = false;
     try {
       captchaExists = await browser?.pages()?.[0]?.$('iframe[title*="recaptcha"]') !== null;
@@ -135,9 +127,9 @@ async function crearCuentaInstagram(proxy) {
 
     return {
       usuario: '',
-      email: '',
-      password: '',
-      proxy: `${proxy.ip}:${proxy.port}`,
+      email,
+      password,
+      proxy: usandoTor ? 'TOR' : `${proxy.ip}:${proxy.port}`,
       status: 'failed',
       error: error.message
     };
