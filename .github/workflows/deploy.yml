@@ -43,6 +43,16 @@ jobs:
           target: ~/kraveai-backend/
           overwrite: true
 
+      - name: ✅ Mover .env a raíz
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: ${{ secrets.SSH_PORT }}
+          script: |
+            mv ~/kraveai-backend/secure_config/.env ~/kraveai-backend/.env
+
       - name: 🛠 Ejecutar despliegue
         uses: appleboy/ssh-action@v1
         with:
@@ -52,7 +62,6 @@ jobs:
           port: ${{ secrets.SSH_PORT }}
           script: |
             set -e
-
             echo "📦 Iniciando despliegue en $(hostname)"
             cd ~/kraveai-backend
 
@@ -60,8 +69,8 @@ jobs:
             git reset --hard origin/main
             npm install --omit=dev
 
-            echo "✅ Archivo .env recibido:"
-            cat .env | grep -E 'TELEGRAM|WEBSHARE|IONOS'
+            echo "✅ Variables de entorno cargadas:"
+            cat .env | grep -E 'WEBSHARE|TELEGRAM|IONOS'
 
             echo "🔄 Actualizando proxies de Webshare..."
             export NODE_OPTIONS="--no-warnings"
