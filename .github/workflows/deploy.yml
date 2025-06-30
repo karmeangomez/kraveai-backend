@@ -15,10 +15,8 @@ jobs:
       - name: 📅 Clonar Repositorio
         uses: actions/checkout@v4
 
-      - name: 🔐 Preparar variables de entorno
-        shell: bash
+      - name: 🔐 Generar archivo .env desde secrets
         run: |
-          mkdir -p secure_config
           {
             echo "IONOS_EMAIL=${{ secrets.IONOS_EMAIL }}"
             echo "IONOS_PASSWORD=${{ secrets.IONOS_PASSWORD }}"
@@ -31,29 +29,16 @@ jobs:
             echo "TELEGRAM_CHAT_ID=${{ secrets.TELEGRAM_CHAT_ID }}"
             WEBSHARE_API_KEY=$(echo -n "${{ secrets.WEBSHARE_API_KEY }}" | tr -d '[:space:]')
             echo "WEBSHARE_API_KEY=$WEBSHARE_API_KEY"
-          } > secure_config/.env.temp
+          } > .env
 
-          WEB_KEY_LEN=$(grep 'WEBSHARE_API_KEY' secure_config/.env.temp | cut -d= -f2 | wc -c)
-          echo "ℹ️ Longitud WEBSHARE_API_KEY: $WEB_KEY_LEN caracteres"
-
-      - name: 🔒 Cifrar variables
-        run: |
-          node src/utils/secureEnv.js encrypt \
-            --input secure_config/.env.temp \
-            --output secure_config/.env.enc \
-            --key "${{ secrets.CRYPTO_KEY }}" \
-            --iv "${{ secrets.CRYPTO_IV }}"
-          shred -u -z -n 3 secure_config/.env.temp
-          echo "✅ Archivo .env.enc generado"
-
-      - name: 🚀 Transferir a Raspberry Pi
+      - name: 🚀 Transferir .env a Raspberry Pi
         uses: appleboy/scp-action@v0.1.5
         with:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           port: ${{ secrets.SSH_PORT }}
-          source: secure_config/.env.enc
+          source: .env
           target: ~/kraveai-backend/
           overwrite: true
 
@@ -66,7 +51,7 @@ jobs:
           port: ${{ secrets.SSH_PORT }}
           script: |
             set -e
-            
+
             echo "📦 Iniciando despliegue en $(hostname)"
             cd ~/kraveai-backend
 
@@ -74,14 +59,8 @@ jobs:
             git reset --hard origin/main
             npm install --omit=dev
 
-            echo "🔓 Descifrando .env..."
-            node src/utils/secureEnv.js decrypt \
-              --input .env.enc \
-              --output .env \
-              --key "${{ secrets.CRYPTO_KEY }}" \
-              --iv "${{ secrets.CRYPTO_IV }}"
-
-            # ✅ Exportar variables para uso posterior
+            # Cargar variables
+            echo "📥 Cargando variables de entorno..."
             export $(cat .env | xargs)
 
             echo "🔍 Validando variables:"
