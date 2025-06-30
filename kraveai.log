@@ -245,3 +245,4 @@
 2025-06-29 20:55:44,463 [INFO] private_request: kraveaibot [200] POST https://i.instagram.com/api/v1/accounts/login/ (269.0.0.18.75, OnePlus 6T Dev)
 2025-06-29 20:55:45,466 [INFO] instagrapi: https://i.instagram.com/api/v1/feed/reels_tray/
 2025-06-29 20:55:45,764 [INFO] private_request: kraveaibot [200] POST https://i.instagram.com/api/v1/feed/reels_tray/ (269.0.0.18.75, OnePlus 6T Dev)
+2025-06-29 20:55:46,765 [INFO] instagrapi: https://i.instagram.com/api/v1/feed/timeline/
