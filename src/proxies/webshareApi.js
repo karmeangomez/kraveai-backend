@@ -1,10 +1,11 @@
 import axios from 'axios';
 import fs from 'fs';
 import path from 'path';
+import dotenv from 'dotenv';
+dotenv.config();
 
 const API_KEY = process.env.WEBSHARE_API_KEY;
 const PROXY_FILE = path.resolve('src/proxies/proxies.json');
-const CACHE_TIME = 30 * 60 * 1000; // 30 minutos
 
 const PROXY_TYPES = {
   RESIDENTIAL: 'residential',
@@ -16,7 +17,7 @@ export default class WebshareProxyManager {
     try {
       const response = await axios.get('https://proxy.webshare.io/api/v2/proxy/list/', {
         headers: {
-          'Authorization': `Token ${API_KEY}`,
+          Authorization: `Token ${API_KEY}`,
           'Content-Type': 'application/json'
         },
         params: {
@@ -31,9 +32,7 @@ export default class WebshareProxyManager {
       });
 
       return response.data.results.map(proxy => {
-        // Manejo robusto de puertos
-        let port = 80; // Valor por defecto
-        
+        let port = 80;
         if (proxy.ports) {
           port = proxy.ports.http || 
                  proxy.ports.https || 
@@ -43,7 +42,7 @@ export default class WebshareProxyManager {
 
         return {
           ip: proxy.proxy_address,
-          port: port,
+          port,
           auth: {
             username: proxy.username,
             password: proxy.password
@@ -67,20 +66,20 @@ export default class WebshareProxyManager {
   static async refreshProxies() {
     try {
       console.log('🔄 Actualizando proxies desde Webshare...');
-      
+
       const [residential, mobile] = await Promise.all([
         this.fetchProxies(PROXY_TYPES.RESIDENTIAL, 30),
         this.fetchProxies(PROXY_TYPES.MOBILE, 20)
       ]);
-      
+
       const proxies = [...residential, ...mobile].filter(p => p !== null);
-      
+
       if (proxies.length > 0) {
         fs.writeFileSync(PROXY_FILE, JSON.stringify(proxies, null, 2));
         console.log(`✅ ${proxies.length} proxies actualizados`);
         return proxies;
       }
-      
+
       throw new Error('No se obtuvieron proxies válidos');
     } catch (error) {
       console.error('❌ Error actualizando proxies:', error.message);
@@ -104,15 +103,15 @@ export default class WebshareProxyManager {
     if (forceRefresh || !fs.existsSync(PROXY_FILE)) {
       return await this.refreshProxies();
     }
-    
+
     const stats = fs.statSync(PROXY_FILE);
     const now = Date.now();
-    const diff = (now - stats.mtimeMs) / 1000 / 60; // Minutos
-    
-    if (diff > 30) { // 30 minutos de caché
+    const diff = (now - stats.mtimeMs) / 1000 / 60;
+
+    if (diff > 30) {
       return await this.refreshProxies();
     }
-    
+
     return this.getCachedProxies();
   }
 }
