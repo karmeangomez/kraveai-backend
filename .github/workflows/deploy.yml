@@ -19,7 +19,6 @@ jobs:
         shell: bash
         run: |
           mkdir -p secure_config
-          # Generar archivo .env.temp con todas las variables
           {
             echo "IONOS_EMAIL=${{ secrets.IONOS_EMAIL }}"
             echo "IONOS_PASSWORD=${{ secrets.IONOS_PASSWORD }}"
@@ -30,13 +29,10 @@ jobs:
             echo "MAILBOXVALIDATOR_KEY=${{ secrets.MAILBOXVALIDATOR_KEY }}"
             echo "TELEGRAM_BOT_TOKEN=${{ secrets.TELEGRAM_BOT_TOKEN }}"
             echo "TELEGRAM_CHAT_ID=${{ secrets.TELEGRAM_CHAT_ID }}"
-            
-            # Procesar WEBSHARE_API_KEY para eliminar espacios
             WEBSHARE_API_KEY=$(echo -n "${{ secrets.WEBSHARE_API_KEY }}" | tr -d '[:space:]')
             echo "WEBSHARE_API_KEY=$WEBSHARE_API_KEY"
           } > secure_config/.env.temp
-          
-          # Verificar longitud de WEBSHARE_API_KEY
+
           WEB_KEY_LEN=$(grep 'WEBSHARE_API_KEY' secure_config/.env.temp | cut -d= -f2 | wc -c)
           echo "ℹ️ Longitud WEBSHARE_API_KEY: $WEB_KEY_LEN caracteres"
 
@@ -47,8 +43,6 @@ jobs:
             --output secure_config/.env.enc \
             --key "${{ secrets.CRYPTO_KEY }}" \
             --iv "${{ secrets.CRYPTO_IV }}"
-          
-          # Destruir archivo temporal de forma segura
           shred -u -z -n 3 secure_config/.env.temp
           echo "✅ Archivo .env.enc generado"
 
@@ -71,30 +65,29 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           port: ${{ secrets.SSH_PORT }}
           script: |
-            set -e  # Salir inmediatamente en error
+            set -e
             
             echo "📦 Iniciando despliegue en $(hostname)"
             cd ~/kraveai-backend
-            
-            # Sincronizar código
+
             git fetch origin main
             git reset --hard origin/main
             npm install --omit=dev
-            
-            # Descifrar variables
+
             echo "🔓 Descifrando .env..."
             node src/utils/secureEnv.js decrypt \
               --input .env.enc \
               --output .env \
               --key "${{ secrets.CRYPTO_KEY }}" \
               --iv "${{ secrets.CRYPTO_IV }}"
-            
-            # Verificar variables críticas
+
+            # ✅ Exportar variables para uso posterior
+            export $(cat .env | xargs)
+
             echo "🔍 Validando variables:"
             for var in WEBSHARE_API_KEY TELEGRAM_BOT_TOKEN TELEGRAM_CHAT_ID; do
               value=$(grep "^$var=" .env | cut -d= -f2-)
               len=${#value}
-              
               if [ $len -lt 10 ]; then
                 echo "❌ ERROR: $var tiene solo $len caracteres (muy corta)"
                 exit 1
@@ -102,21 +95,18 @@ jobs:
                 echo "✅ $var: $len caracteres"
               fi
             done
-            
-            # Actualizar proxies
+
             echo "🔄 Actualizando proxies de Webshare..."
             export NODE_OPTIONS="--no-warnings"
             node -e "import('./src/proxies/webshareApi.js').then(m => m.default.refreshProxies().catch(e => { 
               console.error('❌ Error crítico:', e); 
               process.exit(1);
             }))"
-            
-            # Reiniciar servicios
+
             echo "🔁 Reiniciando servicios..."
             sudo systemctl restart kraveai-python.service
             sudo systemctl restart crear-cuentas.service
-            
-            # Verificar túnel Cloudflare
+
             echo "🌐 Estado túnel Cloudflare:"
             if sudo systemctl is-active --quiet cloudflared.service; then
               echo "✅ Túnel activo"
@@ -126,12 +116,11 @@ jobs:
               sleep 5
               sudo systemctl status cloudflared.service --no-pager
             fi
-            
-            # Verificar salud del backend
+
             echo "🩺 Verificando salud del backend..."
             HEALTH_RESPONSE=$(curl -sSf http://localhost:8000/health || echo '{"status":"ERROR"}')
             echo "Respuesta: $HEALTH_RESPONSE"
-            
+
             if echo "$HEALTH_RESPONSE" | grep -q '"status":"OK"'; then
               mensaje="✅ *KraveAI actualizado con éxito*\n• Hora: $(date '+%H:%M')\n• Proxies: Actualizados\n• Backend: Funcionando"
               status=0
@@ -139,14 +128,12 @@ jobs:
               mensaje="⚠️ *Error en despliegue*\n• Hora: $(date '+%H:%M')\n• Problema: Health check falló\n• Acción: Revisar logs"
               status=1
             fi
-            
-            # Enviar notificación a Telegram
+
             echo "📨 Enviando notificación a Telegram..."
-            source .env
             curl -X POST https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/sendMessage \
               -d chat_id="$TELEGRAM_CHAT_ID" \
               -d text="$mensaje" \
               -d parse_mode="Markdown" \
               --silent --show-error
-            
+
             exit $status
