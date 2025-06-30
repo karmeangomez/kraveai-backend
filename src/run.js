@@ -2,6 +2,9 @@ import chalk from 'chalk';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import dotenv from 'dotenv';
+dotenv.config();
+
 import AccountManager from './accounts/accountManager.js';
 import crearCuentaInstagram from './accounts/crearCuentaInstagram.js';
 import UltimateProxyMaster from './proxies/ultimateProxyMaster.js';
@@ -36,6 +39,11 @@ async function startApp() {
   log.info(`✅ Modo: ${process.env.HEADLESS === 'true' ? 'HEADLESS' : 'VISIBLE'}`);
   log.info(`✅ Cuentas a crear: ${TOTAL_CUENTAS}`);
 
+  if (!process.env.TELEGRAM_BOT_TOKEN || !process.env.TELEGRAM_CHAT_ID) {
+    log.warn('⚠️ Configuración de Telegram incompleta');
+    log.warn('   Asegúrate de configurar TELEGRAM_BOT_TOKEN y TELEGRAM_CHAT_ID');
+  }
+
   try {
     await notifyTelegram(`🚀 Iniciando creación de ${TOTAL_CUENTAS} cuentas de Instagram`);
     log.success('📲 Notificación enviada a Telegram.');
@@ -46,7 +54,7 @@ async function startApp() {
   try {
     proxySystem = new UltimateProxyMaster();
     await proxySystem.initialize(true); // Forzar refresco inicial
-    
+
     // Programar refresco periódico de proxies
     refreshInterval = setInterval(async () => {
       try {
@@ -56,7 +64,7 @@ async function startApp() {
         log.error(`⚠️ Error actualizando proxies: ${error.message}`);
       }
     }, PROXY_REFRESH_INTERVAL);
-    
+
     log.success(`✅ Sistema de proxies listo con ${proxySystem.proxies.length} proxies\n`);
   } catch (err) {
     log.error(`❌ Error inicializando sistema de proxies: ${err.message}`);
@@ -74,9 +82,9 @@ async function startApp() {
   // Crear cuentas
   for (let i = 1; i <= TOTAL_CUENTAS; i++) {
     if (errores >= MAX_ERRORES) break;
-    
+
     log.highlight(`\n🚀 Creando cuenta ${i}/${TOTAL_CUENTAS}`);
-    
+
     let proxy;
     try {
       proxy = proxySystem.getNextProxy();
@@ -98,7 +106,7 @@ async function startApp() {
     } catch (error) {
       errores++;
       log.error(`🔥 Error creando cuenta #${i}: ${error.message}`);
-      
+
       if (proxy) {
         proxySystem.markProxyAsBad(proxy);
       }
@@ -109,7 +117,7 @@ async function startApp() {
         break;
       }
     }
-    
+
     // Espera aleatoria entre cuentas (30-120 segundos)
     const waitTime = Math.floor(Math.random() * 90 + 30);
     log.info(`⏳ Esperando ${waitTime} segundos antes de la próxima cuenta...`);
@@ -121,7 +129,7 @@ async function startApp() {
     const ruta = path.join(__dirname, 'cuentas_creadas.json');
     fs.writeFileSync(ruta, JSON.stringify(AccountManager.getAccounts(), null, 2));
     log.success(`💾 ${creadas} cuentas guardadas en cuentas_creadas.json`);
-    
+
     const stats = proxySystem.getStats();
     await notifyTelegram(
       `✅ ${creadas} cuentas creadas correctamente!\n` +
