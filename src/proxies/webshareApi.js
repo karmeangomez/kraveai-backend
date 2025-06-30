@@ -2,7 +2,9 @@ import axios from 'axios';
 import fs from 'fs';
 import path from 'path';
 import dotenv from 'dotenv';
-dotenv.config();
+
+// 🔐 Forzar carga del .env desde la raíz del proyecto
+dotenv.config({ path: path.resolve('./.env') });
 
 const API_KEY = process.env.WEBSHARE_API_KEY;
 const PROXY_FILE = path.resolve('src/proxies/proxies.json');
@@ -14,6 +16,11 @@ const PROXY_TYPES = {
 
 export default class WebshareProxyManager {
   static async fetchProxies(proxyType = PROXY_TYPES.RESIDENTIAL, limit = 50) {
+    if (!API_KEY || API_KEY.length < 20) {
+      console.error('❌ WEBSHARE_API_KEY no definido o inválido');
+      return [];
+    }
+
     try {
       const response = await axios.get('https://proxy.webshare.io/api/v2/proxy/list/', {
         headers: {
@@ -34,9 +41,9 @@ export default class WebshareProxyManager {
       return response.data.results.map(proxy => {
         let port = 80;
         if (proxy.ports) {
-          port = proxy.ports.http || 
-                 proxy.ports.https || 
-                 proxy.ports.socks5 || 
+          port = proxy.ports.http ||
+                 proxy.ports.https ||
+                 proxy.ports.socks5 ||
                  Object.values(proxy.ports)[0];
         }
 
