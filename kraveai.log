@@ -251,3 +251,4 @@
 2025-06-29 20:55:50,332 [INFO] KraveAI-Backend: Sesión Instagram iniciada: @kraveaibot
 2025-06-29 20:56:18,164 [INFO] httpx: HTTP Request: POST https://api.telegram.org/bot8066723325:AAH1XgvTqjDZV8wt6TLqP58euK1OwBSd-9A/sendMessage "HTTP/1.1 200 OK"
 2025-06-29 20:58:19,728 [INFO] httpx: HTTP Request: POST https://api.telegram.org/bot8066723325:AAH1XgvTqjDZV8wt6TLqP58euK1OwBSd-9A/sendMessage "HTTP/1.1 200 OK"
+2025-06-29 21:02:50,720 [INFO] instagrapi: https://i.instagram.com/api/v1/feed/timeline/
