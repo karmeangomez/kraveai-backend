@@ -1,134 +1,68 @@
+// ✅ Versión final con soporte para SOCKS5 autenticados y fallback a Tor
+
 import puppeteer from 'puppeteer-extra';
 import StealthPlugin from 'puppeteer-extra-plugin-stealth';
 import { generarNombreCompleto, generarNombreUsuario } from '../utils/nombre_utils.js';
 import { generateAdaptiveFingerprint } from '../fingerprints/generator.js';
-import { notifyTelegram } from '../utils/telegram_utils.js';
-import fs from 'fs';
+import { notifyTelegram } from '../notificaciones/telegram.js';
+import { validarProxySOCKS } from '../proxies/validator.js';
+import { rotateTorIP } from '../proxies/torController.js';
 
 puppeteer.use(StealthPlugin());
 
 async function crearCuentaInstagram(proxy, usarTor = false) {
-  const fingerprint = generateAdaptiveFingerprint() || {
-    userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1',
-    screen: { width: 390, height: 844 }
-  };
-
+  const fingerprint = generateAdaptiveFingerprint();
   const nombre = generarNombreCompleto();
   const username = generarNombreUsuario();
   const email = `${username.replace(/[^a-zA-Z0-9]/g, '')}@kraveapi.xyz`;
-  const password = `Pass${Math.random().toString(36).slice(2, 10)}!`;
+  const password = `Krave${Math.random().toString(36).slice(2, 8)}!`;
 
-  const usandoTor = usarTor || !proxy || proxy.fallbackTor;
-  const proxyUrl = usandoTor ? 'socks5://127.0.0.1:9050' : `${proxy.ip}:${proxy.port}`;
+  const proxyUrl = usarTor
+    ? 'socks5://127.0.0.1:9050'
+    : `socks5://${proxy.auth}:${proxy.ip}:${proxy.port}`;
 
+  const proxyStr = usarTor ? 'Tor' : `${proxy.ip}:${proxy.port}`;
+
+  let browser;
   try {
-    if (usandoTor) {
-      console.log('🧅 Usando Tor como fallback automático');
-      await notifyTelegram('🧅 Sin proxies válidos, usando Tor para continuar');
+    if (!usarTor) {
+      const esValido = await validarProxySOCKS(proxyUrl);
+      if (!esValido) throw new Error(`Proxy inválido: ${proxyUrl}`);
     }
 
-    const args = [
-      `--proxy-server=${proxyUrl}`,
-      '--no-sandbox',
-      '--disable-setuid-sandbox',
-      '--disable-dev-shm-usage',
-      '--disable-gpu',
-      '--disable-software-rasterizer',
-      '--enable-features=NetworkService',
-      '--ignore-certificate-errors',
-      '--disable-web-security',
-      '--disable-blink-features=AutomationControlled',
-      '--lang=en-US,en'
-    ];
-
-    const browser = await puppeteer.launch({
-      headless: process.env.HEADLESS === 'true',
+    browser = await puppeteer.launch({
+      headless: false,
       executablePath: process.env.PUPPETEER_EXECUTABLE_PATH,
-      args,
+      args: [
+        `--proxy-server=${proxyUrl}`,
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-dev-shm-usage',
+        '--disable-blink-features=AutomationControlled',
+        '--lang=en-US,en'
+      ],
       ignoreHTTPSErrors: true
     });
 
     const page = await browser.newPage();
-
-    if (!usandoTor && proxy.auth) {
-      await page.authenticate({
-        username: proxy.auth.username,
-        password: proxy.auth.password
-      });
-    }
-
     await page.setUserAgent(fingerprint.userAgent);
     await page.setViewport({
-      width: fingerprint.screen?.width || 390,
-      height: fingerprint.screen?.height || 844,
-      deviceScaleFactor: 2
+      width: fingerprint.screen.width,
+      height: fingerprint.screen.height,
+      deviceScaleFactor: 1
     });
 
     await page.setExtraHTTPHeaders({
-      'Accept-Language': 'en-US,en;q=0.9',
-      'X-Forwarded-For': proxy?.ip || '127.0.0.1',
-      'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-      'Upgrade-Insecure-Requests': '1'
+      'Accept-Language': 'en-US,en;q=0.9'
     });
 
-    await page.evaluateOnNewDocument(() => {
-      delete navigator.__proto__.webdriver;
-      delete navigator.__proto__.chrome;
-      Object.defineProperty(navigator, 'plugins', {
-        get: () => [{ name: 'Chrome PDF Plugin', filename: 'internal-pdf-viewer' }]
-      });
-      Object.defineProperty(navigator, 'connection', {
-        get: () => ({ downlink: 10, effectiveType: '4g', rtt: 50 })
-      });
+    console.log(`🌐 Usando proxy: ${proxyStr}`);
+
+    await page.goto('https://www.instagram.com/accounts/emailsignup/', {
+      waitUntil: 'networkidle2',
+      timeout: 60000
     });
 
-    await page.goto('https://www.instagram.com', { waitUntil: 'networkidle2', timeout: 60000 });
-    await page.waitForTimeout(3000 + Math.random() * 4000);
-    await page.goto('https://www.instagram.com/accounts/emailsignup/', { waitUntil: 'networkidle2', timeout: 60000 });
-
-    const humanType = async (selector, text) => {
-      for (let char of text) {
-        await page.type(selector, char, { delay: Math.random() * 80 + 20 });
-        await page.waitForTimeout(Math.random() * 200);
-      }
-    };
-
-    await humanType('input[name="emailOrPhone"]', email);
-    await page.waitForTimeout(1000 + Math.random() * 1500);
-    await humanType('input[name="fullName"]', nombre);
-    await page.waitForTimeout(800 + Math.random() * 1000);
-    await humanType('input[name="username"]', username);
-    await page.waitForTimeout(1200 + Math.random() * 1800);
-    await humanType('input[name="password"]', password);
-    await page.waitForTimeout(1500 + Math.random() * 2000);
-    await page.click('button[type="submit"]', { delay: Math.random() * 100 + 50 });
-
-    await page.waitForTimeout(5000 + Math.random() * 5000);
-
-    const currentUrl = page.url();
-    if (currentUrl.includes('/onboarding')) {
-      console.log(`🎉 Cuenta creada: @${username}`);
-      await browser.close();
-      return { usuario: username, email, password, proxy: proxyUrl, status: 'created' };
-    }
-
-    throw new Error('No se llegó a la página de onboarding después del registro');
-  } catch (error) {
-    console.error(`🔥 Error creando cuenta @${username}: ${error.message}`);
-
-    if (error.message.includes('ERR_INVALID_ARGUMENT')) {
-      console.error('❌ Error proxy: ERR_INVALID_ARGUMENT');
-    }
-
-    return {
-      usuario: '',
-      email: '',
-      password: '',
-      proxy: proxyUrl,
-      status: 'failed',
-      error: error.message
-    };
-  }
-}
-
-export default crearCuentaInstagram;
+    await page.waitForSelector('input[name="emailOrPhone"]', { visible: true });
+    await page.type('input[name="emailOrPhone"]', email, { delay: 100 });
+    await page.type('input[name="fullName"]', nombre, { delay: 
