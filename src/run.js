@@ -9,6 +9,7 @@ import AccountManager from './accounts/accountManager.js';
 import crearCuentaInstagram from './accounts/crearCuentaInstagram.js';
 import UltimateProxyMaster from './proxies/ultimateProxyMaster.js';
 import { notifyTelegram } from './utils/telegram_utils.js';
+import { validateProxy } from './utils/validator.js'; // ✅ NUEVO
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -16,7 +17,6 @@ const TOTAL_CUENTAS = 50;
 const MAX_ERRORES = 10;
 const PROXY_REFRESH_INTERVAL = 60 * 60 * 1000; // 1 hora
 
-// Configurar colores para consola
 chalk.level = 1;
 const log = {
   info: (msg) => console.log(chalk.cyan(msg)),
@@ -26,13 +26,11 @@ const log = {
   highlight: (msg) => console.log(chalk.magenta.bold(msg))
 };
 
-// Variables de estado
 let errores = 0;
 let creadas = 0;
 let proxySystem;
 let refreshInterval;
 
-// Función para iniciar el sistema
 async function startApp() {
   log.highlight(`\n[${new Date().toISOString()}] 🔥 Iniciando KraveAI-Granja Rusa 🔥`);
   log.info(`✅ Plataforma: ${process.platform}`);
@@ -53,9 +51,8 @@ async function startApp() {
 
   try {
     proxySystem = new UltimateProxyMaster();
-    await proxySystem.initialize(true); // Forzar refresco inicial
+    await proxySystem.initialize(true);
 
-    // Programar refresco periódico de proxies
     refreshInterval = setInterval(async () => {
       try {
         await proxySystem.refreshProxies();
@@ -73,13 +70,11 @@ async function startApp() {
     process.exit(1);
   }
 
-  // Limpiar cuentas existentes
   if (AccountManager.getAccounts().length > 0) {
     log.info(`🧹 Limpiando ${AccountManager.getAccounts().length} cuentas...`);
     AccountManager.clearAccounts();
   }
 
-  // Crear cuentas
   for (let i = 1; i <= TOTAL_CUENTAS; i++) {
     if (errores >= MAX_ERRORES) break;
 
@@ -91,6 +86,14 @@ async function startApp() {
       if (!proxy) {
         log.error('❌ Sin proxies válidos disponibles. Deteniendo.');
         break;
+      }
+
+      const isValid = await validateProxy(proxy);
+      if (!isValid) {
+        log.warn(`⛔ Proxy inválido descartado antes de usar: ${proxy.ip}:${proxy.port}`);
+        proxySystem.markProxyAsBad(proxy);
+        i--;
+        continue;
       }
 
       const cuenta = await crearCuentaInstagram(proxy);
@@ -118,13 +121,11 @@ async function startApp() {
       }
     }
 
-    // Espera aleatoria entre cuentas (30-120 segundos)
     const waitTime = Math.floor(Math.random() * 90 + 30);
     log.info(`⏳ Esperando ${waitTime} segundos antes de la próxima cuenta...`);
     await new Promise(resolve => setTimeout(resolve, waitTime * 1000));
   }
 
-  // Guardar resultados
   if (creadas > 0) {
     const ruta = path.join(__dirname, 'cuentas_creadas.json');
     fs.writeFileSync(ruta, JSON.stringify(AccountManager.getAccounts(), null, 2));
@@ -144,12 +145,10 @@ async function startApp() {
     await notifyTelegram('⚠️ No se crearon cuentas en esta ejecución');
   }
 
-  // Limpieza final
   clearInterval(refreshInterval);
   log.highlight('\n🏁 Ejecución completada');
 }
 
-// Iniciar la aplicación
 startApp().catch(async (error) => {
   log.error(`❌ Error no controlado: ${error.message}`);
   await notifyTelegram(`💥 Error crítico: ${error.message}`);
