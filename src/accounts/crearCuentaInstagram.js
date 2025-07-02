@@ -1,12 +1,10 @@
-// ✅ Versión final con soporte para SOCKS5 autenticados y fallback a Tor
-
 import puppeteer from 'puppeteer-extra';
 import StealthPlugin from 'puppeteer-extra-plugin-stealth';
 import { generarNombreCompleto, generarNombreUsuario } from '../utils/nombre_utils.js';
 import { generateAdaptiveFingerprint } from '../fingerprints/generator.js';
 import { notifyTelegram } from '../utils/telegram_utils.js';
 import { validateProxy } from '../utils/validator.js';
-import rotateTorIP from '../proxies/torController.js'; // ✅ corregido aquí
+import rotateTorIP from '../proxies/torController.js';
 
 puppeteer.use(StealthPlugin());
 
@@ -25,9 +23,18 @@ export default async function crearCuentaInstagram(proxy, usarTor = false) {
 
   let browser;
   try {
+    console.log(`🌐 Usando proxy: ${proxyStr}`);
+
     if (!usarTor) {
       const esValido = await validateProxy(proxy);
       if (!esValido) throw new Error(`Proxy inválido: ${proxyUrl}`);
+    } else {
+      const esTorValido = await validateProxy({
+        ip: '127.0.0.1',
+        port: 9050,
+        auth: ''
+      });
+      if (!esTorValido) throw new Error('⚠️ Tor no responde o está apagado');
     }
 
     browser = await puppeteer.launch({
@@ -56,11 +63,9 @@ export default async function crearCuentaInstagram(proxy, usarTor = false) {
       'Accept-Language': 'en-US,en;q=0.9'
     });
 
-    console.log(`🌐 Usando proxy: ${proxyStr}`);
-
     await page.goto('https://www.instagram.com/accounts/emailsignup/', {
       waitUntil: 'networkidle2',
-      timeout: 60000
+      timeout: 45000
     });
 
     await page.waitForSelector('input[name="emailOrPhone"]', { visible: true });
@@ -69,18 +74,21 @@ export default async function crearCuentaInstagram(proxy, usarTor = false) {
     await page.type('input[name="username"]', username, { delay: 100 });
     await page.type('input[name="password"]', password, { delay: 100 });
 
-    console.log(`✅ Datos generados: ${username} / ${email} / ${password}`);
+    console.log(`✅ Cuenta generada: @${username} | ${email}`);
 
     await browser.close();
+    return { usuario: username, password };
   } catch (error) {
     console.error('❌ Error al crear cuenta:', error.message);
     if (browser) await browser.close();
+
     if (!usarTor) {
       console.log('🔁 Reintentando con Tor como fallback...');
       await rotateTorIP();
       return crearCuentaInstagram(null, true);
     } else {
       await notifyTelegram(`❌ Falló incluso con Tor: ${error.message}`);
+      return null;
     }
   }
 }
