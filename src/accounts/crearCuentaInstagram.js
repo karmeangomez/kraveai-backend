@@ -4,8 +4,8 @@ import puppeteer from 'puppeteer-extra';
 import StealthPlugin from 'puppeteer-extra-plugin-stealth';
 import { generarNombreCompleto, generarNombreUsuario } from '../utils/nombre_utils.js';
 import { generateAdaptiveFingerprint } from '../fingerprints/generator.js';
-import { notifyTelegram } from '../utils/telegram_utils.js'; // ✅ Corregido aquí
-import { validarProxySOCKS } from '../proxies/validator.js';
+import { notifyTelegram } from '../utils/telegram_utils.js'; // ✅ corregido
+import { validateProxy } from '../utils/validator.js'; // ✅ NUEVA RUTA
 import { rotateTorIP } from '../proxies/torController.js';
 
 puppeteer.use(StealthPlugin());
@@ -19,14 +19,14 @@ export default async function crearCuentaInstagram(proxy, usarTor = false) {
 
   const proxyUrl = usarTor
     ? 'socks5://127.0.0.1:9050'
-    : `socks5://${proxy.auth}:${proxy.ip}:${proxy.port}`;
+    : `socks5://${proxy.auth}@${proxy.ip}:${proxy.port}`;
 
   const proxyStr = usarTor ? 'Tor' : `${proxy.ip}:${proxy.port}`;
 
   let browser;
   try {
     if (!usarTor) {
-      const esValido = await validarProxySOCKS(proxyUrl);
+      const esValido = await validateProxy(proxy);
       if (!esValido) throw new Error(`Proxy inválido: ${proxyUrl}`);
     }
 
@@ -68,8 +68,6 @@ export default async function crearCuentaInstagram(proxy, usarTor = false) {
     await page.type('input[name="fullName"]', nombre, { delay: 100 });
     await page.type('input[name="username"]', username, { delay: 100 });
     await page.type('input[name="password"]', password, { delay: 100 });
-
-    // Aquí podrías continuar con el flujo de verificación, código, etc.
 
     console.log(`✅ Datos generados: ${username} / ${email} / ${password}`);
 
