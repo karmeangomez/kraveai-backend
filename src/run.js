@@ -9,7 +9,7 @@ import AccountManager from './accounts/accountManager.js';
 import crearCuentaInstagram from './accounts/crearCuentaInstagram.js';
 import UltimateProxyMaster from './proxies/ultimateProxyMaster.js';
 import { notifyTelegram } from './utils/telegram_utils.js';
-import { validateProxy } from './utils/validator.js'; // ✅ NUEVO
+import { validateProxy } from './utils/validator.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -83,25 +83,30 @@ async function startApp() {
     let proxy;
     try {
       proxy = proxySystem.getNextProxy();
+
+      // ✅ Si no hay proxies válidos, usar Tor como último recurso
       if (!proxy) {
-        log.error('❌ Sin proxies válidos disponibles. Deteniendo.');
-        break;
+        log.warn('⚠️ No hay proxies válidos. Usando Tor como último recurso...');
+        proxy = null;
       }
 
-      const isValid = await validateProxy(proxy);
-      if (!isValid) {
-        log.warn(`⛔ Proxy inválido descartado antes de usar: ${proxy.ip}:${proxy.port}`);
-        proxySystem.markProxyAsBad(proxy);
-        i--;
-        continue;
+      let isValid = true;
+      if (proxy) {
+        isValid = await validateProxy(proxy);
+        if (!isValid) {
+          log.warn(`⛔ Proxy inválido descartado antes de usar: ${proxy.ip}:${proxy.port}`);
+          proxySystem.markProxyAsBad(proxy);
+          i--;
+          continue;
+        }
       }
 
-      const cuenta = await crearCuentaInstagram(proxy);
+      const cuenta = await crearCuentaInstagram(proxy, proxy === null); // usarTor si proxy es null
 
       if (cuenta?.usuario && cuenta?.password) {
         creadas++;
         AccountManager.addAccount(cuenta);
-        proxySystem.markProxySuccess(proxy);
+        if (proxy) proxySystem.markProxySuccess(proxy);
         log.success(`✅ Cuenta creada: @${cuenta.usuario}`);
       } else {
         throw new Error('Cuenta inválida');
