@@ -25,18 +25,16 @@ export default async function crearCuentaInstagram(proxy, usarTor = false) {
   try {
     console.log(`🌐 Usando proxy: ${proxyStr}`);
 
-    // Validar proxy antes de lanzar navegador
     if (!usarTor) {
       const esValido = await validateProxy(proxy);
       if (!esValido) throw new Error(`Proxy inválido: ${proxyUrl}`);
     } else {
-      // Validar que Tor esté activo y responda
-      const testTor = await validateProxy({
+      const esTorValido = await validateProxy({
         ip: '127.0.0.1',
         port: 9050,
-        auth: '',
+        auth: ''
       });
-      if (!testTor) throw new Error('⚠️ Tor no está disponible o no responde');
+      if (!esTorValido) throw new Error('⚠️ Tor no responde o está apagado');
     }
 
     browser = await puppeteer.launch({
@@ -67,7 +65,7 @@ export default async function crearCuentaInstagram(proxy, usarTor = false) {
 
     await page.goto('https://www.instagram.com/accounts/emailsignup/', {
       waitUntil: 'networkidle2',
-      timeout: 45000 // ⚠️ evitar cuelgues largos
+      timeout: 45000
     });
 
     await page.waitForSelector('input[name="emailOrPhone"]', { visible: true });
