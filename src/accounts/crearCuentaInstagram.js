@@ -4,7 +4,7 @@ import puppeteer from 'puppeteer-extra';
 import StealthPlugin from 'puppeteer-extra-plugin-stealth';
 import { generarNombreCompleto, generarNombreUsuario } from '../utils/nombre_utils.js';
 import { generateAdaptiveFingerprint } from '../fingerprints/generator.js';
-import { notifyTelegram } from '../notificaciones/telegram.js';
+import { notifyTelegram } from '../utils/telegram_utils.js'; // ✅ Corregido aquí
 import { validarProxySOCKS } from '../proxies/validator.js';
 import { rotateTorIP } from '../proxies/torController.js';
 
@@ -69,10 +69,10 @@ export default async function crearCuentaInstagram(proxy, usarTor = false) {
     await page.type('input[name="username"]', username, { delay: 100 });
     await page.type('input[name="password"]', password, { delay: 100 });
 
-    // Aquí iría el resto del flujo de creación
+    // Aquí podrías continuar con el flujo de verificación, código, etc.
+
     console.log(`✅ Datos generados: ${username} / ${email} / ${password}`);
 
-    // Placeholder: cerrar navegador después de test
     await browser.close();
   } catch (error) {
     console.error('❌ Error al crear cuenta:', error.message);
