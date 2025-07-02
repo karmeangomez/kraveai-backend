@@ -2531,3 +2531,4 @@ See system logs and 'systemctl status cloudflared.service' for details.
 ⚠️ Túnel caído. Reiniciando...
 ✅ Túnel restaurado
 ✅ Túnel activo
+✅ Túnel activo
