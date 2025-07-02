@@ -10,7 +10,7 @@ import { rotateTorIP } from '../proxies/torController.js';
 
 puppeteer.use(StealthPlugin());
 
-async function crearCuentaInstagram(proxy, usarTor = false) {
+export default async function crearCuentaInstagram(proxy, usarTor = false) {
   const fingerprint = generateAdaptiveFingerprint();
   const nombre = generarNombreCompleto();
   const username = generarNombreUsuario();
@@ -65,4 +65,24 @@ async function crearCuentaInstagram(proxy, usarTor = false) {
 
     await page.waitForSelector('input[name="emailOrPhone"]', { visible: true });
     await page.type('input[name="emailOrPhone"]', email, { delay: 100 });
-    await page.type('input[name="fullName"]', nombre, { delay: 
+    await page.type('input[name="fullName"]', nombre, { delay: 100 });
+    await page.type('input[name="username"]', username, { delay: 100 });
+    await page.type('input[name="password"]', password, { delay: 100 });
+
+    // Aquí iría el resto del flujo de creación
+    console.log(`✅ Datos generados: ${username} / ${email} / ${password}`);
+
+    // Placeholder: cerrar navegador después de test
+    await browser.close();
+  } catch (error) {
+    console.error('❌ Error al crear cuenta:', error.message);
+    if (browser) await browser.close();
+    if (!usarTor) {
+      console.log('🔁 Reintentando con Tor como fallback...');
+      await rotateTorIP();
+      return crearCuentaInstagram(null, true);
+    } else {
+      await notifyTelegram(`❌ Falló incluso con Tor: ${error.message}`);
+    }
+  }
+}
