@@ -4,9 +4,9 @@ import puppeteer from 'puppeteer-extra';
 import StealthPlugin from 'puppeteer-extra-plugin-stealth';
 import { generarNombreCompleto, generarNombreUsuario } from '../utils/nombre_utils.js';
 import { generateAdaptiveFingerprint } from '../fingerprints/generator.js';
-import { notifyTelegram } from '../utils/telegram_utils.js'; // ✅ corregido
-import { validateProxy } from '../utils/validator.js'; // ✅ NUEVA RUTA
-import { rotateTorIP } from '../proxies/torController.js';
+import { notifyTelegram } from '../utils/telegram_utils.js';
+import { validateProxy } from '../utils/validator.js';
+import rotateTorIP from '../proxies/torController.js'; // ✅ corregido aquí
 
 puppeteer.use(StealthPlugin());
 
