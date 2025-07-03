@@ -69,36 +69,68 @@ export default class UltimateProxyMaster extends ProxyRotationSystem {
   async getAllSourcesProxies() {
     console.log('🔍 Obteniendo proxies desde todas las fuentes...');
     
-    // 1. Prioridad ABSOLUTA al proxy residencial de Webshare
+    // 1. Prioridad al proxy residencial de Webshare
     let webshareProxies = [];
     try {
       webshareProxies = await WebshareProxyManager.getProxies();
-      if (webshareProxies.length > 0) {
-        console.log('⭐ Usando proxy residencial premium de Webshare');
-        return webshareProxies; // ¡Solo este proxy!
-      }
+      console.log(`⭐ ${webshareProxies.length} proxies de Webshare obtenidos`);
     } catch (error) {
-      console.error('⚠️ Error con proxy residencial:', error.message);
+      console.error('⚠️ Error con Webshare:', error.message);
     }
 
-    // 2. Solo si falla el residencial, usar otras fuentes
-    console.warn('⚠️ Cargando proxies públicos como respaldo');
-    const [swift, multi] = await Promise.allSettled([
-      loadSwiftShadowProxies(),
-      runMultiProxies()
-    ]);
+    // 2. Cargar lista manual de proxies
+    let manualProxies = [];
+    if (process.env.PROXY_LIST) {
+      manualProxies = process.env.PROXY_LIST.split(',')
+        .map(proxyStr => {
+          const match = proxyStr.match(/http:\/\/([^:]+):([^@]+)@([^:]+):(\d+)/);
+          if (match) {
+            return {
+              ip: match[3],
+              port: parseInt(match[4]),
+              auth: {
+                username: match[1],
+                password: match[2]
+              },
+              type: 'http',
+              source: 'manual'
+            };
+          }
+          return null;
+        })
+        .filter(Boolean);
+      
+      console.log(`🛠️ ${manualProxies.length} proxies manuales cargados`);
+    }
 
-    const publicProxies = [
-      ...(swift.status === 'fulfilled' ? swift.value : []),
-      ...(multi.status === 'fulfilled' ? multi.value : [])
+    // 3. Solo cargar otras fuentes si Webshare falla y no hay manuales
+    let publicProxies = [];
+    if (webshareProxies.length === 0 && manualProxies.length === 0) {
+      console.warn('⚠️ Cargando proxies públicos como respaldo');
+      const [swift, multi] = await Promise.allSettled([
+        loadSwiftShadowProxies(),
+        runMultiProxies()
+      ]);
+      
+      publicProxies = [
+        ...(swift.status === 'fulfilled' ? swift.value : []),
+        ...(multi.status === 'fulfilled' ? multi.value : [])
+      ];
+    }
+
+    // Combinar todos los proxies
+    const allProxies = [
+      ...webshareProxies,
+      ...manualProxies,
+      ...publicProxies
     ];
 
-    // Filtrar para mantener solo SOCKS5
-    const filtered = publicProxies.filter(proxy => 
-      proxy.type?.includes('socks')
+    // Filtrar para mantener solo HTTP/SOCKS
+    const filtered = allProxies.filter(proxy => 
+      ['http', 'https', 'socks4', 'socks5'].includes(proxy.type?.toLowerCase())
     );
 
-    // 3. Tor como último recurso
+    // Tor como último recurso
     if (filtered.length === 0) {
       console.warn('🚨 Usando Tor como último recurso');
       return [{
@@ -111,6 +143,7 @@ export default class UltimateProxyMaster extends ProxyRotationSystem {
       }];
     }
 
+    console.log(`📊 Total proxies disponibles: ${filtered.length}`);
     return filtered;
   }
 
@@ -121,7 +154,6 @@ export default class UltimateProxyMaster extends ProxyRotationSystem {
         validateProxy(proxy)
           .then(isValid => ({ proxy, isValid }))
           .catch(() => ({ proxy, isValid: false }))
-      )
     );
 
     const validProxies = validationResults
