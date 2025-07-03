@@ -1,4 +1,4 @@
-name: 🚀 Despliegue Seguro KraveAI
+name: 🚀 Despliegue Seguro KraveAI v2
 
 on:
   push:
@@ -15,24 +15,37 @@ jobs:
       - name: 📅 Clonar Repositorio
         uses: actions/checkout@v4
 
-      - name: 🔐 Generar archivo .env plano
+      - name: 🔐 Generar archivo .env
         shell: bash
         run: |
           mkdir -p secure_config
           {
-            echo "IG_USERNAME=kraveaibot"
-            echo "INSTAGRAM_PASS=Andrick99"
-            echo "PROXY_LIST=http://pdsmombq:terqdq67j6mp@31.57.90.48:5617,http://pdsmombq:terqdq67j6mp@45.39.7.214:5645,http://pdsmombq:terqdq67j6mp@..."
-            echo "WEBSHARE_API_KEY=${{ secrets.WEBSHARE_API_KEY }}"
+            echo "# CONFIGURACIÓN PRINCIPAL"
+            echo "HEADLESS=true"
+            echo "PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser"
+            
+            echo "# INSTAGRAM CONFIG"
+            echo "INSTAGRAM_USERNAME=${{ secrets.INSTAGRAM_USERNAME }}"
+            echo "INSTAGRAM_PASSWORD=${{ secrets.INSTAGRAM_PASSWORD }}"
+            echo "INSTAGRAM_ACCOUNT_CREATION_LIMIT=50"
+            
+            echo "# WEBSHARE RESIDENTIAL PROXY"
+            echo "WEBSHARE_RESIDENTIAL_USER=${{ secrets.WEBSHARE_RESIDENTIAL_USER }}"
+            echo "WEBSHARE_RESIDENTIAL_PASS=${{ secrets.WEBSHARE_RESIDENTIAL_PASS }}"
+            
+            echo "# TELEGRAM"
             echo "TELEGRAM_BOT_TOKEN=${{ secrets.TELEGRAM_BOT_TOKEN }}"
             echo "TELEGRAM_CHAT_ID=${{ secrets.TELEGRAM_CHAT_ID }}"
-            echo "NOPECHA_APIKEY="
-            echo "PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser"
-            echo "PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true"
-            echo "OPENAI_API_KEY="
-            echo "BITLY_TOKEN="
-            echo "CRYPTO_KEY=NA"
-            echo "CRYPTO_IV=NA"
+            
+            echo "# EMAIL VERIFICATION"
+            echo "IONOS_EMAIL=${{ secrets.IONOS_EMAIL }}"
+            echo "IONOS_PASSWORD=${{ secrets.IONOS_PASSWORD }}"
+            echo "MAILBOXVALIDATOR_KEY=${{ secrets.MAILBOXVALIDATOR_KEY }}"
+            
+            echo "# SSH CONFIG (opcional)"
+            echo "SSH_HOST=${{ secrets.SSH_HOST }}"
+            echo "SSH_USER=${{ secrets.SSH_USER }}"
+            echo "SSH_PRIVATE_KEY=${{ secrets.SSH_PRIVATE_KEY }}"
           } > secure_config/.env
 
       - name: 🚀 Transferir .env a Raspberry Pi
@@ -41,7 +54,7 @@ jobs:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          port: ${{ secrets.SSH_PORT }}
+          port: ${{ secrets.SSH_PORT || '22' }}
           source: secure_config/.env
           target: ~/kraveai-backend/
           overwrite: true
@@ -52,58 +65,75 @@ jobs:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          port: ${{ secrets.SSH_PORT }}
+          port: ${{ secrets.SSH_PORT || '22' }}
           script: |
             set -e
             echo "📦 Iniciando despliegue en $(hostname)"
             cd ~/kraveai-backend
-
+            
+            # Actualizar código
             git fetch origin main
             git reset --hard origin/main
+            
+            # Instalar dependencias
             npm install --omit=dev
-
-            echo "✅ Archivo .env recibido:"
-            cat .env | grep -E 'WEBSHARE|TELEGRAM|IG_|PROXY_LIST'
-
-            echo "🔄 Actualizando proxies de Webshare..."
-            export NODE_OPTIONS="--no-warnings"
-            node -e "import('./src/proxies/webshareApi.js').then(m => m.default.refreshProxies().catch(e => { 
-              console.error('❌ Error crítico:', e); 
-              process.exit(1);
-            }))"
-
-            echo "🔁 Reiniciando servicios..."
+            
+            # Eliminar cachés antiguas de proxies
+            rm -f src/proxies/*.json
+            
+            echo "✅ Variables críticas:"
+            grep -E 'INSTAGRAM|WEBSHARE|TELEGRAM|IONOS|HEADLESS' .env
+            
+            echo "🔄 Reiniciando servicios..."
             sudo systemctl restart kraveai-python.service
             sudo systemctl restart crear-cuentas.service
-
-            echo "🌐 Estado túnel Cloudflare:"
-            if sudo systemctl is-active --quiet cloudflared.service; then
-              echo "✅ Túnel activo"
-            else
-              echo "⚠️ Reiniciando túnel inactivo"
-              sudo systemctl restart cloudflared.service
-              sleep 5
-              sudo systemctl status cloudflared.service --no-pager
-            fi
-
-            echo "🩺 Verificando salud del backend..."
+            
+            echo "🌐 Verificando estado del túnel Cloudflare..."
+            sudo systemctl restart cloudflared.service
+            sleep 3
+            sudo systemctl status cloudflared.service --no-pager
+            
+            echo "🧪 Ejecutando prueba de salud..."
             HEALTH_RESPONSE=$(curl -sSf http://localhost:8000/health || echo '{"status":"ERROR"}')
             echo "Respuesta: $HEALTH_RESPONSE"
-
+            
             if echo "$HEALTH_RESPONSE" | grep -q '"status":"OK"'; then
-              mensaje="✅ *KraveAI actualizado con éxito*\n• Hora: $(date '+%H:%M')\n• Proxies: Actualizados\n• Backend: Funcionando"
-              status=0
+              MENSAJE="✅ *KraveAI actualizado con éxito*\n• Hora: $(date '+%H:%M')\n• Proxies: Residencial configurado\n• Instagram: Cuenta lista"
+              STATUS=0
+              
+              # Verificación adicional de Instagram
+              echo "🧪 Probando conexión con Instagram..."
+              INSTA_TEST=$(curl -s -o /dev/null -w "%{http_code}" https://www.instagram.com || echo "500")
+              if [ "$INSTA_TEST" == "200" ]; then
+                echo "✅ Instagram accesible"
+              else
+                MENSAJE="$MENSAJE\n⚠️ Instagram no accesible (código $INSTA_TEST)"
+                echo "⚠️ Instagram no accesible (código $INSTA_TEST)"
+              fi
             else
-              mensaje="⚠️ *Error en despliegue*\n• Hora: $(date '+%H:%M')\n• Problema: Health check falló\n• Acción: Revisar logs"
-              status=1
+              MENSAJE="⚠️ *Error en despliegue*\n• Hora: $(date '+%H:%M')\n• Problema: Health check falló\n• Acción: Revisar logs"
+              STATUS=1
             fi
-
+            
             echo "📨 Enviando notificación a Telegram..."
             source .env
-            curl -X POST https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/sendMessage \
-              -d chat_id="$TELEGRAM_CHAT_ID" \
-              -d text="$mensaje" \
-              -d parse_mode="Markdown" \
+            curl -X POST "https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/sendMessage" \
+              -d "chat_id=$TELEGRAM_CHAT_ID" \
+              -d "text=$MENSAJE" \
+              -d "parse_mode=Markdown" \
               --silent --show-error
-
-            exit $status
+            
+            # Prueba rápida de creación de cuenta
+            echo "🚀 Iniciando prueba de creación de cuenta..."
+            TEST_RESULT=$(timeout 60 node -e "import('./src/accounts/crearCuentaInstagram.js').then(m => m.crearCuentaTest()).catch(e => console.error('❌ Error prueba:', e))" || echo "Timeout")
+            echo "Resultado prueba: $TEST_RESULT"
+            
+            if [ "$TEST_RESULT" != "Timeout" ] && [ -n "$TEST_RESULT" ]; then
+              curl -X POST "https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/sendMessage" \
+                -d "chat_id=$TELEGRAM_CHAT_ID" \
+                -d "text=🧪 *Prueba creación cuenta:*\n$TEST_RESULT" \
+                -d "parse_mode=Markdown" \
+                --silent --show-error
+            fi
+            
+            exit $STATUS
