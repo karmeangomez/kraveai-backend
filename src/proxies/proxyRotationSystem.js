@@ -23,7 +23,7 @@ export default class ProxyRotationSystem {
       return null;
     }
 
-    // Selección inteligente basada en rendimiento
+    // Ordenar por puntaje (éxitos - fallos)
     const sortedProxies = [...this.proxies].sort((a, b) => {
       const scoreA = a.successCount - a.failCount;
       const scoreB = b.successCount - b.failCount;
