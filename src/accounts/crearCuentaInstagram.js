@@ -15,34 +15,36 @@ export default async function crearCuentaInstagram(proxy, usarTor = false) {
   const email = `${username.replace(/[^a-zA-Z0-9]/g, '')}@kraveapi.xyz`;
   const password = `Krave${Math.random().toString(36).slice(2, 8)}!`;
 
-  const proxyUrl = usarTor
-    ? 'socks5://127.0.0.1:9050'
-    : `${proxy.type}://${proxy.auth.username}:${proxy.auth.password}@${proxy.ip}:${proxy.port}`;
-
   const proxyStr = usarTor ? 'Tor' : `${proxy.ip}:${proxy.port}`;
+  const proxyProtocol = usarTor ? 'socks5' : proxy.type || 'socks5';
+  const proxyHost = usarTor ? '127.0.0.1' : proxy.ip;
+  const proxyPort = usarTor ? 9050 : proxy.port;
 
   let browser;
+
   try {
     console.log(`🌐 Usando proxy: ${proxyStr}`);
 
-    if (!usarTor) {
-      const esValido = await validateProxy(proxy);
-      if (!esValido) throw new Error(`Proxy inválido: ${proxyUrl}`);
-    } else {
-      const esTorValido = await validateProxy({
-        ip: '127.0.0.1',
-        port: 9050,
-        auth: { username: '', password: '' },
-        type: 'socks5'
-      });
-      if (!esTorValido) throw new Error('⚠️ Tor no responde o está apagado');
+    const esValido = await validateProxy(
+      usarTor
+        ? {
+            ip: '127.0.0.1',
+            port: 9050,
+            auth: { username: '', password: '' },
+            type: 'socks5'
+          }
+        : proxy
+    );
+
+    if (!esValido) {
+      throw new Error(usarTor ? '⚠️ Tor no responde o está apagado' : `Proxy inválido: ${proxyStr}`);
     }
 
     browser = await puppeteer.launch({
       headless: false,
       executablePath: process.env.PUPPETEER_EXECUTABLE_PATH,
       args: [
-        `--proxy-server=${proxyUrl}`,
+        `--proxy-server=${proxyProtocol}://${proxyHost}:${proxyPort}`,
         '--no-sandbox',
         '--disable-setuid-sandbox',
         '--disable-dev-shm-usage',
@@ -53,6 +55,14 @@ export default async function crearCuentaInstagram(proxy, usarTor = false) {
     });
 
     const page = await browser.newPage();
+
+    if (!usarTor && proxy?.auth?.username) {
+      await page.authenticate({
+        username: proxy.auth.username,
+        password: proxy.auth.password
+      });
+    }
+
     await page.setUserAgent(fingerprint.userAgent);
     await page.setViewport({
       width: fingerprint.screen.width,
