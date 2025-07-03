@@ -3,7 +3,7 @@ import path from 'path';
 import ProxyRotationSystem from './proxyRotationSystem.js';
 import WebshareProxyManager from './webshareApi.js';
 import { getProxies as loadSwiftShadowProxies } from './swiftShadowLoader.js';
-import { getProxies as loadMultiProxies } from './multiProxiesRunner.js';
+import runMultiProxies from './multiProxiesRunner.js';
 import { validateProxy } from '../utils/validator.js';
 
 const PROXIES_VALIDATED_PATH = path.resolve('src/proxies/proxies_validados.json');
@@ -17,10 +17,16 @@ export default class UltimateProxyMaster extends ProxyRotationSystem {
     let proxies = [];
 
     if (!forceRefresh && fs.existsSync(PROXIES_VALIDATED_PATH)) {
-      const data = fs.readFileSync(PROXIES_VALIDATED_PATH, 'utf-8');
-      proxies = JSON.parse(data);
-      console.log(`📦 Cargando ${proxies.length} proxies validados desde proxies_validados.json`);
-    } else {
+      try {
+        const data = fs.readFileSync(PROXIES_VALIDATED_PATH, 'utf-8');
+        proxies = JSON.parse(data);
+        console.log(`📦 Cargando ${proxies.length} proxies validados desde proxies_validados.json`);
+      } catch (e) {
+        console.warn('⚠️ Error leyendo proxies_validados.json, regenerando...');
+      }
+    }
+
+    if (!proxies.length) {
       proxies = await this.getAllSourcesProxies();
       proxies = await this.filterValidProxies(proxies);
 
@@ -45,6 +51,7 @@ export default class UltimateProxyMaster extends ProxyRotationSystem {
     this.proxies = proxies;
     await super.initialize();
     this.resetRotation();
+    this.autoRefreshProxies();
     console.log(`♻️ ${this.proxies.length} proxies activos cargados`);
     return true;
   }
@@ -54,22 +61,23 @@ export default class UltimateProxyMaster extends ProxyRotationSystem {
     const proxies = await this.getAllSourcesProxies();
     const validos = await this.filterValidProxies(proxies);
 
-    this.proxies = validos.length > 0 ? validos : this.proxies;
-    this.resetRotation();
-    this.stats = { totalRequests: 0, successCount: 0, failCount: 0 };
-
     if (validos.length > 0) {
+      this.proxies = validos;
       fs.writeFileSync(PROXIES_VALIDATED_PATH, JSON.stringify(validos, null, 2));
     }
+
+    this.resetRotation();
+    this.stats = { totalRequests: 0, successCount: 0, failCount: 0 };
     console.log(`🔁 Proxies validados y actualizados (${validos.length})`);
   }
 
   async getAllSourcesProxies() {
     console.log('🔍 Obteniendo proxies desde todas las fuentes...');
+
     const [webshare, swift, multi] = await Promise.allSettled([
       WebshareProxyManager.getProxies(),
       loadSwiftShadowProxies(),
-      loadMultiProxies()
+      runMultiProxies()
     ]);
 
     const all = [
@@ -103,6 +111,15 @@ export default class UltimateProxyMaster extends ProxyRotationSystem {
 
     console.log(`📊 Proxies válidos: ${validProxies.length}/${proxies.length}`);
     return validProxies;
+  }
+
+  autoRefreshProxies() {
+    setInterval(async () => {
+      if (this.proxies.length < 10) {
+        console.log('🔄 Auto-refrescando proxies (bajo umbral)');
+        await this.refreshProxies();
+      }
+    }, 60 * 60 * 1000); // Cada 1 hora
   }
 
   static async loadAllProxies() {
