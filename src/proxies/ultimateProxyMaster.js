@@ -45,7 +45,6 @@ export default class UltimateProxyMaster extends ProxyRotationSystem {
     this.proxies = proxies;
     await super.initialize();
     this.resetRotation();
-    this.autoRefreshProxies();
     console.log(`♻️ ${this.proxies.length} proxies activos cargados`);
     return true;
   }
@@ -67,6 +66,7 @@ export default class UltimateProxyMaster extends ProxyRotationSystem {
 
   async getAllSourcesProxies() {
     console.log('🔍 Obteniendo proxies desde todas las fuentes...');
+    
     const [webshare, swift, multi] = await Promise.allSettled([
       WebshareProxyManager.getProxies(),
       loadSwiftShadowProxies(),
@@ -91,11 +91,10 @@ export default class UltimateProxyMaster extends ProxyRotationSystem {
   async filterValidProxies(proxies) {
     console.log('⚙️ Validando proxies...');
     const validationResults = await Promise.all(
-      proxies.map(proxy =>  // CORRECCIÓN: PARÉNTESIS EXTRA ELIMINADO
+      proxies.map(proxy =>
         validateProxy(proxy)
           .then(isValid => ({ proxy, isValid }))
           .catch(() => ({ proxy, isValid: false }))
-      )  // CORRECCIÓN: PARÉNTESIS MOVIDO AQUÍ
     );
 
     const validProxies = validationResults
