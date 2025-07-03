@@ -3,6 +3,7 @@ import axios from 'axios';
 export async function getProxies() {
   try {
     console.log('🕵️‍♂️ Cargando proxies desde SwiftShadow...');
+
     const { data } = await axios.get(
       'https://raw.githubusercontent.com/roosterkid/openproxylist/main/SOCKS5.txt',
       { timeout: 15000 }
