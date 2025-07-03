@@ -24,15 +24,29 @@ async function fetchWebshareProxies() {
       }
     });
 
-    const proxies = res.data.results.map(proxy => ({
-      ip: proxy.proxy_address,
-      port: proxy.ports.socks5,
-      auth: {
-        username: proxy.username,
-        password: proxy.password
-      },
-      type: 'socks5'
-    }));
+    const proxies = res.data.results
+      .map(proxy => {
+        const ports = proxy.ports || {};
+        const port = ports.socks5 || ports.https || ports.http || Object.values(ports)[0];
+
+        if (!port) return null; // Saltar proxies sin puerto
+
+        return {
+          ip: proxy.proxy_address,
+          port,
+          auth: {
+            username: proxy.username,
+            password: proxy.password
+          },
+          type: 'socks5' // O 'http' si prefieres forzarlo
+        };
+      })
+      .filter(Boolean); // Eliminar nulls
+
+    if (proxies.length === 0) {
+      console.error('❌ No se encontraron proxies válidos');
+      process.exit(1);
+    }
 
     fs.writeFileSync(savePath, JSON.stringify(proxies, null, 2));
     console.log(`✅ ${proxies.length} proxies guardados en ${savePath}`);
