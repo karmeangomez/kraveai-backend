@@ -1,10 +1,9 @@
-// src/proxies/ultimateProxyMaster.js
 import fs from 'fs';
 import path from 'path';
 import ProxyRotationSystem from './proxyRotationSystem.js';
 import WebshareProxyManager from './webshareApi.js';
-import loadSwiftShadowProxies from './swiftShadowLoader.js';
-import runMultiProxies from './multiProxiesRunner.js';
+import SwiftShadowLoader from './swiftShadowLoader.js';
+import MultiProxiesRunner from './multiProxiesRunner.js';
 
 const PROXIES_VALIDATED_PATH = path.resolve('src/proxies/proxies_validados.json');
 
@@ -16,25 +15,28 @@ export default class UltimateProxyMaster extends ProxyRotationSystem {
   async initialize(forceRefresh = false) {
     let proxies = [];
 
-    // 1. Intenta cargar los proxies validados
+    // Si no se fuerza actualización, usar archivo cacheado
     if (!forceRefresh && fs.existsSync(PROXIES_VALIDATED_PATH)) {
       const data = fs.readFileSync(PROXIES_VALIDATED_PATH, 'utf-8');
       proxies = JSON.parse(data);
       console.log(`📦 Cargando ${proxies.length} proxies validados desde proxies_validados.json`);
     } else {
-      // 2. Obtener de Webshare
+      // Webshare
+      console.log('🔄 Actualizando proxies desde Webshare...');
       const webshareProxies = await WebshareProxyManager.getProxies(true);
-      // 3. Obtener de fuentes públicas
-      const swiftProxies = await loadSwiftShadowProxies();
-      const multiProxies = await runMultiProxies();
+      console.log(`✅ ${webshareProxies.length} proxies actualizados`);
 
-      proxies = [
-        ...webshareProxies,
-        ...swiftProxies,
-        ...multiProxies
-      ];
+      // SwiftShadow
+      console.log('🕵️‍♂️ Cargando proxies desde SwiftShadow...');
+      const swiftProxies = await SwiftShadowLoader.getProxies();
+      console.log(`✅ ${swiftProxies.length} proxies públicos cargados desde SwiftShadow`);
 
-      if (proxies.length === 0) throw new Error('No se pudieron obtener proxies');
+      // MultiProxies
+      console.log('🌐 Fetching proxies from multiProxies (public sources)...');
+      const multiProxies = await MultiProxiesRunner.getProxies();
+      console.log(`✅ ${multiProxies.length} proxies públicos convertidos correctamente`);
+
+      proxies = [...webshareProxies, ...swiftProxies, ...multiProxies];
     }
 
     this.proxies = proxies;
@@ -46,22 +48,11 @@ export default class UltimateProxyMaster extends ProxyRotationSystem {
   }
 
   async refreshProxies() {
-    const webshareProxies = await WebshareProxyManager.refreshProxies();
-    const swiftProxies = await loadSwiftShadowProxies();
-    const multiProxies = await runMultiProxies();
+    return this.initialize(true); // forzar actualización completa
+  }
 
-    this.proxies = [
-      ...webshareProxies,
-      ...swiftProxies,
-      ...multiProxies
-    ];
-
-    this.resetRotation();
-    this.stats = {
-      totalRequests: 0,
-      successCount: 0,
-      failCount: 0
-    };
-    console.log(`🔄 Proxies actualizados: ${this.proxies.length} disponibles`);
+  static async loadAllProxies() {
+    const data = fs.readFileSync(PROXIES_VALIDATED_PATH, 'utf-8');
+    return JSON.parse(data);
   }
 }
