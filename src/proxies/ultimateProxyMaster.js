@@ -17,16 +17,10 @@ export default class UltimateProxyMaster extends ProxyRotationSystem {
     let proxies = [];
 
     if (!forceRefresh && fs.existsSync(PROXIES_VALIDATED_PATH)) {
-      try {
-        const data = fs.readFileSync(PROXIES_VALIDATED_PATH, 'utf-8');
-        proxies = JSON.parse(data);
-        console.log(`📦 Cargando ${proxies.length} proxies validados desde proxies_validados.json`);
-      } catch (e) {
-        console.warn('⚠️ Error leyendo proxies_validados.json, regenerando...');
-      }
-    }
-
-    if (!proxies.length) {
+      const data = fs.readFileSync(PROXIES_VALIDATED_PATH, 'utf-8');
+      proxies = JSON.parse(data);
+      console.log(`📦 Cargando ${proxies.length} proxies validados desde proxies_validados.json`);
+    } else {
       proxies = await this.getAllSourcesProxies();
       proxies = await this.filterValidProxies(proxies);
 
@@ -51,7 +45,7 @@ export default class UltimateProxyMaster extends ProxyRotationSystem {
     this.proxies = proxies;
     await super.initialize();
     this.resetRotation();
-    this.autoRefreshProxies();
+    this.autoRefreshProxies(); // ✅ Auto-refresh activado
     console.log(`♻️ ${this.proxies.length} proxies activos cargados`);
     return true;
   }
@@ -61,19 +55,19 @@ export default class UltimateProxyMaster extends ProxyRotationSystem {
     const proxies = await this.getAllSourcesProxies();
     const validos = await this.filterValidProxies(proxies);
 
-    if (validos.length > 0) {
-      this.proxies = validos;
-      fs.writeFileSync(PROXIES_VALIDATED_PATH, JSON.stringify(validos, null, 2));
-    }
-
+    this.proxies = validos.length > 0 ? validos : this.proxies;
     this.resetRotation();
     this.stats = { totalRequests: 0, successCount: 0, failCount: 0 };
+
+    if (validos.length > 0) {
+      fs.writeFileSync(PROXIES_VALIDATED_PATH, JSON.stringify(validos, null, 2));
+    }
     console.log(`🔁 Proxies validados y actualizados (${validos.length})`);
   }
 
   async getAllSourcesProxies() {
     console.log('🔍 Obteniendo proxies desde todas las fuentes...');
-
+    
     const [webshare, swift, multi] = await Promise.allSettled([
       WebshareProxyManager.getProxies(),
       loadSwiftShadowProxies(),
@@ -102,7 +96,6 @@ export default class UltimateProxyMaster extends ProxyRotationSystem {
         validateProxy(proxy)
           .then(isValid => ({ proxy, isValid }))
           .catch(() => ({ proxy, isValid: false }))
-      )
     );
 
     const validProxies = validationResults
