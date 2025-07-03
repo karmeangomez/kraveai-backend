@@ -18,7 +18,7 @@ export async function getProxies() {
                parts[1].trim() !== 'NaN' && 
                !line.includes('Support us') && 
                !line.includes('ETH') &&
-               parts[0].split('.').length === 4; // Asegura que la IP tenga 4 octetos
+               parts[0].split('.').length === 4;
       })
       .slice(0, 50)
       .map(line => {
