@@ -5,12 +5,17 @@ import { HttpsProxyAgent } from 'https-proxy-agent';
 export async function validateProxy(proxy) {
   // Caso especial para Tor
   if (proxy.country === 'TOR') return true;
+  
+  // Ignorar proxies HTTP
+  const proxyType = proxy.type?.toLowerCase() || 'socks5';
+  if (proxyType.includes('http')) {
+    console.log(`⏩ Omitiendo proxy HTTP: ${proxy.ip}:${proxy.port}`);
+    return false;
+  }
 
   try {
     let agent;
-    const proxyType = proxy.type?.toLowerCase() || 'socks5';
-
-    // Crear agente según el tipo de proxy
+    
     if (proxyType.includes('socks')) {
       const proxyUrl = proxy.auth?.username 
         ? `socks5://${proxy.auth.username}:${proxy.auth.password}@${proxy.ip}:${proxy.port}`
@@ -18,14 +23,9 @@ export async function validateProxy(proxy) {
       
       agent = new SocksProxyAgent(proxyUrl);
     } else {
-      const proxyUrl = proxy.auth?.username 
-        ? `http://${proxy.auth.username}:${proxy.auth.password}@${proxy.ip}:${proxy.port}`
-        : `http://${proxy.ip}:${proxy.port}`;
-      
-      agent = new HttpsProxyAgent(proxyUrl);
+      return false; // Solo aceptamos SOCKS
     }
 
-    // Configuración de Axios con el agente
     const response = await axios.get('https://www.instagram.com', {
       httpsAgent: agent,
       timeout: 10000,

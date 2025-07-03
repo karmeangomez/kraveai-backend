@@ -68,35 +68,42 @@ export default class UltimateProxyMaster extends ProxyRotationSystem {
   async getAllSourcesProxies() {
     console.log('🔍 Obteniendo proxies desde todas las fuentes...');
     
-    const [webshare, swift, multi] = await Promise.allSettled([
-      WebshareProxyManager.getProxies(),
+    // Obtener primero y priorizar Webshare
+    const webshare = await WebshareProxyManager.getProxies().catch(() => []);
+    
+    // Obtener otras fuentes en paralelo
+    const [swift, multi] = await Promise.allSettled([
       loadSwiftShadowProxies(),
       runMultiProxies()
     ]);
 
     const all = [
-      ...(webshare.status === 'fulfilled' ? webshare.value : []),
+      ...webshare, // Webshare primero (alta prioridad)
       ...(swift.status === 'fulfilled' ? swift.value : []),
       ...(multi.status === 'fulfilled' ? multi.value : [])
     ];
 
-    const unique = all.filter(
+    // Filtrar para mantener solo SOCKS5
+    const filtered = all.filter(proxy => 
+      proxy.type?.includes('socks')
+    );
+
+    const unique = filtered.filter(
       (proxy, index, self) =>
         index === self.findIndex(p => `${p.ip}:${p.port}` === `${proxy.ip}:${proxy.port}`)
     );
 
-    console.log(`📊 Total combinados (sin duplicados): ${unique.length}`);
+    console.log(`📊 Proxies combinados (SOCKS5): ${unique.length}`);
     return unique;
   }
 
   async filterValidProxies(proxies) {
     console.log('⚙️ Validando proxies...');
     const validationResults = await Promise.all(
-      proxies.map(proxy =>  // CORRECCIÓN: PARÉNTESIS EXTRA ELIMINADO
+      proxies.map(proxy => 
         validateProxy(proxy)
           .then(isValid => ({ proxy, isValid }))
           .catch(() => ({ proxy, isValid: false }))
-      )  // CORRECCIÓN: PARÉNTESIS MOVIDO AQUÍ
     );
 
     const validProxies = validationResults
@@ -113,7 +120,7 @@ export default class UltimateProxyMaster extends ProxyRotationSystem {
         console.log('🔄 Auto-refrescando proxies (bajo umbral)');
         await this.refreshProxies();
       }
-    }, 60 * 60 * 1000); // Cada 1 hora
+    }, 60 * 60 * 1000);
   }
 
   static async loadAllProxies() {
