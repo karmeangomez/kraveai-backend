@@ -104,6 +104,7 @@ export default class UltimateProxyMaster extends ProxyRotationSystem {
         validateProxy(proxy)
           .then(isValid => ({ proxy, isValid }))
           .catch(() => ({ proxy, isValid: false }))
+      )
     );
 
     const validProxies = validationResults
