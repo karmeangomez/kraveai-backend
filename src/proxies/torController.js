@@ -1,15 +1,16 @@
 import { exec } from 'child_process';
 
 export default async function rotateTorIP() {
-  return new Promise((resolve) => {
-    exec('sudo systemctl restart tor', (error) => {
-      if (!error) {
-        console.log('🔄 IP Tor rotada (SIGNAL NEWNYM)');
-        resolve(true);
-      } else {
-        console.error('❌ Error al reiniciar Tor:', error.message);
-        resolve(false);
+  return new Promise((resolve, reject) => {
+    console.log('🔄 Rotando IP de Tor...');
+    exec('sudo service tor restart', (error, stdout, stderr) => {
+      if (error) {
+        console.error(`❌ Error rotando IP: ${error.message}`);
+        reject(error);
+        return;
       }
+      console.log('✅ IP de Tor rotada');
+      resolve();
     });
   });
 }

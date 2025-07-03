@@ -12,7 +12,12 @@ export default async function runMultiProxies() {
       .split('\n')
       .filter(line => {
         const parts = line.trim().split(':');
-        return parts.length === 2 && !isNaN(parts[1]);
+        return parts.length === 2 && 
+               !isNaN(parts[1]) && 
+               parts[1].trim() !== 'NaN' && 
+               !line.includes('Support us') && 
+               !line.includes('ETH') &&
+               parts[0].split('.').length === 4;
       })
       .slice(0, 50)
       .map(line => {
