@@ -1,10 +1,11 @@
 import axios from 'axios';
 
-export async function getProxies() {
+export default async function runMultiProxies() {
   try {
     console.log('🌐 Cargando proxies desde multiProxies...');
+
     const { data } = await axios.get('https://raw.githubusercontent.com/TheSpeedX/SOCKS-List/master/http.txt', {
-      timeout: 15000
+      timeout: 10000
     });
 
     const proxies = data
@@ -31,7 +32,7 @@ export async function getProxies() {
     console.log(`✅ ${proxies.length} proxies públicos cargados desde multiProxies`);
     return proxies;
   } catch (err) {
-    console.error('❌ Error en multiProxies:', err.message);
+    console.error('❌ Error cargando multiProxies:', err.message);
     return [];
   }
 }
