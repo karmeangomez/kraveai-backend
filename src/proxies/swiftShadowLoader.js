@@ -1,65 +1,37 @@
-// src/proxies/proxyRotationSystem.js
-import UltimateProxyMaster from './ultimateProxyMaster.js';
-import { isProxyBlacklisted, addToBlacklist } from './proxyBlacklistManager.js';
-import { getGeo } from '../utils/geoUtils.js';
+// src/proxies/swiftShadowLoader.js
+import axios from 'axios';
 
-class ProxyRotationSystem {
-  constructor() {
-    this.validProxies = [];
-    this.currentIndex = 0;
-    this.initialized = false;
-  }
+export default async function loadSwiftShadowProxies() {
+  try {
+    console.log('🕵️‍♂️ Cargando proxies desde SwiftShadow...');
 
-  async initialize() {
-    if (this.initialized) return;
+    const { data } = await axios.get('https://raw.githubusercontent.com/roosterkid/openproxylist/main/SOCKS5.txt');
 
-    const rawProxies = await UltimateProxyMaster.loadAllProxies();
-    const enriched = [];
+    const proxies = data
+      .split('\n')
+      .filter(line => line.includes(':'))
+      .slice(0, 50)
+      .map(line => {
+        const [ip, port] = line.trim().split(':');
+        return {
+          ip,
+          port: parseInt(port),
+          auth: {
+            username: 'user',
+            password: 'pass'
+          },
+          type: 'socks5',
+          country: 'XX',
+          lastUsed: 0,
+          successCount: 0,
+          failCount: 0
+        };
+      });
 
-    for (const proxy of rawProxies) {
-      if (isProxyBlacklisted(proxy.proxy)) {
-        console.warn(`🚫 Proxy ignorado (blacklist): ${proxy.proxy}`);
-        continue;
-      }
-
-      try {
-        const ip = proxy.proxy.split(':')[0];
-        const geo = await getGeo(ip);
-        enriched.push({
-          ...proxy,
-          country: geo.country,
-          region: geo.region,
-          city: geo.city
-        });
-      } catch {
-        enriched.push({ ...proxy, country: 'XX', region: 'Unknown', city: 'Unknown' });
-      }
-    }
-
-    this.validProxies = enriched;
-    this.initialized = true;
-    console.log(`✅ ${this.validProxies.length} proxies válidos cargados con geolocalización`);
-  }
-
-  getNextProxy() {
-    if (!this.initialized) throw new Error('No inicializado');
-    if (!this.validProxies.length) throw new Error('No hay proxies disponibles');
-
-    const proxy = this.validProxies[this.currentIndex];
-    this.currentIndex = (this.currentIndex + 1) % this.validProxies.length;
-    return proxy;
-  }
-
-  getProxyCount() {
-    return this.validProxies.length;
-  }
-
-  markProxyAsBad(proxyString) {
-    console.warn(`⚠️ Proxy marcado como malo: ${proxyString}`);
-    addToBlacklist(proxyString);
-    this.validProxies = this.validProxies.filter(p => p.proxy !== proxyString);
+    console.log(`✅ ${proxies.length} proxies públicos cargados desde SwiftShadow`);
+    return proxies;
+  } catch (err) {
+    console.error('❌ Error en SwiftShadow:', err.message);
+    return [];
   }
 }
-
-const proxySystem = new ProxyRotationSystem();
-export default proxySystem;

@@ -1,26 +1,24 @@
-// save-proxies.js
+// 📁 src/proxies/save-proxies.js
 import fs from 'fs';
+import path from 'path';
 
-const inputFile = 'proxies.txt'; // Cada 4 líneas: ip, port, usuario, contraseña
-const outputFile = 'proxies.json';
+const inputFile = path.resolve('src/proxies/Webshare 100 proxies.txt');
+const outputFile = path.resolve('src/proxies/proxies.json');
 
-const lines = fs.readFileSync(inputFile, 'utf-8').trim().split('\n');
+const lines = fs.readFileSync(inputFile, 'utf-8')
+  .split('\n')
+  .map(line => line.trim())
+  .filter(line => line && line.includes(':'));
 
-const proxies = [];
-
-for (let i = 0; i < lines.length; i += 4) {
-  const ip = lines[i].trim();
-  const port = lines[i + 1].trim();
-  const username = lines[i + 2].trim();
-  const password = lines[i + 3].trim();
-
-  proxies.push({
+const proxies = lines.map(line => {
+  const [ip, port, username, password] = line.split(':');
+  return {
     ip,
-    port,
+    port: parseInt(port),
     auth: { username, password },
-    type: 'http' // ✅ clave corregida
-  });
-}
+    type: 'socks5'
+  };
+});
 
 fs.writeFileSync(outputFile, JSON.stringify(proxies, null, 2));
 console.log(`✅ Guardado ${proxies.length} proxies en ${outputFile}`);
