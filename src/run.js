@@ -1,3 +1,4 @@
+// 📁 run.js
 import chalk from 'chalk';
 import fs from 'fs';
 import path from 'path';
@@ -84,10 +85,8 @@ async function startApp() {
     try {
       proxy = proxySystem.getNextProxy();
 
-      // ✅ Si no hay proxies válidos, usar Tor como último recurso
       if (!proxy) {
         log.warn('⚠️ No hay proxies válidos. Usando Tor como último recurso...');
-        proxy = null;
       }
 
       let isValid = true;
@@ -101,7 +100,7 @@ async function startApp() {
         }
       }
 
-      const cuenta = await crearCuentaInstagram(proxy, proxy === null); // usarTor si proxy es null
+      const cuenta = await crearCuentaInstagram(proxy, proxy === null);
 
       if (cuenta?.usuario && cuenta?.password) {
         creadas++;

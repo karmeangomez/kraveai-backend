@@ -17,7 +17,7 @@ export default async function crearCuentaInstagram(proxy, usarTor = false) {
 
   const proxyUrl = usarTor
     ? 'socks5://127.0.0.1:9050'
-    : `socks5://${proxy.auth}@${proxy.ip}:${proxy.port}`;
+    : `${proxy.type}://${proxy.auth.username}:${proxy.auth.password}@${proxy.ip}:${proxy.port}`;
 
   const proxyStr = usarTor ? 'Tor' : `${proxy.ip}:${proxy.port}`;
 
@@ -32,7 +32,8 @@ export default async function crearCuentaInstagram(proxy, usarTor = false) {
       const esTorValido = await validateProxy({
         ip: '127.0.0.1',
         port: 9050,
-        auth: ''
+        auth: { username: '', password: '' },
+        type: 'socks5'
       });
       if (!esTorValido) throw new Error('⚠️ Tor no responde o está apagado');
     }
