@@ -1,3 +1,4 @@
+// src/accounts/crearCuentaInstagram.js
 import puppeteer from 'puppeteer-extra';
 import StealthPlugin from 'puppeteer-extra-plugin-stealth';
 import { generarNombreCompleto, generarNombreUsuario } from '../utils/nombre_utils.js';
@@ -15,10 +16,10 @@ export default async function crearCuentaInstagram(proxy, usarTor = false) {
   const email = `${username.replace(/[^a-zA-Z0-9]/g, '')}@kraveapi.xyz`;
   const password = `Krave${Math.random().toString(36).slice(2, 8)}!`;
 
-  const proxyStr = usarTor ? 'Tor' : `${proxy.ip}:${proxy.port}`;
-  const proxyProtocol = usarTor ? 'socks5' : proxy.type || 'socks5';
-  const proxyHost = usarTor ? '127.0.0.1' : proxy.ip;
-  const proxyPort = usarTor ? 9050 : proxy.port;
+  const proxyStr = usarTor ? 'Tor' : `${proxy?.ip}:${proxy?.port}`;
+  const proxyProtocol = usarTor ? 'socks5' : proxy?.type || 'socks5';
+  const proxyHost = usarTor ? '127.0.0.1' : proxy?.ip;
+  const proxyPort = usarTor ? 9050 : proxy?.port;
 
   let browser;
 
@@ -30,7 +31,7 @@ export default async function crearCuentaInstagram(proxy, usarTor = false) {
         ? {
             ip: '127.0.0.1',
             port: 9050,
-            auth: { username: '', password: '' },
+            auth: null,
             type: 'socks5'
           }
         : proxy
@@ -56,7 +57,7 @@ export default async function crearCuentaInstagram(proxy, usarTor = false) {
 
     const page = await browser.newPage();
 
-    if (!usarTor && proxy?.auth?.username) {
+    if (!usarTor && proxy?.auth?.username && proxy?.auth?.password) {
       await page.authenticate({
         username: proxy.auth.username,
         password: proxy.auth.password
