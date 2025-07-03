@@ -1,72 +1,58 @@
-import fs from 'fs';
-import path from 'path';
-import ProxyRotationSystem from './proxyRotationSystem.js';
-import WebshareProxyManager from './webshareApi.js';
-import { getProxies as loadSwiftShadowProxies } from './swiftShadowLoader.js';
-import runMultiProxies from './multiProxiesRunner.js';
-import { validateProxy } from '../utils/validator.js';
+// src/proxies/ultimateProxyMaster.js
+async initialize(forceRefresh = false) {
+    // FORZAR siempre la recarga inicial
+    forceRefresh = true;
+    
+    console.log('🔥 Inicializando sistema de proxies...');
+    let proxies = [];
 
-const PROXIES_VALIDATED_PATH = path.resolve('src/proxies/proxies_validados.json');
+    // Eliminar cachés antiguas
+    ['proxies_validados.json', 'webshare_proxies.json'].forEach(file => {
+        const filePath = path.resolve('src/proxies', file);
+        if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+    });
 
-export default class UltimateProxyMaster extends ProxyRotationSystem {
-  constructor() {
-    super([]);
-  }
+    // Obtener proxies frescos
+    proxies = await this.getAllSourcesProxies();
+    proxies = await this.filterValidProxies(proxies);
 
-  // ... (métodos initialize y refreshProxies se mantienen igual) ...
+    // ... resto del código se mantiene igual ...
+}
 
-  async getAllSourcesProxies() {
+async getAllSourcesProxies() {
     console.log('🔍 Obteniendo proxies desde todas las fuentes...');
     
-    // 1. PRIORIDAD MÁXIMA: Webshare
+    // 1. Priorizar Webshare
     let webshareProxies = [];
     try {
-      webshareProxies = await WebshareProxyManager.getProxies();
-      console.log(`⭐ Obtenidos ${webshareProxies.length} proxies premium de Webshare`);
-      
-      // Si tenemos proxies de Webshare, los usamos como principales
-      if (webshareProxies.length > 0) {
-        return webshareProxies;
-      }
-    } catch (error) {
-      console.error('⚠️ Error obteniendo proxies Webshare:', error.message);
-    }
-    
-    // 2. RESERVAS: Fuentes públicas (solo si Webshare falla o no devuelve proxies)
-    console.warn('⚠️ Usando proxies públicos como reserva');
-    const [swift, multi] = await Promise.allSettled([
-      loadSwiftShadowProxies(),
-      runMultiProxies()
-    ]);
-
-    const publicProxies = [
-      ...(swift.status === 'fulfilled' ? swift.value : []),
-      ...(multi.status === 'fulfilled' ? multi.value : [])
-    ];
-
-    // 3. Combinamos con Webshare (por si hubo algunos)
-    const allProxies = [...webshareProxies, ...publicProxies];
-    
-    // Filtrar para mantener solo SOCKS5
-    const filtered = allProxies.filter(proxy => 
-      proxy.type?.toLowerCase().includes('socks')
-    );
-
-    // Eliminar duplicados manteniendo los de Webshare primero
-    const uniqueProxies = [];
-    const seen = new Set();
-    
-    for (const proxy of filtered) {
-      const key = `${proxy.ip}:${proxy.port}`;
-      if (!seen.has(key)) {
-        seen.add(key);
-        uniqueProxies.push(proxy);
-      }
+        webshareProxies = await WebshareProxyManager.getProxies();
+        console.log(`⭐ ${webshareProxies.length} proxies de Webshare obtenidos`);
+    } catch (e) {
+        console.error('⚠️ Error con Webshare:', e.message);
     }
 
-    console.log(`📊 Proxies combinados (SOCKS5): ${uniqueProxies.length}`);
-    return uniqueProxies;
-  }
+    // 2. Solo cargar otras fuentes si Webshare falló
+    let publicProxies = [];
+    if (webshareProxies.length === 0) {
+        console.warn('⚠️ Cargando proxies públicos como respaldo');
+        const [swift, multi] = await Promise.allSettled([
+            loadSwiftShadowProxies(),
+            runMultiProxies()
+        ]);
+        
+        publicProxies = [
+            ...(swift.status === 'fulfilled' ? swift.value : []),
+            ...(multi.status === 'fulfilled' ? multi.value : [])
+        ];
+    }
 
-  // ... (métodos filterValidProxies, autoRefreshProxies y loadAllProxies se mantienen igual) ...
+    // 3. Combinar y filtrar
+    const allProxies = [...webshareProxies, ...publicProxies]
+        .filter(proxy => proxy.type?.includes('socks'))
+        .filter((proxy, index, self) => 
+            index === self.findIndex(p => p.ip === proxy.ip && p.port === proxy.port)
+        );
+
+    console.log(`📊 Total proxies disponibles: ${allProxies.length}`);
+    return allProxies;
 }
