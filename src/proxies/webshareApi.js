@@ -4,74 +4,78 @@ import path from 'path';
 import dotenv from 'dotenv';
 dotenv.config();
 
-const API_KEY = process.env.WEBSHARE_API_KEY;
 const PROXY_FILE = path.resolve('src/proxies/proxies.json');
+const API_KEY = process.env.WEBSHARE_API_KEY;
 
 export default class WebshareProxyManager {
-  static async fetchProxies(limit = 50) {
-    if (!API_KEY || API_KEY.length < 20) {
-      console.error('❌ WEBSHARE_API_KEY no definido o inválido');
-      return [];
+  static async getProxies() {
+    // 1. Intenta cargar proxies existentes
+    if (fs.existsSync(PROXY_FILE)) {
+      try {
+        const cached = JSON.parse(fs.readFileSync(PROXY_FILE, 'utf-8'));
+        if (cached.length > 0) {
+          console.log(`♻️ Usando ${cached.length} proxies de Webshare en caché`);
+          return cached;
+        }
+      } catch (e) {
+        console.warn('⚠️ Error cargando caché de proxies, regenerando...');
+      }
     }
 
+    // 2. Obtener proxies reales del API
     try {
-      const res = await axios.get('https://proxy.webshare.io/api/v2/proxy/list/', {
-        headers: { Authorization: `Token ${API_KEY}` },
-        params: {
-          mode: 'direct',
-          page: 1,
-          page_size: limit,
-          proxy_type: 'socks5',
-          countries: 'us,ca,mx,es',
-          valid: true
-        },
-        timeout: 15000
-      });
+      console.log('🌐 Obteniendo proxies rotativos de Webshare...');
+      const response = await axios.get(
+        'https://proxy.webshare.io/api/v2/proxy/list/',
+        {
+          headers: {
+            'Authorization': `Token ${API_KEY}`
+          },
+          params: {
+            mode: 'direct',
+            page: 1,
+            page_size: 100
+          },
+          timeout: 15000
+        }
+      );
 
-      return res.data.results.map(p => ({
-        ip: p.proxy_address,
-        port: p.ports?.socks5 || 1080,
+      // 3. Filtrar y formatear
+      const proxies = response.data.results.map(proxy => ({
+        ip: proxy.proxy_address,
+        port: proxy.ports.socks5 || proxy.ports.http, // Soporta ambos tipos
         auth: {
-          username: p.username,
-          password: p.password
+          username: proxy.username,
+          password: proxy.password
         },
-        type: 'socks5',
-        country: p.country_code,
-        isp: p.isp,
+        type: proxy.proxy_type,
+        country: proxy.country_code,
         lastUsed: 0,
         successCount: 0,
         failCount: 0,
-        lastChecked: Date.now()
+        isRotating: true,
+        source: 'webshare'
       }));
-    } catch (err) {
-      console.error('❌ Error obteniendo proxies de Webshare:', err.message);
+
+      // 4. Guardar en el archivo principal
+      fs.writeFileSync(PROXY_FILE, JSON.stringify(proxies, null, 2));
+      console.log(`✅ ${proxies.length} proxies rotativos obtenidos de Webshare`);
+      return proxies;
+
+    } catch (error) {
+      console.error('❌ Error obteniendo proxies de Webshare:', error.response?.data || error.message);
       return [];
     }
   }
 
   static async refreshProxies() {
-    console.log('🔄 Actualizando proxies desde Webshare...');
-    const proxies = await this.fetchProxies();
-    if (proxies.length > 0) {
-      fs.writeFileSync(PROXY_FILE, JSON.stringify(proxies, null, 2));
-      console.log(`✅ ${proxies.length} proxies actualizados`);
-      return proxies;
-    } else {
-      console.warn('⚠️ No se recibieron proxies válidos. Usando caché...');
-      return this.getCachedProxies();
-    }
+    // Borrar caché para forzar nueva descarga
+    if (fs.existsSync(PROXY_FILE)) fs.unlinkSync(PROXY_FILE);
+    return this.getProxies();
   }
-
-  static getCachedProxies() {
-    if (fs.existsSync(PROXY_FILE)) {
-      const content = fs.readFileSync(PROXY_FILE, 'utf-8');
-      return JSON.parse(content);
-    }
-    return [];
-  }
-
-  static async getProxies(forceRefresh = false) {
-    const needRefresh = !fs.existsSync(PROXY_FILE) || ((Date.now() - fs.statSync(PROXY_FILE).mtimeMs) / 60000 > 30);
-    return forceRefresh || needRefresh ? await this.refreshProxies() : this.getCachedProxies();
+  
+  static async getCachedProxies() {
+    if (!fs.existsSync(PROXY_FILE)) return [];
+    return JSON.parse(fs.readFileSync(PROXY_FILE, 'utf-8'));
   }
 }
