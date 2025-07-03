@@ -1,4 +1,3 @@
-// 📁 run.js
 import chalk from 'chalk';
 import fs from 'fs';
 import path from 'path';
@@ -7,7 +6,7 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 import AccountManager from './accounts/accountManager.js';
-import crearCuentaInstagram from './accounts/crearCuentaInstagram.js';
+import { crearCuentaInstagram } from './accounts/crearCuentaInstagram.js'; // Importación corregida
 import UltimateProxyMaster from './proxies/ultimateProxyMaster.js';
 import { notifyTelegram } from './utils/telegram_utils.js';
 import { validateProxy } from './utils/validator.js';
