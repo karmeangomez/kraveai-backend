@@ -1,0 +1,12 @@
+[
+  {
+    "ip": "127.0.0.1",
+    "port": 9050,
+    "auth": null,
+    "type": "socks5",
+    "country": "TOR",
+    "lastUsed": 0,
+    "successCount": 0,
+    "failCount": 0
+  }
+]
