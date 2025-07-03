@@ -1,9 +1,10 @@
+// src/proxies/ultimateProxyMaster.js
 import fs from 'fs';
 import path from 'path';
 import ProxyRotationSystem from './proxyRotationSystem.js';
 import WebshareProxyManager from './webshareApi.js';
-import SwiftShadowLoader from './swiftShadowLoader.js';
-import MultiProxiesRunner from './multiProxiesRunner.js';
+import loadSwiftShadowProxies from './swiftShadowLoader.js';
+import runMultiProxies from './multiProxiesRunner.js';
 import { validateProxy } from '../utils/validator.js';
 
 const PROXIES_VALIDATED_PATH = path.resolve('src/proxies/proxies_validados.json');
@@ -52,8 +53,8 @@ export default class UltimateProxyMaster extends ProxyRotationSystem {
   async getAllSourcesProxies() {
     console.log('🔍 Obteniendo proxies desde todas las fuentes...');
     const webshare = await WebshareProxyManager.getProxies();
-    const swift = await SwiftShadowLoader.getProxies();
-    const multi = await MultiProxiesRunner.getProxies();
+    const swift = await loadSwiftShadowProxies();
+    const multi = await runMultiProxies();
 
     const all = [...webshare, ...swift, ...multi];
 
@@ -70,6 +71,12 @@ export default class UltimateProxyMaster extends ProxyRotationSystem {
     const results = [];
 
     for (const proxy of proxies) {
+      // Validación extra para evitar errores de URL mal formada
+      if (!proxy.ip || !proxy.port || !proxy.auth || !proxy.auth.username || !proxy.auth.password || !proxy.type) {
+        console.log(`⚠️ Proxy malformado descartado: ${JSON.stringify(proxy)}`);
+        continue;
+      }
+
       const isValid = await validateProxy(proxy);
       if (isValid) {
         results.push(proxy);
