@@ -1,4 +1,3 @@
-// src/proxies/ultimateProxyMaster.js
 import fs from 'fs';
 import path from 'path';
 import ProxyRotationSystem from './proxyRotationSystem.js';
@@ -52,6 +51,7 @@ export default class UltimateProxyMaster extends ProxyRotationSystem {
 
   async getAllSourcesProxies() {
     console.log('🔍 Obteniendo proxies desde todas las fuentes...');
+
     const webshare = await WebshareProxyManager.getProxies();
     const swift = await loadSwiftShadowProxies();
     const multi = await runMultiProxies();
@@ -71,12 +71,6 @@ export default class UltimateProxyMaster extends ProxyRotationSystem {
     const results = [];
 
     for (const proxy of proxies) {
-      // Validación extra para evitar errores de URL mal formada
-      if (!proxy.ip || !proxy.port || !proxy.auth || !proxy.auth.username || !proxy.auth.password || !proxy.type) {
-        console.log(`⚠️ Proxy malformado descartado: ${JSON.stringify(proxy)}`);
-        continue;
-      }
-
       const isValid = await validateProxy(proxy);
       if (isValid) {
         results.push(proxy);
