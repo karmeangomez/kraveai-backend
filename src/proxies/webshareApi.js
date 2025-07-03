@@ -40,10 +40,10 @@ export default class WebshareProxyManager {
         }
       );
 
-      // 3. Filtrar y formatear
+      // 3. Filtrar y formatear - CORRECCIÓN CLAVE AQUÍ
       const proxies = response.data.results.map(proxy => ({
         ip: proxy.proxy_address,
-        port: proxy.ports.socks5 || proxy.ports.http, // Soporta ambos tipos
+        port: proxy.port,  // Usar directamente proxy.port en lugar de proxy.ports
         auth: {
           username: proxy.username,
           password: proxy.password
