@@ -2660,3 +2660,4 @@ See system logs and 'systemctl status cloudflared.service' for details.
 ❌ No se pudo restaurar el túnel
 ✅ Túnel activo
 ✅ Túnel activo
+✅ Túnel activo
