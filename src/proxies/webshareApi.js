@@ -1,4 +1,3 @@
-import axios from 'axios';
 import fs from 'fs';
 import path from 'path';
 import dotenv from 'dotenv';
@@ -11,8 +10,10 @@ export default class WebshareProxyManager {
     const USER = process.env.WEBSHARE_RESIDENTIAL_USER;
     const PASS = process.env.WEBSHARE_RESIDENTIAL_PASS;
     
-    if (!USER || !PASS) {
-      console.error('❌ Credenciales residenciales de Webshare no configuradas');
+    // Verificación estricta de credenciales
+    if (!USER || USER.trim() === "" || !PASS || PASS.trim() === "") {
+      console.error('❌ ERROR CRÍTICO: Credenciales residenciales vacías o no configuradas');
+      console.error('   Verifica tus variables WEBSHARE_RESIDENTIAL_USER y WEBSHARE_RESIDENTIAL_PASS en .env');
       return [];
     }
 
@@ -23,8 +24,8 @@ export default class WebshareProxyManager {
       ip: 'p.webshare.io',
       port: 80,
       auth: {
-        username: USER,
-        password: PASS
+        username: USER.trim(),
+        password: PASS.trim()
       },
       type: 'http',
       country: 'RESIDENTIAL',
