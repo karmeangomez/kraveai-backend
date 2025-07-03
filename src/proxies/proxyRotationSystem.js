@@ -1,3 +1,4 @@
+// src/proxies/proxyRotationSystem.js
 import { isProxyBlacklisted } from './proxyBlacklistManager.js';
 
 export default class ProxyRotationSystem {
@@ -23,21 +24,19 @@ export default class ProxyRotationSystem {
       return null;
     }
 
-    // Ordenar proxies por calidad (éxitos - fallos) y antigüedad
     const sortedProxies = [...this.proxies].sort((a, b) => {
       const scoreA = (a.successCount || 0) * 2 - (a.failCount || 0);
       const scoreB = (b.successCount || 0) * 2 - (b.failCount || 0);
       return scoreB - scoreA;
     });
 
-    // Buscar el mejor proxy disponible
     for (const proxy of sortedProxies) {
       const key = `${proxy.ip}:${proxy.port}`;
-      
-      if (!this.badProxies.has(key) && 
-          !isProxyBlacklisted(proxy) &&
-          (!proxy.lastUsed || (Date.now() - proxy.lastUsed) > 10 * 60 * 1000)) {
-        
+      if (
+        !this.badProxies.has(key) &&
+        !isProxyBlacklisted(proxy) &&
+        (!proxy.lastUsed || (Date.now() - proxy.lastUsed) > 10 * 60 * 1000)
+      ) {
         proxy.lastUsed = Date.now();
         this.stats.totalRequests++;
         console.log(`✅ Proxy seleccionado: ${key} (Score: ${(proxy.successCount || 0) - (proxy.failCount || 0)})`);
@@ -54,21 +53,20 @@ export default class ProxyRotationSystem {
       console.error('❌ Intento de marcar proxy inválido');
       return;
     }
-    
+
     const key = `${proxy.ip}:${proxy.port}`;
     this.badProxies.add(key);
     proxy.failCount = (proxy.failCount || 0) + 1;
     this.stats.failCount++;
-    
     console.log(`🚫 Proxy añadido a lista negra: ${key} (Fallos: ${proxy.failCount})`);
   }
 
   markProxySuccess(proxy) {
     if (!proxy || !proxy.ip) return;
-    
+
     proxy.successCount = (proxy.successCount || 0) + 1;
     this.stats.successCount++;
-    
+
     const key = `${proxy.ip}:${proxy.port}`;
     console.log(`🏆 Proxy exitoso: ${key} (Éxitos: ${proxy.successCount})`);
   }
@@ -78,12 +76,12 @@ export default class ProxyRotationSystem {
     this.currentIndex = 0;
     console.log('🔁 Rotación reiniciada');
   }
-  
+
   getStats() {
     return {
       ...this.stats,
-      successRate: this.stats.totalRequests > 0 
-        ? (this.stats.successCount / this.stats.totalRequests * 100).toFixed(1) 
+      successRate: this.stats.totalRequests > 0
+        ? (this.stats.successCount / this.stats.totalRequests * 100).toFixed(1)
         : 0
     };
   }
