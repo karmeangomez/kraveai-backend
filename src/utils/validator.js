@@ -1,23 +1,32 @@
-// utils/validator.js
 import axios from 'axios';
+import { SocksProxyAgent } from 'socks-proxy-agent';
 
 export async function validateProxy(proxy) {
-  const proxyUrl = `${proxy.type}://${proxy.auth.username}:${proxy.auth.password}@${proxy.ip}:${proxy.port}`;
+  const { ip, port, auth, type } = proxy;
+
   try {
-    const response = await axios.get('https://www.google.com', {
-      proxy: {
-        host: proxy.ip,
-        port: Number(proxy.port),
+    const proxyString = `${type}://${auth.username}:${auth.password}@${ip}:${port}`;
+
+    const agent = type.startsWith('socks')
+      ? new SocksProxyAgent(proxyString)
+      : undefined;
+
+    const response = await axios.get('https://httpbin.org/ip', {
+      httpsAgent: agent,
+      httpAgent: agent,
+      proxy: type === 'http' ? {
+        host: ip,
+        port: Number(port),
         auth: {
-          username: proxy.auth.username,
-          password: proxy.auth.password
+          username: auth.username,
+          password: auth.password
         },
-        protocol: proxy.type // ✅ ahora respeta http o socks5
-      },
-      timeout: 7000,
+        protocol: 'http'
+      } : false,
+      timeout: 7000
     });
 
-    return response.status === 200;
+    return response?.status === 200;
   } catch (err) {
     return false;
   }
