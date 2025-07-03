@@ -1,58 +1,40 @@
-// src/proxies/ultimateProxyMaster.js
-async initialize(forceRefresh = false) {
-    // FORZAR siempre la recarga inicial
-    forceRefresh = true;
-    
-    console.log('🔥 Inicializando sistema de proxies...');
-    let proxies = [];
-
-    // Eliminar cachés antiguas
-    ['proxies_validados.json', 'webshare_proxies.json'].forEach(file => {
-        const filePath = path.resolve('src/proxies', file);
-        if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
-    });
-
-    // Obtener proxies frescos
-    proxies = await this.getAllSourcesProxies();
-    proxies = await this.filterValidProxies(proxies);
-
-    // ... resto del código se mantiene igual ...
-}
-
 async getAllSourcesProxies() {
-    console.log('🔍 Obteniendo proxies desde todas las fuentes...');
-    
-    // 1. Priorizar Webshare
-    let webshareProxies = [];
-    try {
-        webshareProxies = await WebshareProxyManager.getProxies();
-        console.log(`⭐ ${webshareProxies.length} proxies de Webshare obtenidos`);
-    } catch (e) {
-        console.error('⚠️ Error con Webshare:', e.message);
+  console.log('🔍 Obteniendo proxies desde todas las fuentes...');
+  
+  // 1. Prioridad ABSOLUTA al proxy residencial de Webshare
+  try {
+    const webshare = await WebshareProxyManager.getProxies();
+    if (webshare.length > 0) {
+      console.log('⭐ Usando proxy residencial premium de Webshare');
+      return webshare;
     }
+  } catch (error) {
+    console.error('⚠️ Error con proxy residencial:', error.message);
+  }
 
-    // 2. Solo cargar otras fuentes si Webshare falló
-    let publicProxies = [];
-    if (webshareProxies.length === 0) {
-        console.warn('⚠️ Cargando proxies públicos como respaldo');
-        const [swift, multi] = await Promise.allSettled([
-            loadSwiftShadowProxies(),
-            runMultiProxies()
-        ]);
-        
-        publicProxies = [
-            ...(swift.status === 'fulfilled' ? swift.value : []),
-            ...(multi.status === 'fulfilled' ? multi.value : [])
-        ];
-    }
+  // 2. Fuentes secundarias (solo si falla Webshare)
+  console.warn('⚠️ Usando proxies públicos como respaldo');
+  const [swift, multi] = await Promise.allSettled([
+    loadSwiftShadowProxies(),
+    runMultiProxies()
+  ]);
 
-    // 3. Combinar y filtrar
-    const allProxies = [...webshareProxies, ...publicProxies]
-        .filter(proxy => proxy.type?.includes('socks'))
-        .filter((proxy, index, self) => 
-            index === self.findIndex(p => p.ip === proxy.ip && p.port === proxy.port)
-        );
+  const publicProxies = [
+    ...(swift.status === 'fulfilled' ? swift.value : []),
+    ...(multi.status === 'fulfilled' ? multi.value : [])
+  ].filter(proxy => proxy.type?.includes('socks'));
 
-    console.log(`📊 Total proxies disponibles: ${allProxies.length}`);
-    return allProxies;
+  // 3. Tor como último recurso
+  if (publicProxies.length === 0) {
+    console.warn('🚨 Usando Tor como último recurso');
+    return [{
+      ip: '127.0.0.1',
+      port: 9050,
+      type: 'socks5',
+      country: 'TOR',
+      source: 'tor_fallback'
+    }];
+  }
+
+  return publicProxies;
 }
