@@ -3,9 +3,8 @@ import axios from 'axios';
 import fs from 'fs';
 import path from 'path';
 import dotenv from 'dotenv';
-import testProxy from './proxyTester.js'; // ✅ Importa el validador
 
-// 🔐 Forzar carga del .env desde la raíz del proyecto
+// 🔐 Cargar variables del .env
 dotenv.config({ path: path.resolve('./.env') });
 
 const API_KEY = process.env.WEBSHARE_API_KEY;
@@ -41,12 +40,22 @@ export default class WebshareProxyManager {
       });
 
       return response.data.results.map(proxy => {
+        let type = 'http';
         let port = 80;
+
         if (proxy.ports) {
-          port = proxy.ports.http ||
-                 proxy.ports.https ||
-                 proxy.ports.socks5 ||
-                 Object.values(proxy.ports)[0];
+          if (proxy.ports.socks5) {
+            type = 'socks5';
+            port = proxy.ports.socks5;
+          } else if (proxy.ports.http) {
+            type = 'http';
+            port = proxy.ports.http;
+          } else if (proxy.ports.https) {
+            type = 'https';
+            port = proxy.ports.https;
+          } else {
+            port = Object.values(proxy.ports)[0];
+          }
         }
 
         return {
@@ -58,7 +67,7 @@ export default class WebshareProxyManager {
           },
           country: proxy.country_code,
           city: proxy.city_name,
-          type: 'http',
+          type,
           lastUsed: 0,
           successCount: 0,
           failCount: 0,
@@ -81,25 +90,12 @@ export default class WebshareProxyManager {
         this.fetchProxies(PROXY_TYPES.MOBILE, 20)
       ]);
 
-      const rawProxies = [...residential, ...mobile].filter(Boolean);
+      const proxies = [...residential, ...mobile].filter(p => p !== null);
 
-      console.log(`⚙️ Validando ${rawProxies.length} proxies...`);
-      const validProxies = [];
-
-      for (const proxy of rawProxies) {
-        const result = await testProxy(proxy);
-        if (result.working) {
-          validProxies.push(proxy);
-          console.log(`✅ Proxy válido: ${proxy.ip}:${proxy.port}`);
-        } else {
-          console.log(`❌ Falló: ${proxy.ip}:${proxy.port} (${result.error})`);
-        }
-      }
-
-      if (validProxies.length > 0) {
-        fs.writeFileSync(PROXY_FILE, JSON.stringify(validProxies, null, 2));
-        console.log(`✅ ${validProxies.length} proxies válidos guardados`);
-        return validProxies;
+      if (proxies.length > 0) {
+        fs.writeFileSync(PROXY_FILE, JSON.stringify(proxies, null, 2));
+        console.log(`✅ ${proxies.length} proxies actualizados`);
+        return proxies;
       }
 
       throw new Error('No se obtuvieron proxies válidos');
