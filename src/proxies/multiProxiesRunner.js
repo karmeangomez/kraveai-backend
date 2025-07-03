@@ -4,7 +4,7 @@ export default async function runMultiProxies() {
   try {
     console.log('🌐 Cargando proxies desde multiProxies...');
 
-    const { data } = await axios.get('https://raw.githubusercontent.com/TheSpeedX/SOCKS-List/master/http.txt', {
+    const { data } = await axios.get('https://raw.githubusercontent.com/TheSpeedX/SOCKS-List/master/socks5.txt', {
       timeout: 10000
     });
 
@@ -26,7 +26,7 @@ export default async function runMultiProxies() {
           ip,
           port: parseInt(port),
           auth: null,
-          type: 'http',
+          type: 'socks5',
           country: 'XX',
           lastUsed: 0,
           successCount: 0,
