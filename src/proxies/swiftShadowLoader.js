@@ -13,7 +13,12 @@ export async function getProxies() {
       .split('\n')
       .filter(line => {
         const parts = line.trim().split(':');
-        return parts.length === 2 && !isNaN(parts[1]);
+        return parts.length === 2 && 
+               !isNaN(parts[1]) && 
+               parts[1].trim() !== 'NaN' && 
+               !line.includes('Support us') && 
+               !line.includes('ETH') &&
+               parts[0].split('.').length === 4; // Asegura que la IP tenga 4 octetos
       })
       .slice(0, 50)
       .map(line => {
