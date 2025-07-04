@@ -10,14 +10,13 @@ export default class WebshareProxyManager {
     const USER = process.env.WEBSHARE_RESIDENTIAL_USER;
     const PASS = process.env.WEBSHARE_RESIDENTIAL_PASS;
     
-    // Verificación estricta de credenciales
     if (!USER || USER.trim() === "" || !PASS || PASS.trim() === "") {
       console.error('❌ ERROR CRÍTICO: Credenciales residenciales vacías o no configuradas');
       console.error('   Verifica tus variables WEBSHARE_RESIDENTIAL_USER y WEBSHARE_RESIDENTIAL_PASS en .env');
       return [];
     }
 
-    console.log('🚀 Usando proxy residencial rotativo de Webshare');
+    console.log(`🚀 Usando proxy residencial rotativo de Webshare con usuario: ${USER}`);
     
     // Solo necesitamos un proxy ya que es rotativo
     const proxy = {
@@ -38,6 +37,7 @@ export default class WebshareProxyManager {
 
     // Guardamos el proxy para uso posterior
     fs.writeFileSync(PROXY_FILE, JSON.stringify([proxy], null, 2));
+    console.log(`💾 Proxy de Webshare guardado en ${PROXY_FILE}`);
     return [proxy];
   }
 }
