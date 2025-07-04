@@ -1,17 +1,13 @@
 [
   {
-    "ip": "p.webshare.io",
-    "port": 80,
-    "auth": {
-      "username": "pdsmombq-residential-1",
-      "password": "terqdq67j6mp"
-    },
-    "type": "http",
-    "country": "RESIDENTIAL",
+    "ip": "127.0.0.1",
+    "port": 9050,
+    "auth": null,
+    "type": "socks5",
+    "country": "TOR",
     "lastUsed": 0,
     "successCount": 0,
     "failCount": 0,
-    "isRotating": true,
-    "source": "webshare_residential"
+    "source": "tor_fallback"
   }
 ]
