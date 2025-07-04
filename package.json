@@ -28,7 +28,7 @@
     "jsdom": "^26.1.0",
     "mailparser": "^3.7.3",
     "nodemailer": "^7.0.3",
-    "puppeteer": "^22.15.0",
+    "puppeteer": "^24.11.2",
     "puppeteer-extra": "^3.3.6",
     "puppeteer-extra-plugin-stealth": "^2.11.2",
     "socks-proxy-agent": "^8.0.5",
