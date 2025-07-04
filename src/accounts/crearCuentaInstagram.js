@@ -112,7 +112,6 @@ export async function crearCuentaInstagram(proxy, usarTor = false, retryCount = 
       );
       await cookieButton.click();
       console.log('🍪 Cookies aceptadas');
-      // CORRECCIÓN: Reemplazo de waitForTimeout
       await new Promise(resolve => setTimeout(resolve, 2000));
     } catch (error) {
       console.log('✅ No se encontró banner de cookies');
@@ -126,43 +125,62 @@ export async function crearCuentaInstagram(proxy, usarTor = false, retryCount = 
       );
       await emailButton.click();
       console.log('📧 Cambiado a registro por correo');
-      // CORRECCIÓN: Reemplazo de waitForTimeout
       await new Promise(resolve => setTimeout(resolve, 2500));
     } catch (error) {
       console.log('✅ Formulario de correo ya visible');
     }
 
-    // Completar formulario - Selector más flexible
+    // SOLUCIÓN: Nuevos selectores para el formulario actualizado de Instagram
     try {
-      const emailSelector = 'input[name="emailOrPhone"], input[name="email"]';
-      await page.waitForSelector(emailSelector, { 
+      // Esperar a que aparezca el formulario
+      await page.waitForSelector('form', { 
         visible: true,
         timeout: STEP_TIMEOUTS.form
       });
       
-      // Rellenar formulario lentamente para visualización
-      await page.type(emailSelector, email, { delay: 100 });
-      // CORRECCIÓN: Reemplazo de waitForTimeout
+      // Identificar campos por sus nuevas propiedades
+      const emailField = await page.waitForSelector(
+        'input[aria-label*="Email"], input[aria-label*="Phone"], input[name*="email"], input[name*="phone"]',
+        { timeout: 10000 }
+      );
+      
+      const fullNameField = await page.waitForSelector(
+        'input[aria-label*="Full Name"], input[name="fullName"]',
+        { timeout: 5000 }
+      );
+      
+      const usernameField = await page.waitForSelector(
+        'input[aria-label*="Username"], input[name="username"]',
+        { timeout: 5000 }
+      );
+      
+      const passwordField = await page.waitForSelector(
+        'input[aria-label*="Password"], input[name="password"]',
+        { timeout: 5000 }
+      );
+      
+      // Rellenar formulario lentamente
+      await emailField.type(email, { delay: 100 });
       await new Promise(resolve => setTimeout(resolve, 500));
       
-      await page.type('input[name="fullName"]', nombre, { delay: 100 });
-      // CORRECCIÓN: Reemplazo de waitForTimeout
+      await fullNameField.type(nombre, { delay: 100 });
       await new Promise(resolve => setTimeout(resolve, 500));
       
-      await page.type('input[name="username"]', username, { delay: 100 });
-      // CORRECCIÓN: Reemplazo de waitForTimeout
+      await usernameField.type(username, { delay: 100 });
       await new Promise(resolve => setTimeout(resolve, 500));
       
-      await page.type('input[name="password"]', password, { delay: 100 });
-      // CORRECCIÓN: Reemplazo de waitForTimeout
+      await passwordField.type(password, { delay: 100 });
       await new Promise(resolve => setTimeout(resolve, 500));
 
       console.log(`✅ Cuenta generada: @${username} | ${email}`);
 
-      // Enviar formulario
-      await page.click('button[type="submit"]');
+      // Enviar formulario - Selector mejorado
+      const submitButton = await page.waitForSelector(
+        'button[type="submit"], button:has-text("Sign up"), button:has-text("Next")',
+        { timeout: 5000 }
+      );
+      await submitButton.click();
       console.log('📝 Formulario enviado');
-      // CORRECCIÓN: Reemplazo de waitForTimeout
       await new Promise(resolve => setTimeout(resolve, 5000));
     } catch (error) {
       throw new Error(`No se pudo encontrar el formulario: ${error.message}`);
@@ -170,30 +188,38 @@ export async function crearCuentaInstagram(proxy, usarTor = false, retryCount = 
 
     // Manejo de fecha de nacimiento
     try {
-      await page.waitForSelector('select[title="Month:"]', {
-        visible: true,
-        timeout: STEP_TIMEOUTS.birthdate
-      });
+      const monthSelector = await page.waitForSelector(
+        'select[title="Month:"], select[aria-label*="Month"]',
+        { timeout: STEP_TIMEOUTS.birthdate }
+      );
 
       const month = Math.floor(Math.random() * 12) + 1;
       const day = Math.floor(Math.random() * 28) + 1;
       const year = Math.floor(Math.random() * 20) + 1980;
 
-      await page.select('select[title="Month:"]', month.toString());
-      // CORRECCIÓN: Reemplazo de waitForTimeout
+      await monthSelector.select(month.toString());
       await new Promise(resolve => setTimeout(resolve, 500));
       
-      await page.select('select[title="Day:"]', day.toString());
-      // CORRECCIÓN: Reemplazo de waitForTimeout
+      const daySelector = await page.waitForSelector(
+        'select[title="Day:"], select[aria-label*="Day"]',
+        { timeout: 3000 }
+      );
+      await daySelector.select(day.toString());
       await new Promise(resolve => setTimeout(resolve, 500));
       
-      await page.select('select[title="Year:"]', year.toString());
-      // CORRECCIÓN: Reemplazo de waitForTimeout
+      const yearSelector = await page.waitForSelector(
+        'select[title="Year:"], select[aria-label*="Year"]',
+        { timeout: 3000 }
+      );
+      await yearSelector.select(year.toString());
       await new Promise(resolve => setTimeout(resolve, 500));
       
-      await page.click('button:has-text("Next")');
+      const nextButton = await page.waitForSelector(
+        'button:has-text("Next"), button:has-text("Continue")',
+        { timeout: 3000 }
+      );
+      await nextButton.click();
       console.log(`🎂 Fecha seleccionada: ${month}/${day}/${year}`);
-      // CORRECCIÓN: Reemplazo de waitForTimeout
       await new Promise(resolve => setTimeout(resolve, 3000));
     } catch (error) {
       console.log('⚠️ No se solicitó fecha de nacimiento');
@@ -201,13 +227,12 @@ export async function crearCuentaInstagram(proxy, usarTor = false, retryCount = 
 
     // Verificación final
     try {
-      await page.waitForSelector('svg[aria-label="Instagram"]', {
+      await page.waitForSelector('svg[aria-label="Instagram"], div[role="main"]', {
         timeout: STEP_TIMEOUTS.final
       });
       console.log('🎉 ¡Registro exitoso!');
       
       // Esperar 15 segundos para ver el resultado
-      // CORRECCIÓN: Reemplazo de waitForTimeout
       await new Promise(resolve => setTimeout(resolve, 15000));
       
       return {
