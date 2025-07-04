@@ -6,14 +6,13 @@
       "username": "pdsmombq-residential-1",
       "password": "terqdq67j6mp"
     },
-    "type": "http",
+    "type": "socks5",
     "country": "RESIDENTIAL",
-    "isRotating": true,
-    "source": "webshare_residential",
-    "id": 1,
     "lastUsed": 0,
     "successCount": 0,
-    "failCount": 0
+    "failCount": 0,
+    "isRotating": true,
+    "source": "webshare_residential"
   },
   {
     "ip": "p.webshare.io",
@@ -22,14 +21,13 @@
       "username": "pdsmombq-residential-1",
       "password": "terqdq67j6mp"
     },
-    "type": "http",
+    "type": "socks5",
     "country": "RESIDENTIAL",
-    "isRotating": true,
-    "source": "webshare_residential",
-    "id": 2,
     "lastUsed": 0,
     "successCount": 0,
-    "failCount": 0
+    "failCount": 0,
+    "isRotating": true,
+    "source": "webshare_residential"
   },
   {
     "ip": "p.webshare.io",
@@ -38,14 +36,13 @@
       "username": "pdsmombq-residential-1",
       "password": "terqdq67j6mp"
     },
-    "type": "http",
+    "type": "socks5",
     "country": "RESIDENTIAL",
-    "isRotating": true,
-    "source": "webshare_residential",
-    "id": 3,
     "lastUsed": 0,
     "successCount": 0,
-    "failCount": 0
+    "failCount": 0,
+    "isRotating": true,
+    "source": "webshare_residential"
   },
   {
     "ip": "p.webshare.io",
@@ -54,14 +51,13 @@
       "username": "pdsmombq-residential-1",
       "password": "terqdq67j6mp"
     },
-    "type": "http",
+    "type": "socks5",
     "country": "RESIDENTIAL",
-    "isRotating": true,
-    "source": "webshare_residential",
-    "id": 4,
     "lastUsed": 0,
     "successCount": 0,
-    "failCount": 0
+    "failCount": 0,
+    "isRotating": true,
+    "source": "webshare_residential"
   },
   {
     "ip": "p.webshare.io",
@@ -70,14 +66,13 @@
       "username": "pdsmombq-residential-1",
       "password": "terqdq67j6mp"
     },
-    "type": "http",
+    "type": "socks5",
     "country": "RESIDENTIAL",
-    "isRotating": true,
-    "source": "webshare_residential",
-    "id": 5,
     "lastUsed": 0,
     "successCount": 0,
-    "failCount": 0
+    "failCount": 0,
+    "isRotating": true,
+    "source": "webshare_residential"
   },
   {
     "ip": "p.webshare.io",
@@ -86,14 +81,13 @@
       "username": "pdsmombq-residential-1",
       "password": "terqdq67j6mp"
     },
-    "type": "http",
+    "type": "socks5",
     "country": "RESIDENTIAL",
-    "isRotating": true,
-    "source": "webshare_residential",
-    "id": 6,
     "lastUsed": 0,
     "successCount": 0,
-    "failCount": 0
+    "failCount": 0,
+    "isRotating": true,
+    "source": "webshare_residential"
   },
   {
     "ip": "p.webshare.io",
@@ -102,14 +96,13 @@
       "username": "pdsmombq-residential-1",
       "password": "terqdq67j6mp"
     },
-    "type": "http",
+    "type": "socks5",
     "country": "RESIDENTIAL",
-    "isRotating": true,
-    "source": "webshare_residential",
-    "id": 7,
     "lastUsed": 0,
     "successCount": 0,
-    "failCount": 0
+    "failCount": 0,
+    "isRotating": true,
+    "source": "webshare_residential"
   },
   {
     "ip": "p.webshare.io",
@@ -118,14 +111,13 @@
       "username": "pdsmombq-residential-1",
       "password": "terqdq67j6mp"
     },
-    "type": "http",
+    "type": "socks5",
     "country": "RESIDENTIAL",
-    "isRotating": true,
-    "source": "webshare_residential",
-    "id": 8,
     "lastUsed": 0,
     "successCount": 0,
-    "failCount": 0
+    "failCount": 0,
+    "isRotating": true,
+    "source": "webshare_residential"
   },
   {
     "ip": "p.webshare.io",
@@ -134,14 +126,13 @@
       "username": "pdsmombq-residential-1",
       "password": "terqdq67j6mp"
     },
-    "type": "http",
+    "type": "socks5",
     "country": "RESIDENTIAL",
-    "isRotating": true,
-    "source": "webshare_residential",
-    "id": 9,
     "lastUsed": 0,
     "successCount": 0,
-    "failCount": 0
+    "failCount": 0,
+    "isRotating": true,
+    "source": "webshare_residential"
   },
   {
     "ip": "p.webshare.io",
@@ -150,14 +141,13 @@
       "username": "pdsmombq-residential-1",
       "password": "terqdq67j6mp"
     },
-    "type": "http",
+    "type": "socks5",
     "country": "RESIDENTIAL",
-    "isRotating": true,
-    "source": "webshare_residential",
-    "id": 10,
     "lastUsed": 0,
     "successCount": 0,
-    "failCount": 0
+    "failCount": 0,
+    "isRotating": true,
+    "source": "webshare_residential"
   },
   {
     "ip": "p.webshare.io",
@@ -166,14 +156,13 @@
       "username": "pdsmombq-residential-1",
       "password": "terqdq67j6mp"
     },
-    "type": "http",
+    "type": "socks5",
     "country": "RESIDENTIAL",
-    "isRotating": true,
-    "source": "webshare_residential",
-    "id": 11,
     "lastUsed": 0,
     "successCount": 0,
-    "failCount": 0
+    "failCount": 0,
+    "isRotating": true,
+    "source": "webshare_residential"
   },
   {
     "ip": "p.webshare.io",
@@ -182,14 +171,13 @@
       "username": "pdsmombq-residential-1",
       "password": "terqdq67j6mp"
     },
-    "type": "http",
+    "type": "socks5",
     "country": "RESIDENTIAL",
-    "isRotating": true,
-    "source": "webshare_residential",
-    "id": 12,
     "lastUsed": 0,
     "successCount": 0,
-    "failCount": 0
+    "failCount": 0,
+    "isRotating": true,
+    "source": "webshare_residential"
   },
   {
     "ip": "p.webshare.io",
@@ -198,14 +186,13 @@
       "username": "pdsmombq-residential-1",
       "password": "terqdq67j6mp"
     },
-    "type": "http",
+    "type": "socks5",
     "country": "RESIDENTIAL",
-    "isRotating": true,
-    "source": "webshare_residential",
-    "id": 13,
     "lastUsed": 0,
     "successCount": 0,
-    "failCount": 0
+    "failCount": 0,
+    "isRotating": true,
+    "source": "webshare_residential"
   },
   {
     "ip": "p.webshare.io",
@@ -214,14 +201,13 @@
       "username": "pdsmombq-residential-1",
       "password": "terqdq67j6mp"
     },
-    "type": "http",
+    "type": "socks5",
     "country": "RESIDENTIAL",
-    "isRotating": true,
-    "source": "webshare_residential",
-    "id": 14,
     "lastUsed": 0,
     "successCount": 0,
-    "failCount": 0
+    "failCount": 0,
+    "isRotating": true,
+    "source": "webshare_residential"
   },
   {
     "ip": "p.webshare.io",
@@ -230,14 +216,13 @@
       "username": "pdsmombq-residential-1",
       "password": "terqdq67j6mp"
     },
-    "type": "http",
+    "type": "socks5",
     "country": "RESIDENTIAL",
-    "isRotating": true,
-    "source": "webshare_residential",
-    "id": 15,
     "lastUsed": 0,
     "successCount": 0,
-    "failCount": 0
+    "failCount": 0,
+    "isRotating": true,
+    "source": "webshare_residential"
   },
   {
     "ip": "p.webshare.io",
@@ -246,14 +231,13 @@
       "username": "pdsmombq-residential-1",
       "password": "terqdq67j6mp"
     },
-    "type": "http",
+    "type": "socks5",
     "country": "RESIDENTIAL",
-    "isRotating": true,
-    "source": "webshare_residential",
-    "id": 16,
     "lastUsed": 0,
     "successCount": 0,
-    "failCount": 0
+    "failCount": 0,
+    "isRotating": true,
+    "source": "webshare_residential"
   },
   {
     "ip": "p.webshare.io",
@@ -262,14 +246,13 @@
       "username": "pdsmombq-residential-1",
       "password": "terqdq67j6mp"
     },
-    "type": "http",
+    "type": "socks5",
     "country": "RESIDENTIAL",
-    "isRotating": true,
-    "source": "webshare_residential",
-    "id": 17,
     "lastUsed": 0,
     "successCount": 0,
-    "failCount": 0
+    "failCount": 0,
+    "isRotating": true,
+    "source": "webshare_residential"
   },
   {
     "ip": "p.webshare.io",
@@ -278,14 +261,13 @@
       "username": "pdsmombq-residential-1",
       "password": "terqdq67j6mp"
     },
-    "type": "http",
+    "type": "socks5",
     "country": "RESIDENTIAL",
-    "isRotating": true,
-    "source": "webshare_residential",
-    "id": 18,
     "lastUsed": 0,
     "successCount": 0,
-    "failCount": 0
+    "failCount": 0,
+    "isRotating": true,
+    "source": "webshare_residential"
   },
   {
     "ip": "p.webshare.io",
@@ -294,14 +276,13 @@
       "username": "pdsmombq-residential-1",
       "password": "terqdq67j6mp"
     },
-    "type": "http",
+    "type": "socks5",
     "country": "RESIDENTIAL",
-    "isRotating": true,
-    "source": "webshare_residential",
-    "id": 19,
     "lastUsed": 0,
     "successCount": 0,
-    "failCount": 0
+    "failCount": 0,
+    "isRotating": true,
+    "source": "webshare_residential"
   },
   {
     "ip": "p.webshare.io",
@@ -310,14 +291,13 @@
       "username": "pdsmombq-residential-1",
       "password": "terqdq67j6mp"
     },
-    "type": "http",
+    "type": "socks5",
     "country": "RESIDENTIAL",
-    "isRotating": true,
-    "source": "webshare_residential",
-    "id": 20,
     "lastUsed": 0,
     "successCount": 0,
-    "failCount": 0
+    "failCount": 0,
+    "isRotating": true,
+    "source": "webshare_residential"
   },
   {
     "ip": "p.webshare.io",
@@ -326,14 +306,13 @@
       "username": "pdsmombq-residential-1",
       "password": "terqdq67j6mp"
     },
-    "type": "http",
+    "type": "socks5",
     "country": "RESIDENTIAL",
-    "isRotating": true,
-    "source": "webshare_residential",
-    "id": 21,
     "lastUsed": 0,
     "successCount": 0,
-    "failCount": 0
+    "failCount": 0,
+    "isRotating": true,
+    "source": "webshare_residential"
   },
   {
     "ip": "p.webshare.io",
@@ -342,14 +321,13 @@
       "username": "pdsmombq-residential-1",
       "password": "terqdq67j6mp"
     },
-    "type": "http",
+    "type": "socks5",
     "country": "RESIDENTIAL",
-    "isRotating": true,
-    "source": "webshare_residential",
-    "id": 22,
     "lastUsed": 0,
     "successCount": 0,
-    "failCount": 0
+    "failCount": 0,
+    "isRotating": true,
+    "source": "webshare_residential"
   },
   {
     "ip": "p.webshare.io",
@@ -358,14 +336,13 @@
       "username": "pdsmombq-residential-1",
       "password": "terqdq67j6mp"
     },
-    "type": "http",
+    "type": "socks5",
     "country": "RESIDENTIAL",
-    "isRotating": true,
-    "source": "webshare_residential",
-    "id": 23,
     "lastUsed": 0,
     "successCount": 0,
-    "failCount": 0
+    "failCount": 0,
+    "isRotating": true,
+    "source": "webshare_residential"
   },
   {
     "ip": "p.webshare.io",
@@ -374,14 +351,13 @@
       "username": "pdsmombq-residential-1",
       "password": "terqdq67j6mp"
     },
-    "type": "http",
+    "type": "socks5",
     "country": "RESIDENTIAL",
-    "isRotating": true,
-    "source": "webshare_residential",
-    "id": 24,
     "lastUsed": 0,
     "successCount": 0,
-    "failCount": 0
+    "failCount": 0,
+    "isRotating": true,
+    "source": "webshare_residential"
   },
   {
     "ip": "p.webshare.io",
@@ -390,14 +366,13 @@
       "username": "pdsmombq-residential-1",
       "password": "terqdq67j6mp"
     },
-    "type": "http",
+    "type": "socks5",
     "country": "RESIDENTIAL",
-    "isRotating": true,
-    "source": "webshare_residential",
-    "id": 25,
     "lastUsed": 0,
     "successCount": 0,
-    "failCount": 0
+    "failCount": 0,
+    "isRotating": true,
+    "source": "webshare_residential"
   },
   {
     "ip": "p.webshare.io",
@@ -406,14 +381,13 @@
       "username": "pdsmombq-residential-1",
       "password": "terqdq67j6mp"
     },
-    "type": "http",
+    "type": "socks5",
     "country": "RESIDENTIAL",
-    "isRotating": true,
-    "source": "webshare_residential",
-    "id": 26,
     "lastUsed": 0,
     "successCount": 0,
-    "failCount": 0
+    "failCount": 0,
+    "isRotating": true,
+    "source": "webshare_residential"
   },
   {
     "ip": "p.webshare.io",
@@ -422,14 +396,13 @@
       "username": "pdsmombq-residential-1",
       "password": "terqdq67j6mp"
     },
-    "type": "http",
+    "type": "socks5",
     "country": "RESIDENTIAL",
-    "isRotating": true,
-    "source": "webshare_residential",
-    "id": 27,
     "lastUsed": 0,
     "successCount": 0,
-    "failCount": 0
+    "failCount": 0,
+    "isRotating": true,
+    "source": "webshare_residential"
   },
   {
     "ip": "p.webshare.io",
@@ -438,14 +411,13 @@
       "username": "pdsmombq-residential-1",
       "password": "terqdq67j6mp"
     },
-    "type": "http",
+    "type": "socks5",
     "country": "RESIDENTIAL",
-    "isRotating": true,
-    "source": "webshare_residential",
-    "id": 28,
     "lastUsed": 0,
     "successCount": 0,
-    "failCount": 0
+    "failCount": 0,
+    "isRotating": true,
+    "source": "webshare_residential"
   },
   {
     "ip": "p.webshare.io",
@@ -454,14 +426,13 @@
       "username": "pdsmombq-residential-1",
       "password": "terqdq67j6mp"
     },
-    "type": "http",
+    "type": "socks5",
     "country": "RESIDENTIAL",
-    "isRotating": true,
-    "source": "webshare_residential",
-    "id": 29,
     "lastUsed": 0,
     "successCount": 0,
-    "failCount": 0
+    "failCount": 0,
+    "isRotating": true,
+    "source": "webshare_residential"
   },
   {
     "ip": "p.webshare.io",
@@ -470,14 +441,13 @@
       "username": "pdsmombq-residential-1",
       "password": "terqdq67j6mp"
     },
-    "type": "http",
+    "type": "socks5",
     "country": "RESIDENTIAL",
-    "isRotating": true,
-    "source": "webshare_residential",
-    "id": 30,
     "lastUsed": 0,
     "successCount": 0,
-    "failCount": 0
+    "failCount": 0,
+    "isRotating": true,
+    "source": "webshare_residential"
   },
   {
     "ip": "p.webshare.io",
@@ -486,14 +456,13 @@
       "username": "pdsmombq-residential-1",
       "password": "terqdq67j6mp"
     },
-    "type": "http",
+    "type": "socks5",
     "country": "RESIDENTIAL",
-    "isRotating": true,
-    "source": "webshare_residential",
-    "id": 31,
     "lastUsed": 0,
     "successCount": 0,
-    "failCount": 0
+    "failCount": 0,
+    "isRotating": true,
+    "source": "webshare_residential"
   },
   {
     "ip": "p.webshare.io",
@@ -502,14 +471,13 @@
       "username": "pdsmombq-residential-1",
       "password": "terqdq67j6mp"
     },
-    "type": "http",
+    "type": "socks5",
     "country": "RESIDENTIAL",
-    "isRotating": true,
-    "source": "webshare_residential",
-    "id": 32,
     "lastUsed": 0,
     "successCount": 0,
-    "failCount": 0
+    "failCount": 0,
+    "isRotating": true,
+    "source": "webshare_residential"
   },
   {
     "ip": "p.webshare.io",
@@ -518,14 +486,13 @@
       "username": "pdsmombq-residential-1",
       "password": "terqdq67j6mp"
     },
-    "type": "http",
+    "type": "socks5",
     "country": "RESIDENTIAL",
-    "isRotating": true,
-    "source": "webshare_residential",
-    "id": 33,
     "lastUsed": 0,
     "successCount": 0,
-    "failCount": 0
+    "failCount": 0,
+    "isRotating": true,
+    "source": "webshare_residential"
   },
   {
     "ip": "p.webshare.io",
@@ -534,14 +501,13 @@
       "username": "pdsmombq-residential-1",
       "password": "terqdq67j6mp"
     },
-    "type": "http",
+    "type": "socks5",
     "country": "RESIDENTIAL",
-    "isRotating": true,
-    "source": "webshare_residential",
-    "id": 34,
     "lastUsed": 0,
     "successCount": 0,
-    "failCount": 0
+    "failCount": 0,
+    "isRotating": true,
+    "source": "webshare_residential"
   },
   {
     "ip": "p.webshare.io",
@@ -550,14 +516,13 @@
       "username": "pdsmombq-residential-1",
       "password": "terqdq67j6mp"
     },
-    "type": "http",
+    "type": "socks5",
     "country": "RESIDENTIAL",
-    "isRotating": true,
-    "source": "webshare_residential",
-    "id": 35,
     "lastUsed": 0,
     "successCount": 0,
-    "failCount": 0
+    "failCount": 0,
+    "isRotating": true,
+    "source": "webshare_residential"
   },
   {
     "ip": "p.webshare.io",
@@ -566,14 +531,13 @@
       "username": "pdsmombq-residential-1",
       "password": "terqdq67j6mp"
     },
-    "type": "http",
+    "type": "socks5",
     "country": "RESIDENTIAL",
-    "isRotating": true,
-    "source": "webshare_residential",
-    "id": 36,
     "lastUsed": 0,
     "successCount": 0,
-    "failCount": 0
+    "failCount": 0,
+    "isRotating": true,
+    "source": "webshare_residential"
   },
   {
     "ip": "p.webshare.io",
@@ -582,14 +546,13 @@
       "username": "pdsmombq-residential-1",
       "password": "terqdq67j6mp"
     },
-    "type": "http",
+    "type": "socks5",
     "country": "RESIDENTIAL",
-    "isRotating": true,
-    "source": "webshare_residential",
-    "id": 37,
     "lastUsed": 0,
     "successCount": 0,
-    "failCount": 0
+    "failCount": 0,
+    "isRotating": true,
+    "source": "webshare_residential"
   },
   {
     "ip": "p.webshare.io",
@@ -598,14 +561,13 @@
       "username": "pdsmombq-residential-1",
       "password": "terqdq67j6mp"
     },
-    "type": "http",
+    "type": "socks5",
     "country": "RESIDENTIAL",
-    "isRotating": true,
-    "source": "webshare_residential",
-    "id": 38,
     "lastUsed": 0,
     "successCount": 0,
-    "failCount": 0
+    "failCount": 0,
+    "isRotating": true,
+    "source": "webshare_residential"
   },
   {
     "ip": "p.webshare.io",
@@ -614,14 +576,13 @@
       "username": "pdsmombq-residential-1",
       "password": "terqdq67j6mp"
     },
-    "type": "http",
+    "type": "socks5",
     "country": "RESIDENTIAL",
-    "isRotating": true,
-    "source": "webshare_residential",
-    "id": 39,
     "lastUsed": 0,
     "successCount": 0,
-    "failCount": 0
+    "failCount": 0,
+    "isRotating": true,
+    "source": "webshare_residential"
   },
   {
     "ip": "p.webshare.io",
@@ -630,14 +591,13 @@
       "username": "pdsmombq-residential-1",
       "password": "terqdq67j6mp"
     },
-    "type": "http",
+    "type": "socks5",
     "country": "RESIDENTIAL",
-    "isRotating": true,
-    "source": "webshare_residential",
-    "id": 40,
     "lastUsed": 0,
     "successCount": 0,
-    "failCount": 0
+    "failCount": 0,
+    "isRotating": true,
+    "source": "webshare_residential"
   },
   {
     "ip": "p.webshare.io",
@@ -646,14 +606,13 @@
       "username": "pdsmombq-residential-1",
       "password": "terqdq67j6mp"
     },
-    "type": "http",
+    "type": "socks5",
     "country": "RESIDENTIAL",
-    "isRotating": true,
-    "source": "webshare_residential",
-    "id": 41,
     "lastUsed": 0,
     "successCount": 0,
-    "failCount": 0
+    "failCount": 0,
+    "isRotating": true,
+    "source": "webshare_residential"
   },
   {
     "ip": "p.webshare.io",
@@ -662,14 +621,13 @@
       "username": "pdsmombq-residential-1",
       "password": "terqdq67j6mp"
     },
-    "type": "http",
+    "type": "socks5",
     "country": "RESIDENTIAL",
-    "isRotating": true,
-    "source": "webshare_residential",
-    "id": 42,
     "lastUsed": 0,
     "successCount": 0,
-    "failCount": 0
+    "failCount": 0,
+    "isRotating": true,
+    "source": "webshare_residential"
   },
   {
     "ip": "p.webshare.io",
@@ -678,14 +636,13 @@
       "username": "pdsmombq-residential-1",
       "password": "terqdq67j6mp"
     },
-    "type": "http",
+    "type": "socks5",
     "country": "RESIDENTIAL",
-    "isRotating": true,
-    "source": "webshare_residential",
-    "id": 43,
     "lastUsed": 0,
     "successCount": 0,
-    "failCount": 0
+    "failCount": 0,
+    "isRotating": true,
+    "source": "webshare_residential"
   },
   {
     "ip": "p.webshare.io",
@@ -694,14 +651,13 @@
       "username": "pdsmombq-residential-1",
       "password": "terqdq67j6mp"
     },
-    "type": "http",
+    "type": "socks5",
     "country": "RESIDENTIAL",
-    "isRotating": true,
-    "source": "webshare_residential",
-    "id": 44,
     "lastUsed": 0,
     "successCount": 0,
-    "failCount": 0
+    "failCount": 0,
+    "isRotating": true,
+    "source": "webshare_residential"
   },
   {
     "ip": "p.webshare.io",
@@ -710,14 +666,13 @@
       "username": "pdsmombq-residential-1",
       "password": "terqdq67j6mp"
     },
-    "type": "http",
+    "type": "socks5",
     "country": "RESIDENTIAL",
-    "isRotating": true,
-    "source": "webshare_residential",
-    "id": 45,
     "lastUsed": 0,
     "successCount": 0,
-    "failCount": 0
+    "failCount": 0,
+    "isRotating": true,
+    "source": "webshare_residential"
   },
   {
     "ip": "p.webshare.io",
@@ -726,14 +681,13 @@
       "username": "pdsmombq-residential-1",
       "password": "terqdq67j6mp"
     },
-    "type": "http",
+    "type": "socks5",
     "country": "RESIDENTIAL",
-    "isRotating": true,
-    "source": "webshare_residential",
-    "id": 46,
     "lastUsed": 0,
     "successCount": 0,
-    "failCount": 0
+    "failCount": 0,
+    "isRotating": true,
+    "source": "webshare_residential"
   },
   {
     "ip": "p.webshare.io",
@@ -742,14 +696,13 @@
       "username": "pdsmombq-residential-1",
       "password": "terqdq67j6mp"
     },
-    "type": "http",
+    "type": "socks5",
     "country": "RESIDENTIAL",
-    "isRotating": true,
-    "source": "webshare_residential",
-    "id": 47,
     "lastUsed": 0,
     "successCount": 0,
-    "failCount": 0
+    "failCount": 0,
+    "isRotating": true,
+    "source": "webshare_residential"
   },
   {
     "ip": "p.webshare.io",
@@ -758,14 +711,13 @@
       "username": "pdsmombq-residential-1",
       "password": "terqdq67j6mp"
     },
-    "type": "http",
+    "type": "socks5",
     "country": "RESIDENTIAL",
-    "isRotating": true,
-    "source": "webshare_residential",
-    "id": 48,
     "lastUsed": 0,
     "successCount": 0,
-    "failCount": 0
+    "failCount": 0,
+    "isRotating": true,
+    "source": "webshare_residential"
   },
   {
     "ip": "p.webshare.io",
@@ -774,14 +726,13 @@
       "username": "pdsmombq-residential-1",
       "password": "terqdq67j6mp"
     },
-    "type": "http",
+    "type": "socks5",
     "country": "RESIDENTIAL",
-    "isRotating": true,
-    "source": "webshare_residential",
-    "id": 49,
     "lastUsed": 0,
     "successCount": 0,
-    "failCount": 0
+    "failCount": 0,
+    "isRotating": true,
+    "source": "webshare_residential"
   },
   {
     "ip": "p.webshare.io",
@@ -790,13 +741,12 @@
       "username": "pdsmombq-residential-1",
       "password": "terqdq67j6mp"
     },
-    "type": "http",
+    "type": "socks5",
     "country": "RESIDENTIAL",
-    "isRotating": true,
-    "source": "webshare_residential",
-    "id": 50,
     "lastUsed": 0,
     "successCount": 0,
-    "failCount": 0
+    "failCount": 0,
+    "isRotating": true,
+    "source": "webshare_residential"
   }
 ]
