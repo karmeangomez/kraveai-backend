@@ -40,7 +40,7 @@ export default class UltimateProxyMaster extends ProxyRotationSystem {
       }
 
       fs.writeFileSync(PROXIES_VALIDATED_PATH, JSON.stringify(proxies, null, 2));
-      console.log(`💾 Guardado proxies válidos en proxies_validados.json`);
+      console.log(`💾 Guardado ${proxies.length} proxies válidos en proxies_validados.json`);
     }
 
     this.proxies = proxies;
@@ -85,6 +85,7 @@ export default class UltimateProxyMaster extends ProxyRotationSystem {
         .map(proxyStr => {
           const match = proxyStr.match(/http:\/\/([^:]+):([^@]+)@([^:]+):(\d+)/);
           if (match) {
+            console.log(`🛠️ Proxy manual encontrado: ${match[3]}:${match[4]}`);
             return {
               ip: match[3],
               port: parseInt(match[4]),
@@ -96,6 +97,7 @@ export default class UltimateProxyMaster extends ProxyRotationSystem {
               source: 'manual'
             };
           }
+          console.warn(`⚠️ Proxy manual inválido: ${proxyStr}`);
           return null;
         })
         .filter(Boolean);
@@ -116,6 +118,7 @@ export default class UltimateProxyMaster extends ProxyRotationSystem {
         ...(swift.status === 'fulfilled' ? swift.value : []),
         ...(multi.status === 'fulfilled' ? multi.value : [])
       ];
+      console.log(`📡 ${publicProxies.length} proxies públicos cargados`);
     }
 
     // Combinar todos los proxies
@@ -150,10 +153,16 @@ export default class UltimateProxyMaster extends ProxyRotationSystem {
   async filterValidProxies(proxies) {
     console.log('⚙️ Validando proxies...');
     const validationResults = await Promise.all(
-      proxies.map(proxy => 
-        validateProxy(proxy)
-          .then(isValid => ({ proxy, isValid }))
-          .catch(() => ({ proxy, isValid: false }))
+      proxies.map(async proxy => {
+        try {
+          const isValid = await validateProxy(proxy);
+          console.log(`✅ Proxy ${proxy.ip}:${proxy.port} (${proxy.source}) ${isValid ? 'válido' : 'inválido'}`);
+          return { proxy, isValid };
+        } catch (error) {
+          console.error(`❌ Error validando ${proxy.ip}:${proxy.port}: ${error.message}`);
+          return { proxy, isValid: false };
+        }
+      })
     );
 
     const validProxies = validationResults
