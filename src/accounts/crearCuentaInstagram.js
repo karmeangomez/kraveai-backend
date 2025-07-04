@@ -313,4 +313,3 @@ async function findElementBySelectors(page, selectors) {
   }
   throw new Error(`No se encontró elemento con selectores: ${selectors.join(', ')}`);
 }
->>>>>>> 4bc0019249803fd1c68bbd94d784632ad19fed80
