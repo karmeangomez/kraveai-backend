@@ -6,7 +6,7 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 import AccountManager from './accounts/accountManager.js';
-import { crearCuentaInstagram } from './accounts/crearCuentaInstagram.js'; // Importación corregida
+import { crearCuentaInstagram } from './accounts/crearCuentaInstagram.js';
 import UltimateProxyMaster from './proxies/ultimateProxyMaster.js';
 import { notifyTelegram } from './utils/telegram_utils.js';
 import { validateProxy } from './utils/validator.js';
@@ -124,7 +124,8 @@ async function startApp() {
       }
     }
 
-    const waitTime = Math.floor(Math.random() * 90 + 30);
+    // Tiempo de espera más largo para ver el proceso
+    const waitTime = Math.floor(Math.random() * 120 + 60); // 60-180 segundos
     log.info(`⏳ Esperando ${waitTime} segundos antes de la próxima cuenta...`);
     await new Promise(resolve => setTimeout(resolve, waitTime * 1000));
   }
