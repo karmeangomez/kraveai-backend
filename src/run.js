@@ -9,13 +9,11 @@ import AccountManager from './accounts/accountManager.js';
 import { crearCuentaInstagram } from './accounts/crearCuentaInstagram.js';
 import UltimateProxyMaster from './proxies/ultimateProxyMaster.js';
 import { notifyTelegram } from './utils/telegram_utils.js';
-import { validateProxy } from './utils/validator.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const TOTAL_CUENTAS = 50;
 const MAX_ERRORES = 10;
-const PROXY_REFRESH_INTERVAL = 60 * 60 * 1000; // 1 hora
 
 chalk.level = 1;
 const log = {
@@ -29,7 +27,6 @@ const log = {
 let errores = 0;
 let creadas = 0;
 let proxySystem;
-let refreshInterval;
 
 async function startApp() {
   log.highlight(`\n[${new Date().toISOString()}] 🔥 Iniciando KraveAI-Granja Rusa 🔥`);
@@ -37,85 +34,46 @@ async function startApp() {
   log.info(`✅ Modo: ${process.env.HEADLESS === 'true' ? 'HEADLESS' : 'VISIBLE'}`);
   log.info(`✅ Cuentas a crear: ${TOTAL_CUENTAS}`);
 
-  if (!process.env.TELEGRAM_BOT_TOKEN || !process.env.TELEGRAM_CHAT_ID) {
-    log.warn('⚠️ Configuración de Telegram incompleta');
-    log.warn('   Asegúrate de configurar TELEGRAM_BOT_TOKEN y TELEGRAM_CHAT_ID');
-  }
-
-  try {
-    await notifyTelegram(`🚀 Iniciando creación de ${TOTAL_CUENTAS} cuentas de Instagram`);
-    log.success('📲 Notificación enviada a Telegram.');
-  } catch (error) {
-    log.error(`❌ Error al enviar notificación: ${error.message}`);
-  }
-
   try {
     proxySystem = new UltimateProxyMaster();
     await proxySystem.initialize(true);
-
-    refreshInterval = setInterval(async () => {
-      try {
-        await proxySystem.refreshProxies();
-        await notifyTelegram('🔄 Proxies actualizados automáticamente');
-      } catch (error) {
-        log.error(`⚠️ Error actualizando proxies: ${error.message}`);
-      }
-    }, PROXY_REFRESH_INTERVAL);
-
     log.success(`✅ Sistema de proxies listo con ${proxySystem.proxies.length} proxies\n`);
   } catch (err) {
-    log.error(`❌ Error inicializando sistema de proxies: ${err.message}`);
+    log.error(`❌ Error inicializando proxies: ${err.message}`);
     await notifyTelegram(`❌ Error crítico en proxies: ${err.message}`);
-    clearInterval(refreshInterval);
     process.exit(1);
   }
 
-  if (AccountManager.getAccounts().length > 0) {
-    log.info(`🧹 Limpiando ${AccountManager.getAccounts().length} cuentas...`);
-    AccountManager.clearAccounts();
-  }
+  // Limpiar cuentas anteriores
+  AccountManager.clearAccounts();
 
   for (let i = 1; i <= TOTAL_CUENTAS; i++) {
-    if (errores >= MAX_ERRORES) break;
+    if (errores >= MAX_ERRORES) {
+      log.error(`🛑 Se alcanzaron ${errores} errores. Deteniendo producción.`);
+      await notifyTelegram(`❌ Detenido tras ${errores} errores. Se crearon ${creadas} cuentas.`);
+      break;
+    }
 
     log.highlight(`\n🚀 Creando cuenta ${i}/${TOTAL_CUENTAS}`);
 
-    let proxy;
     try {
-      proxy = proxySystem.getNextProxy();
-
+      const proxy = proxySystem.getNextProxy();
       if (!proxy) {
-        log.warn('⚠️ No hay proxies válidos. Usando Tor como último recurso...');
+        throw new Error('No hay proxies disponibles');
       }
 
-      let isValid = true;
-      if (proxy) {
-        isValid = await validateProxy(proxy);
-        if (!isValid) {
-          log.warn(`⛔ Proxy inválido descartado antes de usar: ${proxy.ip}:${proxy.port}`);
-          proxySystem.markProxyAsBad(proxy);
-          i--;
-          continue;
-        }
-      }
+      const cuenta = await crearCuentaInstagram(proxy);
 
-      const cuenta = await crearCuentaInstagram(proxy, proxy === null);
-
-      if (cuenta?.usuario && cuenta?.password) {
+      if (cuenta?.status === 'success') {
         creadas++;
         AccountManager.addAccount(cuenta);
-        if (proxy) proxySystem.markProxySuccess(proxy);
         log.success(`✅ Cuenta creada: @${cuenta.usuario}`);
       } else {
-        throw new Error('Cuenta inválida');
+        throw new Error(cuenta?.error || 'Error desconocido');
       }
     } catch (error) {
       errores++;
       log.error(`🔥 Error creando cuenta #${i}: ${error.message}`);
-
-      if (proxy) {
-        proxySystem.markProxyAsBad(proxy);
-      }
 
       if (errores >= MAX_ERRORES) {
         log.error(`🛑 Se alcanzaron ${errores} errores. Deteniendo producción.`);
@@ -124,38 +82,31 @@ async function startApp() {
       }
     }
 
-    // Tiempo de espera más largo para ver el proceso
+    // Espera aleatoria entre cuentas
     const waitTime = Math.floor(Math.random() * 120 + 60); // 60-180 segundos
-    log.info(`⏳ Esperando ${waitTime} segundos antes de la próxima cuenta...`);
+    log.info(`⏳ Esperando ${waitTime} segundos...`);
     await new Promise(resolve => setTimeout(resolve, waitTime * 1000));
   }
 
   if (creadas > 0) {
     const ruta = path.join(__dirname, 'cuentas_creadas.json');
     fs.writeFileSync(ruta, JSON.stringify(AccountManager.getAccounts(), null, 2));
-    log.success(`💾 ${creadas} cuentas guardadas en cuentas_creadas.json`);
+    log.success(`💾 ${creadas} cuentas guardadas`);
 
-    const stats = proxySystem.getStats();
     await notifyTelegram(
       `✅ ${creadas} cuentas creadas correctamente!\n` +
-      `📊 Estadísticas:\n` +
-      `- Proxies usados: ${stats.totalRequests}\n` +
-      `- Éxitos: ${stats.successCount}\n` +
-      `- Fallos: ${stats.failCount}\n` +
-      `- Tasa éxito: ${stats.successRate}%`
+      `📊 Proxies usados: ${proxySystem.proxies.length}`
     );
   } else {
     log.warn('⚠️ No se creó ninguna cuenta válida.');
     await notifyTelegram('⚠️ No se crearon cuentas en esta ejecución');
   }
 
-  clearInterval(refreshInterval);
   log.highlight('\n🏁 Ejecución completada');
 }
 
 startApp().catch(async (error) => {
   log.error(`❌ Error no controlado: ${error.message}`);
   await notifyTelegram(`💥 Error crítico: ${error.message}`);
-  clearInterval(refreshInterval);
   process.exit(1);
 });
