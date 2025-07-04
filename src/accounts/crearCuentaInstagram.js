@@ -112,7 +112,8 @@ export async function crearCuentaInstagram(proxy, usarTor = false, retryCount = 
       );
       await cookieButton.click();
       console.log('🍪 Cookies aceptadas');
-      await page.waitForTimeout(2000);
+      // CORRECCIÓN: Reemplazo de waitForTimeout
+      await new Promise(resolve => setTimeout(resolve, 2000));
     } catch (error) {
       console.log('✅ No se encontró banner de cookies');
     }
@@ -125,7 +126,8 @@ export async function crearCuentaInstagram(proxy, usarTor = false, retryCount = 
       );
       await emailButton.click();
       console.log('📧 Cambiado a registro por correo');
-      await page.waitForTimeout(2500);
+      // CORRECCIÓN: Reemplazo de waitForTimeout
+      await new Promise(resolve => setTimeout(resolve, 2500));
     } catch (error) {
       console.log('✅ Formulario de correo ya visible');
     }
@@ -140,23 +142,28 @@ export async function crearCuentaInstagram(proxy, usarTor = false, retryCount = 
       
       // Rellenar formulario lentamente para visualización
       await page.type(emailSelector, email, { delay: 100 });
-      await page.waitForTimeout(500);
+      // CORRECCIÓN: Reemplazo de waitForTimeout
+      await new Promise(resolve => setTimeout(resolve, 500));
       
       await page.type('input[name="fullName"]', nombre, { delay: 100 });
-      await page.waitForTimeout(500);
+      // CORRECCIÓN: Reemplazo de waitForTimeout
+      await new Promise(resolve => setTimeout(resolve, 500));
       
       await page.type('input[name="username"]', username, { delay: 100 });
-      await page.waitForTimeout(500);
+      // CORRECCIÓN: Reemplazo de waitForTimeout
+      await new Promise(resolve => setTimeout(resolve, 500));
       
       await page.type('input[name="password"]', password, { delay: 100 });
-      await page.waitForTimeout(500);
+      // CORRECCIÓN: Reemplazo de waitForTimeout
+      await new Promise(resolve => setTimeout(resolve, 500));
 
       console.log(`✅ Cuenta generada: @${username} | ${email}`);
 
       // Enviar formulario
       await page.click('button[type="submit"]');
       console.log('📝 Formulario enviado');
-      await page.waitForTimeout(5000);
+      // CORRECCIÓN: Reemplazo de waitForTimeout
+      await new Promise(resolve => setTimeout(resolve, 5000));
     } catch (error) {
       throw new Error(`No se pudo encontrar el formulario: ${error.message}`);
     }
@@ -173,17 +180,21 @@ export async function crearCuentaInstagram(proxy, usarTor = false, retryCount = 
       const year = Math.floor(Math.random() * 20) + 1980;
 
       await page.select('select[title="Month:"]', month.toString());
-      await page.waitForTimeout(500);
+      // CORRECCIÓN: Reemplazo de waitForTimeout
+      await new Promise(resolve => setTimeout(resolve, 500));
       
       await page.select('select[title="Day:"]', day.toString());
-      await page.waitForTimeout(500);
+      // CORRECCIÓN: Reemplazo de waitForTimeout
+      await new Promise(resolve => setTimeout(resolve, 500));
       
       await page.select('select[title="Year:"]', year.toString());
-      await page.waitForTimeout(500);
+      // CORRECCIÓN: Reemplazo de waitForTimeout
+      await new Promise(resolve => setTimeout(resolve, 500));
       
       await page.click('button:has-text("Next")');
       console.log(`🎂 Fecha seleccionada: ${month}/${day}/${year}`);
-      await page.waitForTimeout(3000);
+      // CORRECCIÓN: Reemplazo de waitForTimeout
+      await new Promise(resolve => setTimeout(resolve, 3000));
     } catch (error) {
       console.log('⚠️ No se solicitó fecha de nacimiento');
     }
@@ -196,7 +207,8 @@ export async function crearCuentaInstagram(proxy, usarTor = false, retryCount = 
       console.log('🎉 ¡Registro exitoso!');
       
       // Esperar 15 segundos para ver el resultado
-      await page.waitForTimeout(15000);
+      // CORRECCIÓN: Reemplazo de waitForTimeout
+      await new Promise(resolve => setTimeout(resolve, 15000));
       
       return {
         usuario: username,
