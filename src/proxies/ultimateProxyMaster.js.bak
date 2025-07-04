@@ -2,8 +2,6 @@ import fs from 'fs';
 import path from 'path';
 import ProxyRotationSystem from './proxyRotationSystem.js';
 import WebshareProxyManager from './webshareApi.js';
-import { getProxies as loadSwiftShadowProxies } from './swiftShadowLoader.js';
-import runMultiProxies from './multiProxiesRunner.js';
 import { validateProxy } from '../utils/validator.js';
 
 const PROXIES_VALIDATED_PATH = path.resolve('src/proxies/proxies_validados.json');
@@ -13,178 +11,127 @@ export default class UltimateProxyMaster extends ProxyRotationSystem {
     super([]);
   }
 
-  async initialize(forceRefresh = false) {
+  async initialize(forceRefresh = true) {
+    console.log('🔄 Inicializando sistema de proxies...');
     let proxies = [];
 
     if (!forceRefresh && fs.existsSync(PROXIES_VALIDATED_PATH)) {
-      const data = fs.readFileSync(PROXIES_VALIDATED_PATH, 'utf-8');
-      proxies = JSON.parse(data);
-      console.log(`📦 Cargando ${proxies.length} proxies validados desde proxies_validados.json`);
-    } else {
+      try {
+        const data = fs.readFileSync(PROXIES_VALIDATED_PATH, 'utf-8');
+        proxies = JSON.parse(data);
+        console.log(`📦 Cargando ${proxies.length} proxies validados`);
+      } catch (error) {
+        console.error(`❌ Error leyendo proxies: ${error.message}`);
+      }
+    }
+
+    if (proxies.length === 0) {
       proxies = await this.getAllSourcesProxies();
       proxies = await this.filterValidProxies(proxies);
+    }
 
-      if (proxies.length === 0) {
-        console.warn('⚠️ Usando Tor como respaldo temporal');
-        proxies = [{
-          ip: '127.0.0.1',
-          port: 9050,
-          auth: null,
-          type: 'socks5',
-          country: 'TOR',
-          lastUsed: 0,
-          successCount: 0,
-          failCount: 0,
-          source: 'tor_fallback'
-        }];
-      }
-
-      fs.writeFileSync(PROXIES_VALIDATED_PATH, JSON.stringify(proxies, null, 2));
-      console.log(`💾 Guardado ${proxies.length} proxies válidos en proxies_validados.json`);
+    if (proxies.length === 0) {
+      console.error('❌ No se encontraron proxies válidos');
+      throw new Error('No hay proxies válidos disponibles');
     }
 
     this.proxies = proxies;
-    await super.initialize();
+    fs.writeFileSync(PROXIES_VALIDATED_PATH, JSON.stringify(proxies, null, 2));
+    console.log(`💾 ${proxies.length} proxies válidos guardados`);
+    
     this.resetRotation();
     this.autoRefreshProxies();
-    console.log(`♻️ ${this.proxies.length} proxies activos cargados`);
     return true;
   }
 
   async refreshProxies() {
-    console.log('🔄 Refrescando todos los proxies...');
-    const proxies = await this.getAllSourcesProxies();
-    const validos = await this.filterValidProxies(proxies);
+    console.log('🔄 Refrescando proxies...');
+    let proxies = await this.getAllSourcesProxies();
+    proxies = await this.filterValidProxies(proxies);
 
-    this.proxies = validos.length > 0 ? validos : this.proxies;
-    this.resetRotation();
-    this.stats = { totalRequests: 0, successCount: 0, failCount: 0 };
-
-    if (validos.length > 0) {
-      fs.writeFileSync(PROXIES_VALIDATED_PATH, JSON.stringify(validos, null, 2));
+    if (proxies.length > 0) {
+      this.proxies = proxies;
+      fs.writeFileSync(PROXIES_VALIDATED_PATH, JSON.stringify(proxies, null, 2));
     }
-    console.log(`🔁 Proxies validados y actualizados (${validos.length})`);
+
+    this.resetRotation();
   }
 
   async getAllSourcesProxies() {
-    console.log('🔍 Obteniendo proxies desde todas las fuentes...');
+    console.log('🔍 Obteniendo proxies de todas las fuentes...');
+    const proxies = [];
     
-    // 1. Prioridad al proxy residencial de Webshare
-    let webshareProxies = [];
+    // Prioridad 1: Webshare
     try {
-      webshareProxies = await WebshareProxyManager.getProxies();
-      console.log(`⭐ ${webshareProxies.length} proxies de Webshare obtenidos`);
+      const webshareProxies = await WebshareProxyManager.getProxies();
+      if (webshareProxies.length > 0) {
+        console.log(`⭐ ${webshareProxies.length} proxies de Webshare`);
+        proxies.push(...webshareProxies);
+        return proxies; // Devolver inmediatamente si hay Webshare
+      }
     } catch (error) {
       console.error('⚠️ Error con Webshare:', error.message);
     }
 
-    // 2. Cargar lista manual de proxies
-    let manualProxies = [];
+    // Prioridad 2: Proxies manuales
     if (process.env.PROXY_LIST) {
-      manualProxies = process.env.PROXY_LIST.split(',')
+      const manualProxies = process.env.PROXY_LIST.split(',')
         .map(proxyStr => {
           const match = proxyStr.match(/http:\/\/([^:]+):([^@]+)@([^:]+):(\d+)/);
           if (match) {
-            console.log(`🛠️ Proxy manual encontrado: ${match[3]}:${match[4]}`);
             return {
               ip: match[3],
               port: parseInt(match[4]),
-              auth: {
-                username: match[1],
-                password: match[2]
-              },
+              auth: { username: match[1], password: match[2] },
               type: 'http',
               source: 'manual'
             };
           }
-          console.warn(`⚠️ Proxy manual inválido: ${proxyStr}`);
           return null;
         })
         .filter(Boolean);
       
-      console.log(`🛠️ ${manualProxies.length} proxies manuales cargados`);
+      if (manualProxies.length > 0) {
+        console.log(`📖 ${manualProxies.length} proxies manuales`);
+        proxies.push(...manualProxies);
+      }
     }
 
-    // 3. Solo cargar otras fuentes si Webshare falla y no hay manuales
-    let publicProxies = [];
-    if (webshareProxies.length === 0 && manualProxies.length === 0) {
-      console.warn('⚠️ Cargando proxies públicos como respaldo');
-      const [swift, multi] = await Promise.allSettled([
-        loadSwiftShadowProxies(),
-        runMultiProxies()
-      ]);
-      
-      publicProxies = [
-        ...(swift.status === 'fulfilled' ? swift.value : []),
-        ...(multi.status === 'fulfilled' ? multi.value : [])
-      ];
-      console.log(`📡 ${publicProxies.length} proxies públicos cargados`);
-    }
-
-    // Combinar todos los proxies
-    const allProxies = [
-      ...webshareProxies,
-      ...manualProxies,
-      ...publicProxies
-    ];
-
-    // Filtrar para mantener solo HTTP/SOCKS
-    const filtered = allProxies.filter(proxy => 
-      ['http', 'https', 'socks4', 'socks5'].includes(proxy.type?.toLowerCase())
-    );
-
-    // Tor como último recurso
-    if (filtered.length === 0) {
-      console.warn('🚨 Usando Tor como último recurso');
-      return [{
-        ip: '127.0.0.1',
-        port: 9050,
-        auth: null,
-        type: 'socks5',
-        country: 'TOR',
-        source: 'tor_fallback'
-      }];
-    }
-
-    console.log(`📊 Total proxies disponibles: ${filtered.length}`);
-    return filtered;
+    return proxies;
   }
 
   async filterValidProxies(proxies) {
     console.log('⚙️ Validando proxies...');
     const validationResults = await Promise.all(
-      proxies.map(async proxy => {
-        try {
-          const isValid = await validateProxy(proxy);
-          console.log(`✅ Proxy ${proxy.ip}:${proxy.port} (${proxy.source}) ${isValid ? 'válido' : 'inválido'}`);
-          return { proxy, isValid };
-        } catch (error) {
-          console.error(`❌ Error validando ${proxy.ip}:${proxy.port}: ${error.message}`);
-          return { proxy, isValid: false };
-        }
+      proxies.map(async (proxy) => {
+        const isValid = await validateProxy(proxy);
+        return { proxy, isValid };
       })
     );
 
-    const validProxies = validationResults
+    return validationResults
       .filter(result => result.isValid)
       .map(result => result.proxy);
+  }
 
-    console.log(`📊 Proxies válidos: ${validProxies.length}/${proxies.length}`);
-    return validProxies;
+  getNextProxy() {
+    // Priorizar siempre proxies de Webshare
+    const webshareProxy = this.proxies.find(p => p.source === 'webshare_residential');
+    if (webshareProxy) {
+      console.log(`✅ Proxy seleccionado: ${webshareProxy.ip}:${webshareProxy.port} (Webshare)`);
+      return webshareProxy;
+    }
+
+    // Fallback a otros proxies
+    const proxy = super.getNextProxy();
+    console.log(`✅ Proxy seleccionado: ${proxy.ip}:${proxy.port} (${proxy.source})`);
+    return proxy;
   }
 
   autoRefreshProxies() {
     setInterval(async () => {
-      if (this.proxies.length < 10) {
-        console.log('🔄 Auto-refrescando proxies (bajo umbral)');
-        await this.refreshProxies();
-      }
-    }, 60 * 60 * 1000);
-  }
-
-  static async loadAllProxies() {
-    if (!fs.existsSync(PROXIES_VALIDATED_PATH)) return [];
-    const data = fs.readFileSync(PROXIES_VALIDATED_PATH, 'utf-8');
-    return JSON.parse(data);
+      await this.refreshProxies();
+      console.log('🔄 Proxies actualizados automáticamente');
+    }, 30 * 60 * 1000); // 30 minutos
   }
 }
