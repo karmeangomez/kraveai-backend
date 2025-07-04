@@ -25,6 +25,7 @@ export async function crearCuentaInstagram(proxy, retryCount = 0) {
   const password = `Krave${Math.random().toString(36).slice(2, 8)}!`;
 
   const proxyStr = `${proxy?.ip}:${proxy?.port}`;
+  const proxyProtocol = proxy?.type || 'http';
   const proxyHost = proxy?.ip;
   const proxyPort = proxy?.port;
 
@@ -38,16 +39,16 @@ export async function crearCuentaInstagram(proxy, retryCount = 0) {
     if (!esValido) throw new Error(`Proxy inválido: ${proxyStr}`);
 
     const launchOptions = {
-      headless: process.env.HEADLESS === 'true',
+      headless: false, // 🔥 Forzado a modo visual
       executablePath: process.env.PUPPETEER_EXECUTABLE_PATH,
       args: [
-        `--proxy-server=http://${proxyHost}:${proxyPort}`,
+        `--proxy-server=${proxyProtocol}://${proxyHost}:${proxyPort}`,
         '--no-sandbox',
         '--disable-setuid-sandbox',
         '--disable-dev-shm-usage',
         '--disable-blink-features=AutomationControlled',
         '--lang=en-US,en',
-        '--window-size=1200,800',
+        '--window-size=1280,800',
         '--start-maximized'
       ],
       ignoreHTTPSErrors: true,
@@ -74,6 +75,7 @@ export async function crearCuentaInstagram(proxy, retryCount = 0) {
 
     await page.waitForSelector('body', { timeout: 30000 });
 
+    // 🍪 Cookies
     try {
       const cookieSelectors = [
         'button:has-text("Allow")',
@@ -85,29 +87,17 @@ export async function crearCuentaInstagram(proxy, retryCount = 0) {
         'button[title*="cookie"]',
         'button[aria-label*="cookie"]'
       ];
-
-      const cookieButton = await page.waitForSelector(
-        cookieSelectors.join(', '),
-        { timeout: STEP_TIMEOUTS.cookies }
-      );
-
+      const cookieButton = await page.waitForSelector(cookieSelectors.join(', '), { timeout: STEP_TIMEOUTS.cookies });
       if (cookieButton) {
         await cookieButton.click();
         console.log('🍪 Cookies aceptadas');
-        await new Promise(resolve => setTimeout(resolve, 3000));
-        const isCookieBannerGone = await page.evaluate(selectors => {
-          return !document.querySelector(selectors.join(', '));
-        }, cookieSelectors);
-
-        if (!isCookieBannerGone) {
-          throw new Error('El banner de cookies no desapareció después de hacer clic');
-        }
+        await new Promise(r => setTimeout(r, 2000));
       }
-    } catch (error) {
+    } catch {
       console.log('✅ No se encontró banner de cookies o no fue necesario');
-      await page.screenshot({ path: `cookie-debug-${Date.now()}.png`, fullPage: true });
     }
 
+    // 📧 Email toggle
     try {
       const emailButton = await page.waitForSelector(
         'button:has-text("email"), a:has-text("email"), button[aria-label*="email"], a[aria-label*="email"], button:has-text("Use email")',
@@ -116,139 +106,80 @@ export async function crearCuentaInstagram(proxy, retryCount = 0) {
       if (emailButton) {
         await emailButton.click();
         console.log('📧 Cambiado a registro por correo');
-        await new Promise(resolve => setTimeout(resolve, 2500));
+        await new Promise(r => setTimeout(r, 2500));
       }
     } catch {
       console.log('✅ Formulario de correo ya visible');
     }
 
+    // 📝 Formulario
+    await page.waitForSelector('form', { visible: true, timeout: STEP_TIMEOUTS.form });
+
+    const fieldSelectors = {
+      email: [
+        'input[aria-label*="Email"]', 'input[aria-label*="Phone"]', 'input[name*="email"]',
+        'input[name*="phone"]', 'input[type="email"]', 'input[type="tel"]',
+        'input[placeholder*="Email"]', 'input[placeholder*="Phone"]'
+      ],
+      fullName: ['input[aria-label*="Full Name"]', 'input[name="fullName"]', 'input[aria-label*="Name"]'],
+      username: ['input[aria-label*="Username"]', 'input[name="username"]'],
+      password: ['input[aria-label*="Password"]', 'input[name="password"]', 'input[type="password"]']
+    };
+
+    await (await findElementBySelectors(page, fieldSelectors.email)).type(email, { delay: 100 });
+    await (await findElementBySelectors(page, fieldSelectors.fullName)).type(nombre, { delay: 100 });
+    await (await findElementBySelectors(page, fieldSelectors.username)).type(username, { delay: 100 });
+    await (await findElementBySelectors(page, fieldSelectors.password)).type(password, { delay: 100 });
+
+    const submitSelectors = [
+      'button[type="submit"]', 'button:has-text("Sign up")',
+      'button:has-text("Next")', 'button[aria-label*="Next"]'
+    ];
+    const submitButton = await findElementBySelectors(page, submitSelectors);
+    await submitButton.click();
+    console.log('📝 Formulario enviado');
+    await new Promise(r => setTimeout(r, 5000));
+
+    // 🎂 Fecha de nacimiento
     try {
-      await page.waitForSelector('form', {
-        visible: true,
-        timeout: STEP_TIMEOUTS.form
-      });
-
-      const fieldSelectors = {
-        email: [
-          'input[aria-label*="Email"]',
-          'input[aria-label*="Phone"]',
-          'input[name*="email"]',
-          'input[name*="phone"]',
-          'input[type="email"]',
-          'input[type="tel"]',
-          'input[placeholder*="Email"]',
-          'input[placeholder*="Phone"]'
-        ],
-        fullName: [
-          'input[aria-label*="Full Name"]',
-          'input[name="fullName"]',
-          'input[aria-label*="Name"]'
-        ],
-        username: [
-          'input[aria-label*="Username"]',
-          'input[name="username"]'
-        ],
-        password: [
-          'input[aria-label*="Password"]',
-          'input[name="password"]',
-          'input[type="password"]'
-        ]
-      };
-
-      const emailField = await findElementBySelectors(page, fieldSelectors.email);
-      await emailField.type(email, { delay: 100 });
-      await new Promise(resolve => setTimeout(resolve, 500));
-
-      const fullNameField = await findElementBySelectors(page, fieldSelectors.fullName);
-      await fullNameField.type(nombre, { delay: 100 });
-      await new Promise(resolve => setTimeout(resolve, 500));
-
-      const usernameField = await findElementBySelectors(page, fieldSelectors.username);
-      await usernameField.type(username, { delay: 100 });
-      await new Promise(resolve => setTimeout(resolve, 500));
-
-      const passwordField = await findElementBySelectors(page, fieldSelectors.password);
-      await passwordField.type(password, { delay: 100 });
-      await new Promise(resolve => setTimeout(resolve, 500));
-
-      console.log(`✅ Cuenta generada: @${username} | ${email}`);
-
-      const submitSelectors = [
-        'button[type="submit"]',
-        'button:has-text("Sign up")',
-        'button:has-text("Next")',
-        'button[aria-label*="Next"]'
-      ];
-
-      const submitButton = await findElementBySelectors(page, submitSelectors);
-      await submitButton.click();
-      console.log('📝 Formulario enviado');
-      await new Promise(resolve => setTimeout(resolve, 5000));
-    } catch (error) {
-      await page.screenshot({ path: `form-error-${Date.now()}.png`, fullPage: true });
-      throw new Error(`No se pudo completar el formulario: ${error.message}`);
-    }
-
-    try {
-      const monthSelector = await findElementBySelectors(page, [
-        'select[title="Month:"]',
-        'select[aria-label*="Month"]',
-        'select[name*="month"]'
-      ]);
-      const month = Math.floor(Math.random() * 12) + 1;
-      await monthSelector.select(month.toString());
-      await new Promise(resolve => setTimeout(resolve, 500));
-
-      const daySelector = await findElementBySelectors(page, [
-        'select[title="Day:"]',
-        'select[aria-label*="Day"]',
-        'select[name*="day"]'
-      ]);
+      const monthSelector = await findElementBySelectors(page, ['select[title="Month:"]', 'select[aria-label*="Month"]', 'select[name*="month"]']);
+      const daySelector = await findElementBySelectors(page, ['select[title="Day:"]', 'select[aria-label*="Day"]', 'select[name*="day"]']);
+      const yearSelector = await findElementBySelectors(page, ['select[title="Year:"]', 'select[aria-label*="Year"]', 'select[name*="year"]']);
+      await monthSelector.select((Math.floor(Math.random() * 12) + 1).toString());
       await daySelector.select((Math.floor(Math.random() * 28) + 1).toString());
-      await new Promise(resolve => setTimeout(resolve, 500));
-
-      const yearSelector = await findElementBySelectors(page, [
-        'select[title="Year:"]',
-        'select[aria-label*="Year"]',
-        'select[name*="year"]'
-      ]);
       await yearSelector.select((Math.floor(Math.random() * 20) + 1980).toString());
-      await new Promise(resolve => setTimeout(resolve, 500));
-
-      const nextButton = await findElementBySelectors(page, [
-        'button:has-text("Next")',
-        'button:has-text("Continue")',
-        'button[aria-label*="Next"]'
-      ]);
+      const nextButton = await findElementBySelectors(page, ['button:has-text("Next")', 'button:has-text("Continue")', 'button[aria-label*="Next"]']);
       await nextButton.click();
       console.log('🎂 Fecha de nacimiento seleccionada');
-      await new Promise(resolve => setTimeout(resolve, 3000));
     } catch {
       console.log('⚠️ No se solicitó fecha de nacimiento');
     }
 
-    try {
-      await page.waitForSelector('svg[aria-label="Instagram"], div[role="main"]', {
-        timeout: STEP_TIMEOUTS.final
-      });
-      console.log('🎉 ¡Registro exitoso!');
-      await new Promise(resolve => setTimeout(resolve, 15000));
-      return { usuario: username, email, password, proxy: proxyStr, status: 'success' };
-    } catch {
-      throw new Error('No se pudo confirmar la creación de la cuenta');
-    }
+    await page.waitForSelector('svg[aria-label="Instagram"], div[role="main"]', { timeout: STEP_TIMEOUTS.final });
+    console.log('🎉 ¡Registro exitoso!');
+
+    await new Promise(r => setTimeout(r, 10000));
+
+    return {
+      usuario: username,
+      email,
+      password,
+      proxy: proxyStr,
+      status: 'success'
+    };
+
   } catch (error) {
     console.error(`❌ Error en paso ${retryCount + 1}: ${error.message}`);
     if (page) {
       const screenshotPath = `error-${Date.now()}.png`;
       await page.screenshot({ path: screenshotPath, fullPage: true });
       errorScreenshots.push(screenshotPath);
-      console.log(`📸 Captura guardada: ${screenshotPath}`);
     }
     if (retryCount < MAX_RETRIES) {
       console.log(`🔄 Reintentando (${retryCount + 1}/${MAX_RETRIES})...`);
       return crearCuentaInstagram(proxy, retryCount + 1);
     }
+
     await notifyTelegram(`❌ Fallo en creación de cuenta: ${error.message}`);
     return {
       status: 'failed',
@@ -262,9 +193,9 @@ export async function crearCuentaInstagram(proxy, retryCount = 0) {
 async function findElementBySelectors(page, selectors) {
   for (const selector of selectors) {
     try {
-      const element = await page.waitForSelector(selector, { timeout: 5000 });
+      const element = await page.waitForSelector(selector, { timeout: 4000 });
       if (element) return element;
-    } catch {}
+    } catch (e) {}
   }
   throw new Error(`No se encontró elemento con selectores: ${selectors.join(', ')}`);
 }
