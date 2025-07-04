@@ -733,20 +733,5 @@
     "failCount": 0,
     "isRotating": true,
     "source": "webshare_residential"
-  },
-  {
-    "ip": "p.webshare.io",
-    "port": 80,
-    "auth": {
-      "username": "pdsmombq-rotate",
-      "password": "terqdq67j6mp"
-    },
-    "type": "socks5",
-    "country": "RESIDENTIAL",
-    "lastUsed": 0,
-    "successCount": 0,
-    "failCount": 0,
-    "isRotating": true,
-    "source": "webshare_residential"
   }
 ]
