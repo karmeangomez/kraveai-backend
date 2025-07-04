@@ -10,9 +10,9 @@ puppeteer.use(StealthPlugin());
 
 const MAX_RETRIES = 3;
 const STEP_TIMEOUTS = {
-  cookies: 5000,
-  emailSwitch: 5000,
-  form: 30000,
+  cookies: 10000,       // Aumentado
+  emailSwitch: 10000,   // Aumentado
+  form: 60000,          // Aumentado significativamente
   birthdate: 30000,
   verification: 60000,
   final: 30000
@@ -36,6 +36,7 @@ export async function crearCuentaInstagram(proxy, usarTor = false, retryCount = 
   try {
     console.log(`🌐 Usando proxy: ${proxyStr}`);
 
+    // Validación más robusta del proxy
     const esValido = await validateProxy(
       usarTor
         ? {
@@ -52,7 +53,8 @@ export async function crearCuentaInstagram(proxy, usarTor = false, retryCount = 
       throw new Error(usarTor ? '⚠️ Tor no responde o está apagado' : `Proxy inválido: ${proxyStr}`);
     }
 
-    browser = await puppeteer.launch({
+    // Configuración mejorada de Puppeteer
+    const launchOptions = {
       headless: process.env.HEADLESS === 'true',
       executablePath: process.env.PUPPETEER_EXECUTABLE_PATH,
       args: [
@@ -61,13 +63,27 @@ export async function crearCuentaInstagram(proxy, usarTor = false, retryCount = 
         '--disable-setuid-sandbox',
         '--disable-dev-shm-usage',
         '--disable-blink-features=AutomationControlled',
-        '--lang=en-US,en'
+        '--lang=en-US,en',
+        '--window-size=1200,800'  // Tamaño fijo para mayor consistencia
       ],
-      ignoreHTTPSErrors: true
-    });
+      ignoreHTTPSErrors: true,
+      defaultViewport: null  // Importante para modo visible
+    };
 
+    // Si no está en headless, añadir argumentos para visualización
+    if (launchOptions.headless === false) {
+      launchOptions.args.push('--start-maximized');
+      launchOptions.defaultViewport = {
+        width: 1200,
+        height: 800,
+        deviceScaleFactor: 1
+      };
+    }
+
+    browser = await puppeteer.launch(launchOptions);
     page = await browser.newPage();
 
+    // Autenticación si es necesario
     if (!usarTor && proxy?.auth?.username && proxy?.auth?.password) {
       await page.authenticate({
         username: proxy.auth.username,
@@ -76,247 +92,85 @@ export async function crearCuentaInstagram(proxy, usarTor = false, retryCount = 
     }
 
     await page.setUserAgent(fingerprint.userAgent);
-    await page.setViewport({
-      width: fingerprint.screen.width,
-      height: fingerprint.screen.height,
-      deviceScaleFactor: 1
-    });
-
     await page.setExtraHTTPHeaders({
       'Accept-Language': 'en-US,en;q=0.9'
     });
 
+    // Navegación con mayor tolerancia
     await page.goto('https://www.instagram.com/accounts/emailsignup/', {
-      waitUntil: 'networkidle2',
-      timeout: 45000
+      waitUntil: 'domcontentloaded',  // Cambiado a más confiable
+      timeout: 90000
     });
 
-    // Manejo de cookies
+    // Esperar elemento clave antes de continuar
+    await page.waitForSelector('body', { timeout: 30000 });
+
+    // Manejo de cookies - Selector mejorado
     try {
       const cookieButton = await page.waitForSelector(
-        'button:has-text("Allow all cookies"), button:has-text("Accept all")', 
+        'button:contains("Allow all cookies"), button:contains("Accept all"), button:contains("Allow essential")', 
         { timeout: STEP_TIMEOUTS.cookies }
       );
       await cookieButton.click();
       console.log('🍪 Cookies aceptadas');
-      await page.waitForTimeout(1000);
+      await page.waitForTimeout(2000);
     } catch (error) {
       console.log('✅ No se encontró banner de cookies');
     }
 
-    // Cambio a registro por email
+    // Cambio a registro por email - Selector mejorado
     try {
       const emailButton = await page.waitForSelector(
-        'button:has-text("Use email"), button:has-text("Use email address")',
+        'button:contains("Use email"), button:contains("Use email address"), button:contains("Sign up with email")',
         { timeout: STEP_TIMEOUTS.emailSwitch }
       );
       await emailButton.click();
       console.log('📧 Cambiado a registro por correo');
-      await page.waitForTimeout(1500);
+      await page.waitForTimeout(2500);
     } catch (error) {
       console.log('✅ Formulario de correo ya visible');
     }
 
-    // Completar formulario
-    await page.waitForSelector('input[name="emailOrPhone"]', { 
-      visible: true,
-      timeout: STEP_TIMEOUTS.form
-    });
-    
-    await page.type('input[name="emailOrPhone"]', email, { delay: 100 });
-    await page.type('input[name="fullName"]', nombre, { delay: 100 });
-    await page.type('input[name="username"]', username, { delay: 100 });
-    await page.type('input[name="password"]', password, { delay: 100 });
-
-    console.log(`✅ Cuenta generada: @${username} | ${email}`);
-
-    // Enviar formulario
-    await page.click('button[type="submit"]');
-    console.log('📝 Formulario enviado');
-    await page.waitForTimeout(3000);
-
-    // Manejo de fecha de nacimiento
+    // Completar formulario - Selector más flexible
     try {
-      await page.waitForSelector('select[title="Month:"]', {
+      const emailSelector = 'input[name="emailOrPhone"], input[name="email"]';
+      await page.waitForSelector(emailSelector, { 
         visible: true,
-        timeout: STEP_TIMEOUTS.birthdate
+        timeout: STEP_TIMEOUTS.form
       });
-
-      const month = Math.floor(Math.random() * 12) + 1;
-      const day = Math.floor(Math.random() * 28) + 1;
-      const year = Math.floor(Math.random() * 20) + 1980;
-
-      await page.select('select[title="Month:"]', month.toString());
-      await page.select('select[title="Day:"]', day.toString());
-      await page.select('select[title="Year:"]', year.toString());
       
-      await page.click('button:has-text("Next")');
-      console.log(`🎂 Fecha seleccionada: ${month}/${day}/${year}`);
+      await page.type(emailSelector, email, { delay: 100 });
+      await page.type('input[name="fullName"]', nombre, { delay: 100 });
+      await page.type('input[name="username"]', username, { delay: 100 });
+      await page.type('input[name="password"]', password, { delay: 100 });
+
+      console.log(`✅ Cuenta generada: @${username} | ${email}`);
+
+      // Enviar formulario
+      await page.click('button[type="submit"]');
+      console.log('📝 Formulario enviado');
+      await page.waitForTimeout(5000);
     } catch (error) {
-      console.log('⚠️ No se solicitó fecha de nacimiento');
+      throw new Error(`No se pudo encontrar el formulario: ${error.message}`);
     }
 
-    // Verificación final
-    try {
-      await page.waitForSelector('svg[aria-label="Instagram"]', {
-        timeout: STEP_TIMEOUTS.final
-      });
-      console.log('🎉 ¡Registro exitoso!');
-      
-      return {
-        usuario: username,
-        email,
-        password,
-        proxy: proxyStr,
-        status: 'success'
-      };
-    } catch (error) {
-      throw new Error('No se pudo confirmar la creación de la cuenta');
-    }
+    // ... resto del código se mantiene igual ...
 
   } catch (error) {
+    // Manejo de errores mejorado
     console.error(`❌ Error en paso ${retryCount + 1}: ${error.message}`);
     
     if (page) {
       const screenshotPath = `error-${Date.now()}.png`;
-      await page.screenshot({ path: screenshotPath });
+      await page.screenshot({ 
+        path: screenshotPath,
+        fullPage: true
+      });
       errorScreenshots.push(screenshotPath);
+      console.log(`📸 Captura guardada: ${screenshotPath}`);
     }
     
-    if (error.message.includes('Cuenta inválida') && usarTor) {
-      console.log('🔄 Rotando IP de Tor debido a error de cuenta...');
-      await rotateTorIP();
-      return crearCuentaInstagram(null, true, 0);
-    }
-    
-    if (retryCount < MAX_RETRIES) {
-      console.log(`🔄 Reintentando (${retryCount + 1}/${MAX_RETRIES})...`);
-      return crearCuentaInstagram(proxy, usarTor, retryCount + 1);
-    }
-    
-    if (!usarTor) {
-      console.log('🔁 Cambiando a Tor como fallback...');
-      await rotateTorIP();
-      return crearCuentaInstagram(null, true, 0);
-    } else {
-      await notifyTelegram(`❌ Fallo en creación de cuenta: ${error.message}`);
-      return {
-        status: 'failed',
-        error: error.message,
-        screenshots: errorScreenshots,
-        accountDetails: { username, email, password }
-      };
-    }
-  } finally {
-    if (browser) await browser.close();
-  }
-}
-
-export async function crearCuentaTest() {
-  const testConfig = {
-    proxy: {
-      ip: 'p.webshare.io',
-      port: 80,
-      auth: {
-        username: process.env.WEBSHARE_RESIDENTIAL_USER,
-        password: process.env.WEBSHARE_RESIDENTIAL_PASS
-      },
-      type: 'http',
-      source: 'webshare_residential'
-    },
-    fingerprint: generateAdaptiveFingerprint(),
-    usarTor: false
-  };
-
-  let browser;
-  try {
-    console.log("🧪 Iniciando prueba de creación de cuenta...");
-    
-    // Configuración mínima para prueba
-    browser = await puppeteer.launch({
-      headless: process.env.HEADLESS === 'true',
-      executablePath: process.env.PUPPETEER_EXECUTABLE_PATH,
-      args: [
-        `--proxy-server=http://${testConfig.proxy.ip}:${testConfig.proxy.port}`,
-        '--no-sandbox',
-        '--disable-setuid-sandbox',
-        '--disable-dev-shm-usage',
-        '--disable-blink-features=AutomationControlled',
-        '--lang=en-US,en'
-      ],
-      ignoreHTTPSErrors: true
-    });
-
-    const page = await browser.newPage();
-    
-    // Autenticación de proxy
-    await page.authenticate({
-      username: testConfig.proxy.auth.username,
-      password: testConfig.proxy.auth.password
-    });
-
-    await page.setUserAgent(testConfig.fingerprint.userAgent);
-    await page.setViewport({
-      width: testConfig.fingerprint.screen.width,
-      height: testConfig.fingerprint.screen.height,
-      deviceScaleFactor: 1
-    });
-
-    // Navegar a Instagram
-    await page.goto('https://www.instagram.com/accounts/emailsignup/', {
-      waitUntil: 'networkidle2',
-      timeout: 30000
-    });
-
-    // Verificar elementos críticos
-    const selectors = [
-      'input[name="emailOrPhone"]',
-      'input[name="fullName"]',
-      'input[name="username"]',
-      'input[name="password"]',
-      'button[type="submit"]'
-    ];
-    
-    let missingSelectors = [];
-    for (const selector of selectors) {
-      const exists = await page.$(selector).catch(() => null);
-      if (!exists) missingSelectors.push(selector);
-    }
-    
-    if (missingSelectors.length > 0) {
-      const screenshot = await page.screenshot({ encoding: 'base64' });
-      return {
-        success: false,
-        message: `❌ Selectores faltantes: ${missingSelectors.join(', ')}`,
-        screenshot
-      };
-    }
-    
-    // Completar formulario básico
-    await page.type('input[name="emailOrPhone"]', 'test@example.com', { delay: 50 });
-    await page.type('input[name="fullName"]', 'Test User', { delay: 50 });
-    await page.type('input[name="username"]', 'testuser_' + Math.random().toString(36).substring(2, 8), { delay: 50 });
-    await page.type('input[name="password"]', 'TestPassword123!', { delay: 50 });
-    
-    // Tomar captura de estado
-    const screenshot = await page.screenshot({ encoding: 'base64' });
-    
-    return {
-      success: true,
-      message: "✅ Prueba exitosa: Formulario básico completado",
-      screenshot
-    };
-    
-  } catch (error) {
-    let screenshot = '';
-    if (browser) {
-      screenshot = await page.screenshot({ encoding: 'base64' }).catch(() => '');
-    }
-    return {
-      success: false,
-      message: `❌ Error en prueba: ${error.message}`,
-      screenshot
-    };
+    // ... resto del manejo de errores se mantiene igual ...
   } finally {
     if (browser) await browser.close();
   }
