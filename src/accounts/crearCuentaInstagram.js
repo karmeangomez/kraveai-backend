@@ -8,6 +8,14 @@ import { validateProxy } from '../utils/validator.js';
 puppeteer.use(StealthPlugin());
 
 const MAX_RETRIES = 3;
+const STEP_TIMEOUTS = {
+  cookies: 20000,
+  emailSwitch: 15000,
+  form: 60000,
+  birthdate: 30000,
+  verification: 60000,
+  final: 30000
+};
 
 export async function crearCuentaInstagram(proxy, retryCount = 0) {
   const fingerprint = generateAdaptiveFingerprint();
@@ -16,13 +24,13 @@ export async function crearCuentaInstagram(proxy, retryCount = 0) {
   const email = `${username.replace(/[^a-zA-Z0-9]/g, '')}@kraveapi.xyz`;
   const password = `Krave${Math.random().toString(36).slice(2, 8)}!`;
 
-  const proxyHost = proxy?.ip;
-  const proxyPort = proxy?.port;
-  const proxyStr = `${proxyHost}:${proxyPort}`;
-  const proxyProtocol = 'http'; // FORZAMOS HTTP para Webshare
+  const proxyUrl = proxy.auth
+    ? `${proxy.type || 'http'}://${proxy.auth.username}:${proxy.auth.password}@${proxy.ip}:${proxy.port}`
+    : `${proxy.type || 'http'}://${proxy.ip}:${proxy.port}`;
 
+  const proxyStr = `${proxy.ip}:${proxy.port}`;
   let browser, page;
-  const screenshots = [];
+  const errorScreenshots = [];
 
   try {
     console.log(`🌐 Usando proxy: ${proxyStr}`);
@@ -31,14 +39,17 @@ export async function crearCuentaInstagram(proxy, retryCount = 0) {
     if (!esValido) throw new Error(`Proxy inválido: ${proxyStr}`);
 
     const launchOptions = {
-      headless: false, // 🟢 VISIBILIDAD ACTIVADA
+      headless: process.env.HEADLESS === 'true',
       executablePath: process.env.PUPPETEER_EXECUTABLE_PATH,
       args: [
-        `--proxy-server=${proxyProtocol}://${proxyHost}:${proxyPort}`,
+        `--proxy-server=${proxyUrl}`,
         '--no-sandbox',
         '--disable-setuid-sandbox',
+        '--disable-dev-shm-usage',
+        '--disable-blink-features=AutomationControlled',
         '--lang=en-US,en',
-        '--window-size=1200,800'
+        '--window-size=1200,800',
+        '--start-maximized'
       ],
       ignoreHTTPSErrors: true,
       defaultViewport: null
@@ -47,7 +58,6 @@ export async function crearCuentaInstagram(proxy, retryCount = 0) {
     browser = await puppeteer.launch(launchOptions);
     page = await browser.newPage();
 
-    // ✅ NO usar page.authenticate en Webshare HTTP
     await page.setUserAgent(fingerprint.userAgent);
     await page.setExtraHTTPHeaders({ 'Accept-Language': 'en-US,en;q=0.9' });
 
@@ -57,37 +67,155 @@ export async function crearCuentaInstagram(proxy, retryCount = 0) {
     });
 
     await page.waitForSelector('body', { timeout: 30000 });
-    console.log('✅ Página cargada correctamente');
 
-    // Rellenar formulario básico
-    await page.type('input[name="emailOrPhone"]', email, { delay: 100 });
-    await page.type('input[name="fullName"]', nombre, { delay: 100 });
-    await page.type('input[name="username"]', username, { delay: 100 });
-    await page.type('input[name="password"]', password, { delay: 100 });
+    try {
+      const cookieSelectors = [
+        'button:has-text("Allow")',
+        'button:has-text("Accept")',
+        'button:has-text("Cookies")',
+        'button:has-text("Got it")',
+        'div[class*="cookie"] button',
+        'button[class*="cookie"]',
+        'button[title*="cookie"]',
+        'button[aria-label*="cookie"]'
+      ];
 
-    const btn = await page.$('button[type="submit"]');
-    if (btn) await btn.click();
+      const cookieButton = await page.waitForSelector(
+        cookieSelectors.join(', '), { timeout: STEP_TIMEOUTS.cookies }
+      );
 
-    console.log(`✅ Cuenta generada: @${username} | ${email}`);
+      if (cookieButton) {
+        await cookieButton.click();
+        console.log('🍪 Cookies aceptadas');
+        await page.waitForTimeout(3000);
+      }
+    } catch {
+      console.log('✅ No se encontró banner de cookies o no fue necesario');
+    }
 
-    // Espera para revisión visual
-    await new Promise(resolve => setTimeout(resolve, 10000));
+    try {
+      const emailButton = await page.waitForSelector(
+        'button:has-text("email"), a:has-text("email"), button[aria-label*="email"], a[aria-label*="email"], button:has-text("Use email")',
+        { timeout: STEP_TIMEOUTS.emailSwitch }
+      );
 
-    return {
-      usuario: username,
-      email,
-      password,
-      proxy: proxyStr,
-      status: 'success'
-    };
+      if (emailButton) {
+        await emailButton.click();
+        console.log('📧 Cambiado a registro por correo');
+        await page.waitForTimeout(2500);
+      }
+    } catch {
+      console.log('✅ Formulario de correo ya visible');
+    }
 
-  } catch (err) {
-    console.error(`❌ Error en paso ${retryCount + 1}: ${err.message}`);
+    try {
+      await page.waitForSelector('form', {
+        visible: true,
+        timeout: STEP_TIMEOUTS.form
+      });
+
+      const fieldSelectors = {
+        email: [
+          'input[aria-label*="Email"]', 'input[aria-label*="Phone"]',
+          'input[name*="email"]', 'input[name*="phone"]',
+          'input[type="email"]', 'input[type="tel"]',
+          'input[placeholder*="Email"]', 'input[placeholder*="Phone"]'
+        ],
+        fullName: [
+          'input[aria-label*="Full Name"]', 'input[name="fullName"]',
+          'input[aria-label*="Name"]'
+        ],
+        username: [
+          'input[aria-label*="Username"]', 'input[name="username"]'
+        ],
+        password: [
+          'input[aria-label*="Password"]', 'input[name="password"]',
+          'input[type="password"]'
+        ]
+      };
+
+      await (await findElementBySelectors(page, fieldSelectors.email)).type(email, { delay: 100 });
+      await page.waitForTimeout(500);
+
+      await (await findElementBySelectors(page, fieldSelectors.fullName)).type(nombre, { delay: 100 });
+      await page.waitForTimeout(500);
+
+      await (await findElementBySelectors(page, fieldSelectors.username)).type(username, { delay: 100 });
+      await page.waitForTimeout(500);
+
+      await (await findElementBySelectors(page, fieldSelectors.password)).type(password, { delay: 100 });
+      await page.waitForTimeout(500);
+
+      console.log(`✅ Cuenta generada: @${username} | ${email}`);
+
+      const submitSelectors = [
+        'button[type="submit"]', 'button:has-text("Sign up")',
+        'button:has-text("Next")', 'button[aria-label*="Next"]'
+      ];
+      await (await findElementBySelectors(page, submitSelectors)).click();
+      console.log('📝 Formulario enviado');
+      await page.waitForTimeout(5000);
+    } catch (error) {
+      await page.screenshot({ path: `form-error-${Date.now()}.png`, fullPage: true });
+      throw new Error(`No se pudo completar el formulario: ${error.message}`);
+    }
+
+    try {
+      const monthSelector = await findElementBySelectors(page, [
+        'select[title="Month:"]', 'select[aria-label*="Month"]', 'select[name*="month"]'
+      ]);
+      await monthSelector.select((Math.floor(Math.random() * 12) + 1).toString());
+      await page.waitForTimeout(500);
+
+      const daySelector = await findElementBySelectors(page, [
+        'select[title="Day:"]', 'select[aria-label*="Day"]', 'select[name*="day"]'
+      ]);
+      await daySelector.select((Math.floor(Math.random() * 28) + 1).toString());
+      await page.waitForTimeout(500);
+
+      const yearSelector = await findElementBySelectors(page, [
+        'select[title="Year:"]', 'select[aria-label*="Year"]', 'select[name*="year"]'
+      ]);
+      await yearSelector.select((Math.floor(Math.random() * 20) + 1980).toString());
+      await page.waitForTimeout(500);
+
+      const nextButton = await findElementBySelectors(page, [
+        'button:has-text("Next")', 'button:has-text("Continue")',
+        'button[aria-label*="Next"]'
+      ]);
+      await nextButton.click();
+      console.log('🎂 Fecha de nacimiento seleccionada');
+      await page.waitForTimeout(3000);
+    } catch {
+      console.log('⚠️ No se solicitó fecha de nacimiento');
+    }
+
+    try {
+      await page.waitForSelector('svg[aria-label="Instagram"], div[role="main"]', {
+        timeout: STEP_TIMEOUTS.final
+      });
+      console.log('🎉 ¡Registro exitoso!');
+      await page.waitForTimeout(15000);
+
+      return {
+        usuario: username,
+        email,
+        password,
+        proxy: proxyStr,
+        status: 'success'
+      };
+    } catch {
+      throw new Error('No se pudo confirmar la creación de la cuenta');
+    }
+
+  } catch (error) {
+    console.error(`❌ Error en paso ${retryCount + 1}: ${error.message}`);
 
     if (page && !page.isClosed()) {
-      const path = `error-${Date.now()}.png`;
-      await page.screenshot({ path, fullPage: true });
-      screenshots.push(path);
+      const screenshotPath = `error-${Date.now()}.png`;
+      await page.screenshot({ path: screenshotPath, fullPage: true });
+      errorScreenshots.push(screenshotPath);
+      console.log(`📸 Captura guardada: ${screenshotPath}`);
     }
 
     if (retryCount < MAX_RETRIES) {
@@ -95,14 +223,22 @@ export async function crearCuentaInstagram(proxy, retryCount = 0) {
       return crearCuentaInstagram(proxy, retryCount + 1);
     }
 
-    await notifyTelegram(`❌ Fallo en creación de cuenta: ${err.message}`);
+    await notifyTelegram(`❌ Fallo en creación de cuenta: ${error.message}`);
     return {
       status: 'failed',
-      error: err.message,
-      screenshots,
+      error: error.message,
+      screenshots: errorScreenshots,
       accountDetails: { username, email, password }
     };
-  } finally {
-    // No cerrar navegador, queremos visibilidad
   }
+}
+
+async function findElementBySelectors(page, selectors) {
+  for (const selector of selectors) {
+    try {
+      const element = await page.waitForSelector(selector, { timeout: 5000 });
+      if (element) return element;
+    } catch {}
+  }
+  throw new Error(`No se encontró elemento con selectores: ${selectors.join(', ')}`);
 }
