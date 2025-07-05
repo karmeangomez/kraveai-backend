@@ -25,8 +25,8 @@ export async function crearCuentaInstagram(proxy, retryCount = 0) {
   const password = `Krave${Math.random().toString(36).slice(2, 8)}!`;
 
   const proxyUrl = proxy.auth
-    ? `${proxy.type || 'http'}://${proxy.auth.username}:${proxy.auth.password}@${proxy.ip}:${proxy.port}`
-    : `${proxy.type || 'http'}://${proxy.ip}:${proxy.port}`;
+    ? `http://${proxy.auth.username}:${proxy.auth.password}@${proxy.ip}:${proxy.port}`
+    : `http://${proxy.ip}:${proxy.port}`;
 
   const proxyStr = `${proxy.ip}:${proxy.port}`;
   let browser, page;
@@ -70,20 +70,13 @@ export async function crearCuentaInstagram(proxy, retryCount = 0) {
 
     try {
       const cookieSelectors = [
-        'button:has-text("Allow")',
-        'button:has-text("Accept")',
-        'button:has-text("Cookies")',
-        'button:has-text("Got it")',
-        'div[class*="cookie"] button',
-        'button[class*="cookie"]',
-        'button[title*="cookie"]',
-        'button[aria-label*="cookie"]'
+        'button:has-text("Allow")', 'button:has-text("Accept")',
+        'button:has-text("Cookies")', 'button:has-text("Got it")',
+        'div[class*="cookie"] button', 'button[class*="cookie"]',
+        'button[title*="cookie"]', 'button[aria-label*="cookie"]'
       ];
 
-      const cookieButton = await page.waitForSelector(
-        cookieSelectors.join(', '), { timeout: STEP_TIMEOUTS.cookies }
-      );
-
+      const cookieButton = await page.waitForSelector(cookieSelectors.join(', '), { timeout: STEP_TIMEOUTS.cookies });
       if (cookieButton) {
         await cookieButton.click();
         console.log('🍪 Cookies aceptadas');
@@ -98,7 +91,6 @@ export async function crearCuentaInstagram(proxy, retryCount = 0) {
         'button:has-text("email"), a:has-text("email"), button[aria-label*="email"], a[aria-label*="email"], button:has-text("Use email")',
         { timeout: STEP_TIMEOUTS.emailSwitch }
       );
-
       if (emailButton) {
         await emailButton.click();
         console.log('📧 Cambiado a registro por correo');
@@ -109,10 +101,7 @@ export async function crearCuentaInstagram(proxy, retryCount = 0) {
     }
 
     try {
-      await page.waitForSelector('form', {
-        visible: true,
-        timeout: STEP_TIMEOUTS.form
-      });
+      await page.waitForSelector('form', { visible: true, timeout: STEP_TIMEOUTS.form });
 
       const fieldSelectors = {
         email: [
@@ -136,13 +125,10 @@ export async function crearCuentaInstagram(proxy, retryCount = 0) {
 
       await (await findElementBySelectors(page, fieldSelectors.email)).type(email, { delay: 100 });
       await page.waitForTimeout(500);
-
       await (await findElementBySelectors(page, fieldSelectors.fullName)).type(nombre, { delay: 100 });
       await page.waitForTimeout(500);
-
       await (await findElementBySelectors(page, fieldSelectors.username)).type(username, { delay: 100 });
       await page.waitForTimeout(500);
-
       await (await findElementBySelectors(page, fieldSelectors.password)).type(password, { delay: 100 });
       await page.waitForTimeout(500);
 
@@ -180,8 +166,7 @@ export async function crearCuentaInstagram(proxy, retryCount = 0) {
       await page.waitForTimeout(500);
 
       const nextButton = await findElementBySelectors(page, [
-        'button:has-text("Next")', 'button:has-text("Continue")',
-        'button[aria-label*="Next"]'
+        'button:has-text("Next")', 'button:has-text("Continue")', 'button[aria-label*="Next"]'
       ]);
       await nextButton.click();
       console.log('🎂 Fecha de nacimiento seleccionada');
