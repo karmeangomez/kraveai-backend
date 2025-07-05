@@ -1,28 +1,27 @@
 import fs from 'fs';
 import path from 'path';
 import dotenv from 'dotenv';
+import { validateProxy } from '../utils/validator.js';
+
 dotenv.config();
 
 const PROXY_FILE = path.resolve('src/proxies/webshare_proxies.json');
 
 export default class WebshareProxyManager {
   static async getProxies() {
-    const USER = process.env.WEBSHARE_RESIDENTIAL_USER;
-    const PASS = process.env.WEBSHARE_RESIDENTIAL_PASS;
+    const USER = process.env.WEBSHARE_RESIDENTIAL_USER?.trim();
+    const PASS = process.env.WEBSHARE_RESIDENTIAL_PASS?.trim();
 
     if (!USER || !PASS) {
       console.error('❌ Credenciales Webshare faltantes en .env');
-      return [];
+      throw new Error('Faltan WEBSHARE_RESIDENTIAL_USER o WEBSHARE_RESIDENTIAL_PASS en .env');
     }
 
     const proxy = {
       ip: 'p.webshare.io',
       port: 80,
-      auth: {
-        username: USER.trim(),
-        password: PASS.trim()
-      },
-      type: 'socks5',
+      auth: { username: USER, password: PASS },
+      type: 'http',
       country: 'RESIDENTIAL',
       lastUsed: 0,
       successCount: 0,
@@ -31,11 +30,25 @@ export default class WebshareProxyManager {
       source: 'webshare_residential'
     };
 
-    // Creamos 50 instancias simuladas del mismo proxy para la rotación interna
-    const proxies = Array.from({ length: 50 }, () => ({ ...proxy }));
+    const isValid = await validateProxy(proxy);
+    if (!isValid) {
+      console.error(`❌ Proxy ${proxy.ip}:${proxy.port} no es válido`);
+      throw new Error('No se pudo validar el proxy de Webshare');
+    }
 
-    fs.writeFileSync(PROXY_FILE, JSON.stringify(proxies, null, 2));
-    console.log(`💾 50 proxies residenciales simulados guardados en ${PROXY_FILE}`);
+    const proxies = [proxy];
+    const proxyDir = path.dirname(PROXY_FILE);
+    try {
+      if (!fs.existsSync(proxyDir)) {
+        fs.mkdirSync(proxyDir, { recursive: true });
+      }
+      fs.writeFileSync(PROXY_FILE, JSON.stringify(proxies, null, 2));
+      console.log(`💾 Proxy residencial guardado en ${PROXY_FILE}`);
+    } catch (error) {
+      console.error(`❌ Error al guardar ${PROXY_FILE}: ${error.message}`);
+      throw error;
+    }
+
     return proxies;
   }
 }
