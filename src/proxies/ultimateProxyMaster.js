@@ -3,8 +3,12 @@ import path from 'path';
 import ProxyRotationSystem from './proxyRotationSystem.js';
 import WebshareProxyManager from './webshareApi.js';
 import { validateProxy } from '../utils/validator.js';
+import { getPublicProxies } from './sources/publicProxyFetcher.js'; // <-- módulo nuevo
+import dotenv from 'dotenv';
+dotenv.config();
 
 const PROXIES_VALIDATED_PATH = path.resolve('src/proxies/proxies_validados.json');
+const PROXY_LIST_FILE = path.resolve('src/proxies/proxies.txt');
 
 export default class UltimateProxyMaster extends ProxyRotationSystem {
   constructor() {
@@ -38,7 +42,7 @@ export default class UltimateProxyMaster extends ProxyRotationSystem {
     this.proxies = proxies;
     fs.writeFileSync(PROXIES_VALIDATED_PATH, JSON.stringify(proxies, null, 2));
     console.log(`💾 ${proxies.length} proxies válidos guardados`);
-    
+
     this.resetRotation();
     this.autoRefreshProxies();
     return true;
@@ -60,20 +64,44 @@ export default class UltimateProxyMaster extends ProxyRotationSystem {
   async getAllSourcesProxies() {
     console.log('🔍 Obteniendo proxies de todas las fuentes...');
     const proxies = [];
-    
-    // Prioridad 1: Webshare
+
+    // 1. Webshare rotativo
     try {
       const webshareProxies = await WebshareProxyManager.getProxies();
       if (webshareProxies.length > 0) {
         console.log(`⭐ ${webshareProxies.length} proxies de Webshare`);
         proxies.push(...webshareProxies);
-        return proxies; // Devolver inmediatamente si hay Webshare
       }
     } catch (error) {
       console.error('⚠️ Error con Webshare:', error.message);
     }
 
-    // Prioridad 2: Proxies manuales
+    // 2. proxies.txt personalizados
+    if (fs.existsSync(PROXY_LIST_FILE)) {
+      try {
+        const lines = fs.readFileSync(PROXY_LIST_FILE, 'utf-8')
+          .split('\n')
+          .map(l => l.trim())
+          .filter(Boolean);
+        for (const line of lines) {
+          const [ip, port, username, password] = line.split(':');
+          if (ip && port && username && password) {
+            proxies.push({
+              ip,
+              port: parseInt(port),
+              auth: { username, password },
+              type: 'http',
+              source: 'proxies.txt'
+            });
+          }
+        }
+        console.log(`📂 ${lines.length} proxies cargados desde proxies.txt`);
+      } catch (error) {
+        console.warn('⚠️ Error leyendo proxies.txt:', error.message);
+      }
+    }
+
+    // 3. Proxies manuales desde .env
     if (process.env.PROXY_LIST) {
       const manualProxies = process.env.PROXY_LIST.split(',')
         .map(proxyStr => {
@@ -84,17 +112,23 @@ export default class UltimateProxyMaster extends ProxyRotationSystem {
               port: parseInt(match[4]),
               auth: { username: match[1], password: match[2] },
               type: 'http',
-              source: 'manual'
+              source: 'manual_env'
             };
           }
           return null;
         })
         .filter(Boolean);
-      
-      if (manualProxies.length > 0) {
-        console.log(`📖 ${manualProxies.length} proxies manuales`);
-        proxies.push(...manualProxies);
-      }
+      proxies.push(...manualProxies);
+      console.log(`🔧 ${manualProxies.length} proxies desde .env`);
+    }
+
+    // 4. Proxies públicos (SwiftShadow, ProxyNova, ProxyShare.io)
+    try {
+      const publicProxies = await getPublicProxies();
+      proxies.push(...publicProxies);
+      console.log(`🌍 ${publicProxies.length} proxies públicos extraídos`);
+    } catch (error) {
+      console.error('⚠️ Error obteniendo proxies públicos:', error.message);
     }
 
     return proxies;
@@ -115,16 +149,12 @@ export default class UltimateProxyMaster extends ProxyRotationSystem {
   }
 
   getNextProxy() {
-    // Priorizar siempre proxies de Webshare
-    const webshareProxy = this.proxies.find(p => p.source === 'webshare_residential');
-    if (webshareProxy) {
-      console.log(`✅ Proxy seleccionado: ${webshareProxy.ip}:${webshareProxy.port} (Webshare)`);
-      return webshareProxy;
-    }
-
-    // Fallback a otros proxies
     const proxy = super.getNextProxy();
-    console.log(`✅ Proxy seleccionado: ${proxy.ip}:${proxy.port} (${proxy.source})`);
+    if (proxy) {
+      console.log(`✅ Proxy seleccionado: ${proxy.ip}:${proxy.port} (${proxy.source})`);
+    } else {
+      console.warn('⚠️ No hay proxy disponible en este momento');
+    }
     return proxy;
   }
 
