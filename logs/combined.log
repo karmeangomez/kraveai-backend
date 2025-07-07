@@ -222,3 +222,6 @@ error: ❌ Error en creación: net::ERR_NO_SUPPORTED_PROXIES at https://www.inst
 info: 📸 Captura guardada: screenshots/error_1751869353225.png {"timestamp":"2025-07-07T06:22:33.434Z"}
 warn: 🔁 Reintentando (2/3)... {"timestamp":"2025-07-07T06:22:33.434Z"}
 info: 🌐 Usando proxy: http://pdsmombq:terqdq67j6mp@173.0.9.3:5586 {"timestamp":"2025-07-07T06:22:38.435Z"}
+error: ❌ Error en creación: net::ERR_NO_SUPPORTED_PROXIES at https://www.instagram.com/accounts/emailsignup/ {"timestamp":"2025-07-07T06:22:46.322Z"}
+info: 📸 Captura guardada: screenshots/error_1751869366322.png {"timestamp":"2025-07-07T06:22:46.491Z"}
+warn: 🔁 Reintentando (3/3)... {"timestamp":"2025-07-07T06:22:46.492Z"}
