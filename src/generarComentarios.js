@@ -1,63 +1,63 @@
 // generarComentarios.js
 import fs from 'fs'
 import path from 'path'
-import { readFile } from 'fs/promises'
-import readline from 'readline'
 
-// Modo CLI: node src/generarComentarios.js resultado.json 50
-const inputPath = process.argv[2]
+const inputPath = process.argv[2] // JSON de scrapPostDetails
 const cantidad = parseInt(process.argv[3]) || 50
+const mencionesReales = ['@karmeangomez'] // Puedes editar este array
 
 if (!inputPath || !fs.existsSync(inputPath)) {
-  console.log("❌ Debes pasar la ruta al JSON generado por scrapPostDetails.")
+  console.log("❌ Debes pasar el JSON extraído por scrapPostDetails.")
   process.exit(1)
 }
 
-const data = JSON.parse(await readFile(inputPath, 'utf-8'))
+const datos = JSON.parse(fs.readFileSync(inputPath, 'utf-8'))
+const { username, apodo, estilo, actividad, ejemplos } = datos
 
-const { username, apodo, imagePath, estilo, actividad, ejemplos } = data
+const comentarios = []
+const mencionesEntreCuentas = ['@cuenta1', '@cuenta2', '@cuenta3'] // nombres reales o falsos de tus cuentas
 
-// Simulación de generación por ChatGPT usando prompt personalizado
-// Aquí en producción real tú me das el imagePath y yo genero directamente.
-const generarComentarios = async () => {
-  const prompt = `
-Analiza la imagen del archivo "${imagePath}" y genera ${cantidad} comentarios estilo TikTok/Instagram para un post de @${username}.
-Nombre o apodo: "${apodo}"
-Estilo del contenido: "${estilo || 'desconocido'}"
-Actividad: "${actividad || 'desconocida'}"
-Ejemplos previos: ${ejemplos?.slice(0, 3).join('\n') || 'Ninguno'}
+for (let i = 0; i < cantidad; i++) {
+  const incluirEmoji = Math.random() < 0.7
+  const usarMencionReal = Math.random() < 0.2
+  const responderOtroComentario = Math.random() < 0.3
 
-Crea comentarios como si fueran reales de seguidores.
-Haz que:
-- El 70% tengan emojis y errores emocionales ("gera 😩😭🔥")
-- El 30% sean más casuales sin emojis
-- Todos suenen humanos, desordenados, tipo TikTok
-- Algunos usen expresiones mexicanas si encajan
+  let comentarioBase = ''
 
-Entrega solo los comentarios, uno debajo del otro, sin numerar y sin explicación.
-  `
-
-  // 🔄 Aquí usarías ChatGPT o un generador automático
-  // Simulación local:
-  console.log("🧠 Prompt generado para IA:")
-  console.log(prompt)
-  console.log("⏳ Esperando generación...")
-
-  const rl = readline.createInterface({ input: process.stdin, output: process.stdout })
-  const comentarios = []
-  let count = 0
-
-  console.log(`📝 Escribe ${cantidad} comentarios (uno por línea):`)
-  for await (const line of rl) {
-    if (line.trim()) comentarios.push(line.trim())
-    count++
-    if (count >= cantidad) {
-      rl.close()
-    }
+  if (ejemplos?.length && Math.random() < 0.3) {
+    comentarioBase = ejemplos[Math.floor(Math.random() * ejemplos.length)]
+  } else {
+    const partes = [
+      `hermos${apodo.slice(-1) === 'a' ? 'aaa' : 'ooo'}`,
+      `no no nooo ${apodo}`,
+      `${apodo} 😩🔥🔥🔥`,
+      `broo estasss 😭😭😭`,
+      `reinaa ${apodo} 😍`,
+      `🔥🔥🔥`,
+      `🥹💖`,
+      `el más guapo`,
+      `te pasaste`,
+      `mira esto`,
+      `bomba`,
+      `pfff`
+    ]
+    comentarioBase = partes[Math.floor(Math.random() * partes.length)]
   }
 
-  fs.writeFileSync(`temp/comentarios_${username}.json`, JSON.stringify(comentarios, null, 2))
-  console.log(`✅ ${comentarios.length} comentarios guardados en temp/comentarios_${username}.json`)
+  // Randommente añadir una mención
+  if (usarMencionReal) {
+    const mencion = mencionesReales[Math.floor(Math.random() * mencionesReales.length)]
+    comentarioBase = `${mencion} ${comentarioBase}`
+  } else if (Math.random() < 0.2) {
+    const cuenta = mencionesEntreCuentas[Math.floor(Math.random() * mencionesEntreCuentas.length)]
+    comentarioBase = `${cuenta} ${comentarioBase}`
+  }
+
+  comentarios.push({
+    texto: comentarioBase,
+    respuesta: responderOtroComentario
+  })
 }
 
-generarComentarios()
+fs.writeFileSync(`temp/comentarios_${username}.json`, JSON.stringify(comentarios, null, 2))
+console.log(`✅ Comentarios generados con menciones y respuestas: temp/comentarios_${username}.json`)
