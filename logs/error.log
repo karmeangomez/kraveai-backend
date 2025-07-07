@@ -43,3 +43,4 @@ error: ⚠️ Error al tomar screenshot: Protocol error (Page.captureScreenshot)
 error: ❌ Error en creación: net::ERR_NO_SUPPORTED_PROXIES at https://www.instagram.com/accounts/emailsignup/ {"timestamp":"2025-07-07T06:19:37.790Z"}
 error: ❌ Error en creación: net::ERR_NO_SUPPORTED_PROXIES at https://www.instagram.com/accounts/emailsignup/ {"timestamp":"2025-07-07T06:19:44.876Z"}
 error: ⚠️ Error al tomar screenshot: Protocol error (Page.captureScreenshot): Not attached to an active page {"timestamp":"2025-07-07T06:19:44.928Z"}
+error: ❌ Error en creación: net::ERR_NO_SUPPORTED_PROXIES at https://www.instagram.com/accounts/emailsignup/ {"timestamp":"2025-07-07T06:19:50.820Z"}
