@@ -1,72 +1,82 @@
-import cheerio from 'cheerio';
+import * as cheerio from 'cheerio';
 import axios from 'axios';
 
-/**
- * Extrae proxies públicos desde múltiples fuentes web
- * Devuelve un array de objetos tipo:
- * { ip: string, port: number, type: 'http', source: string }
- */
-export default async function getPublicProxies() {
+export async function getPublicProxies() {
   const proxies = [];
 
+  // SwiftShadow
   try {
-    // Fuente 1: ProxyScrape
-    const proxyScrapeRes = await axios.get('https://api.proxyscrape.com/v2/?request=displayproxies&protocol=http&timeout=10000&country=all&ssl=all&anonymity=all');
-    const proxyScrapeList = proxyScrapeRes.data
-      .split('\n')
-      .map(p => p.trim())
-      .filter(Boolean);
-    for (const line of proxyScrapeList) {
-      const [ip, port] = line.split(':');
+    const res = await axios.get('https://www.sslproxies.org/');
+    const $ = cheerio.load(res.data);
+    $('#proxylisttable tbody tr').each((i, el) => {
+      const cols = $(el).find('td');
+      const ip = $(cols[0]).text().trim();
+      const port = $(cols[1]).text().trim();
       if (ip && port) {
         proxies.push({
           ip,
           port: parseInt(port),
           type: 'http',
-          source: 'proxyscrape'
+          source: 'sslproxies.org'
         });
       }
-    }
-  } catch (e) {
-    console.error('⚠️ Error obteniendo de ProxyScrape:', e.message);
+    });
+    console.log(`🌐 ${proxies.length} proxies extraídos de sslproxies.org`);
+  } catch (error) {
+    console.warn('⚠️ Error obteniendo de sslproxies.org:', error.message);
   }
 
+  // ProxyNova
   try {
-    // Fuente 2: ProxyNova (scraping HTML)
     const res = await axios.get('https://www.proxynova.com/proxy-server-list/');
     const $ = cheerio.load(res.data);
-    $('table#tbl_proxy_list tbody tr').each((i, el) => {
-      const ipRaw = $(el).find('td:nth-child(1)').text().trim();
-      const port = $(el).find('td:nth-child(2)').text().trim();
-      const ip = ipRaw.replace(/document\.write\(['"]?|['"]?\);?/g, '').trim();
-      if (ip && port && !ip.includes('Proxy')) {
+    $('table#tbl_proxy_list tbody tr').each((i, row) => {
+      const ipScript = $(row).find('td:nth-child(1) script').html();
+      const portText = $(row).find('td:nth-child(2)').text().trim();
+
+      if (ipScript && portText) {
+        const ipMatch = ipScript.match(/"(.+?)"/);
+        if (ipMatch) {
+          const ip = ipMatch[1];
+          const port = parseInt(portText);
+          if (ip && port) {
+            proxies.push({
+              ip,
+              port,
+              type: 'http',
+              source: 'proxynova'
+            });
+          }
+        }
+      }
+    });
+    console.log(`🌐 ${proxies.length} proxies acumulados tras proxynova`);
+  } catch (error) {
+    console.warn('⚠️ Error obteniendo de proxynova:', error.message);
+  }
+
+  // ProxyShare.io
+  try {
+    const res = await axios.get('https://proxyshare.io/free-proxy-list');
+    const $ = cheerio.load(res.data);
+    $('table tbody tr').each((i, el) => {
+      const cols = $(el).find('td');
+      const ip = $(cols[0]).text().trim();
+      const port = $(cols[1]).text().trim();
+      const protocol = $(cols[2]).text().trim().toLowerCase();
+
+      if (ip && port && (protocol === 'http' || protocol === 'https')) {
         proxies.push({
           ip,
           port: parseInt(port),
           type: 'http',
-          source: 'proxynova'
+          source: 'proxyshare.io'
         });
       }
     });
-  } catch (e) {
-    console.error('⚠️ Error obteniendo de ProxyNova:', e.message);
-  }
-
-  try {
-    // Fuente 3: ProxyScan.io
-    const res = await axios.get('https://www.proxyscan.io/api/proxy?format=json&type=http&limit=20');
-    if (Array.isArray(res.data)) {
-      for (const p of res.data) {
-        proxies.push({
-          ip: p.Ip,
-          port: p.Port,
-          type: 'http',
-          source: 'proxyscan'
-        });
-      }
-    }
-  } catch (e) {
-    console.error('⚠️ Error obteniendo de ProxyScan:', e.message);
+    console.log(`🌐 ${proxies.length} proxies acumulados tras proxyshare.io`);
+  } catch (error) {
+    console.warn('⚠️ Error obteniendo de proxyshare.io:', error.message);
   }
 
   return proxies;
