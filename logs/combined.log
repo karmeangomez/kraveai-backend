@@ -199,3 +199,6 @@ info: 🌐 Usando proxy: http://pdsmombq:terqdq67j6mp@173.0.9.3:5586 {"timestamp
 error: ❌ Error en creación: net::ERR_NO_SUPPORTED_PROXIES at https://www.instagram.com/accounts/emailsignup/ {"timestamp":"2025-07-07T06:21:46.757Z"}
 info: 📸 Captura guardada: screenshots/error_1751869306757.png {"timestamp":"2025-07-07T06:21:46.926Z"}
 info: 🌐 Usando proxy: http://pdsmombq:terqdq67j6mp@173.0.9.3:5586 {"timestamp":"2025-07-07T06:21:50.562Z"}
+error: ❌ Error en creación: net::ERR_NO_SUPPORTED_PROXIES at https://www.instagram.com/accounts/emailsignup/ {"timestamp":"2025-07-07T06:21:52.317Z"}
+info: 📸 Captura guardada: screenshots/error_1751869312317.png {"timestamp":"2025-07-07T06:21:52.522Z"}
+warn: 🔁 Reintentando (1/3)... {"timestamp":"2025-07-07T06:21:52.522Z"}
