@@ -53,3 +53,5 @@ info: 🌐 Usando proxy: http://pdsmombq-rotate:terqdq67j6mp@p.webshare.io:80 {"
 error: ❌ Error en creación: net::ERR_NO_SUPPORTED_PROXIES at https://www.instagram.com/accounts/emailsignup/ {"timestamp":"2025-07-07T06:18:05.948Z"}
 info: 📸 Captura guardada: screenshots/error_1751869085954.png {"timestamp":"2025-07-07T06:18:06.252Z"}
 error: ❌ Error en creación: net::ERR_NO_SUPPORTED_PROXIES at https://www.instagram.com/accounts/emailsignup/ {"timestamp":"2025-07-07T06:18:07.137Z"}
+info: 📸 Captura guardada: screenshots/error_1751869087138.png {"timestamp":"2025-07-07T06:18:07.351Z"}
+warn: 🔁 Reintentando (3/3)... {"timestamp":"2025-07-07T06:18:07.351Z"}
