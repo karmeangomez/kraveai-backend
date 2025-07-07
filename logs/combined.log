@@ -48,3 +48,5 @@ error: ⚠️ Error al tomar screenshot: Protocol error (Page.captureScreenshot)
 warn: 🔁 Reintentando (3/3)... {"timestamp":"2025-07-07T06:17:58.746Z"}
 error: ⚠️ Error al tomar screenshot: Protocol error (Page.captureScreenshot): Not attached to an active page {"timestamp":"2025-07-07T06:17:58.927Z"}
 warn: 🔁 Reintentando (2/3)... {"timestamp":"2025-07-07T06:17:58.930Z"}
+info: 🌐 Usando proxy: http://pdsmombq:terqdq67j6mp@173.0.9.3:5586 {"timestamp":"2025-07-07T06:18:03.750Z"}
+info: 🌐 Usando proxy: http://pdsmombq-rotate:terqdq67j6mp@p.webshare.io:80 {"timestamp":"2025-07-07T06:18:03.933Z"}
