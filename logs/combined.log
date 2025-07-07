@@ -83,3 +83,6 @@ error: ❌ Error en creación: net::ERR_NO_SUPPORTED_PROXIES at https://www.inst
 info: 📸 Captura guardada: screenshots/error_1751869113147.png {"timestamp":"2025-07-07T06:18:33.318Z"}
 info: 🌐 Usando proxy: http://pdsmombq-rotate:terqdq67j6mp@p.webshare.io:80 {"timestamp":"2025-07-07T06:18:35.070Z"}
 info: 🌐 Usando proxy: http://pdsmombq:terqdq67j6mp@173.0.9.3:5586 {"timestamp":"2025-07-07T06:18:37.065Z"}
+error: ❌ Error en creación: net::ERR_NO_SUPPORTED_PROXIES at https://www.instagram.com/accounts/emailsignup/ {"timestamp":"2025-07-07T06:18:37.365Z"}
+info: 📸 Captura guardada: screenshots/error_1751869117366.png {"timestamp":"2025-07-07T06:18:37.586Z"}
+warn: 🔁 Reintentando (3/3)... {"timestamp":"2025-07-07T06:18:37.586Z"}
