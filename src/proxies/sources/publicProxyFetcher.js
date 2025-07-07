@@ -1,53 +1,58 @@
 import axios from 'axios';
-import cheerio from 'cheerio';
+import * as cheerio from 'cheerio';
 
 export default async function fetchPublicProxies() {
   console.log('🌐 Cargando proxies públicos desde múltiples fuentes...');
   const proxies = [];
 
-  // Fuente 1: ProxyNova
-  try {
-    const response = await axios.get('https://www.proxynova.com/proxy-server-list/');
-    const $ = cheerio.load(response.data);
-    $('table#tbl_proxy_list tbody tr').each((_, row) => {
-      const ipScript = $(row).find('td:nth-child(1) script').html();
-      const ipMatch = ipScript && ipScript.match(/'(.+)'/);
-      const ip = ipMatch ? ipMatch[1] : null;
-      const port = $(row).find('td:nth-child(2)').text().trim();
-      if (ip && port && !isNaN(port)) {
-        proxies.push({
-          ip,
-          port: parseInt(port),
-          type: 'http',
-          source: 'proxynova',
-          country: 'UNKNOWN',
-          isRotating: false
-        });
-      }
-    });
-    console.log(`✅ ${proxies.length} proxies cargados de ProxyNova`);
-  } catch (error) {
-    console.warn('⚠️ No se pudo obtener proxies de ProxyNova:', error.message);
-  }
+  const sources = [
+    'https://www.proxy-list.download/HTTP',
+    'https://free-proxy-list.net/',
+    'https://www.sslproxies.org/',
+    'https://www.us-proxy.org/',
+    'https://free-proxy-list.net/uk-proxy.html',
+    'https://spys.one/en/http-proxy-list/',
+  ];
 
-  // Fuente 2: ProxyScrape HTTP
-  try {
-    const res = await axios.get('https://api.proxyscrape.com/v2/?request=getproxies&protocol=http&timeout=2000&country=all&ssl=all&anonymity=elite');
-    const lines = res.data.split('\n').map(l => l.trim()).filter(l => l.includes(':'));
-    for (const line of lines) {
-      const [ip, port] = line.split(':');
-      proxies.push({
-        ip,
-        port: parseInt(port),
-        type: 'http',
-        source: 'proxyscrape',
-        country: 'UNKNOWN',
-        isRotating: false
+  for (const url of sources) {
+    try {
+      const res = await axios.get(url, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0',
+          'Accept-Language': 'en-US,en;q=0.9',
+        },
+        timeout: 15000
       });
+
+      const $ = cheerio.load(res.data);
+      const rows = $('table tbody tr');
+
+      rows.each((i, row) => {
+        const cols = $(row).find('td');
+        const ip = $(cols[0]).text().trim();
+        const port = $(cols[1]).text().trim();
+        const country = $(cols[3]).text().trim();
+        const https = $(cols[6]).text().trim();
+
+        if (ip && port && !ip.includes('...') && port.length <= 5) {
+          proxies.push({
+            ip,
+            port: parseInt(port),
+            type: https.toLowerCase() === 'yes' ? 'https' : 'http',
+            country: country || 'UNKNOWN',
+            auth: null,
+            lastUsed: 0,
+            source: 'public',
+            successCount: 0,
+            failCount: 0
+          });
+        }
+      });
+
+      console.log(`✅ ${url} → ${proxies.length} proxies acumulados`);
+    } catch (err) {
+      console.warn(`⚠️ Error al obtener proxies de ${url}: ${err.message}`);
     }
-    console.log(`✅ ${lines.length} proxies cargados de ProxyScrape`);
-  } catch (err) {
-    console.warn('⚠️ No se pudo obtener proxies de ProxyScrape:', err.message);
   }
 
   return proxies;
