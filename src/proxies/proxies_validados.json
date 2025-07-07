@@ -1,20 +1,5 @@
 [
   {
-    "ip": "p.webshare.io",
-    "port": 80,
-    "auth": {
-      "username": "pdsmombq-rotate",
-      "password": "terqdq67j6mp"
-    },
-    "type": "http",
-    "country": "RESIDENTIAL",
-    "lastUsed": 0,
-    "successCount": 0,
-    "failCount": 0,
-    "isRotating": true,
-    "source": "webshare_residential"
-  },
-  {
     "ip": "46.203.28.10",
     "port": 6533,
     "auth": {
@@ -62,6 +47,21 @@
   {
     "ip": "64.137.93.215",
     "port": 6672,
+    "auth": {
+      "username": "pdsmombq",
+      "password": "terqdq67j6mp"
+    },
+    "type": "http",
+    "country": "UNKNOWN",
+    "lastUsed": 0,
+    "successCount": 0,
+    "failCount": 0,
+    "isRotating": false,
+    "source": "custom_list"
+  },
+  {
+    "ip": "104.233.12.130",
+    "port": 6681,
     "auth": {
       "username": "pdsmombq",
       "password": "terqdq67j6mp"
@@ -510,21 +510,6 @@
     "source": "custom_list"
   },
   {
-    "ip": "45.131.95.98",
-    "port": 5762,
-    "auth": {
-      "username": "pdsmombq",
-      "password": "terqdq67j6mp"
-    },
-    "type": "http",
-    "country": "UNKNOWN",
-    "lastUsed": 0,
-    "successCount": 0,
-    "failCount": 0,
-    "isRotating": false,
-    "source": "custom_list"
-  },
-  {
     "ip": "64.64.110.22",
     "port": 6545,
     "auth": {
@@ -645,8 +630,8 @@
     "source": "custom_list"
   },
   {
-    "ip": "46.203.206.212",
-    "port": 5657,
+    "ip": "104.233.13.166",
+    "port": 6161,
     "auth": {
       "username": "pdsmombq",
       "password": "terqdq67j6mp"
@@ -675,8 +660,38 @@
     "source": "custom_list"
   },
   {
+    "ip": "154.6.129.130",
+    "port": 5600,
+    "auth": {
+      "username": "pdsmombq",
+      "password": "terqdq67j6mp"
+    },
+    "type": "http",
+    "country": "UNKNOWN",
+    "lastUsed": 0,
+    "successCount": 0,
+    "failCount": 0,
+    "isRotating": false,
+    "source": "custom_list"
+  },
+  {
     "ip": "23.95.244.195",
     "port": 6148,
+    "auth": {
+      "username": "pdsmombq",
+      "password": "terqdq67j6mp"
+    },
+    "type": "http",
+    "country": "UNKNOWN",
+    "lastUsed": 0,
+    "successCount": 0,
+    "failCount": 0,
+    "isRotating": false,
+    "source": "custom_list"
+  },
+  {
+    "ip": "45.41.177.243",
+    "port": 5893,
     "auth": {
       "username": "pdsmombq",
       "password": "terqdq67j6mp"
@@ -767,21 +782,6 @@
   {
     "ip": "64.137.31.148",
     "port": 6762,
-    "auth": {
-      "username": "pdsmombq",
-      "password": "terqdq67j6mp"
-    },
-    "type": "http",
-    "country": "UNKNOWN",
-    "lastUsed": 0,
-    "successCount": 0,
-    "failCount": 0,
-    "isRotating": false,
-    "source": "custom_list"
-  },
-  {
-    "ip": "154.29.233.107",
-    "port": 5868,
     "auth": {
       "username": "pdsmombq",
       "password": "terqdq67j6mp"
@@ -902,6 +902,21 @@
   {
     "ip": "82.22.253.181",
     "port": 8039,
+    "auth": {
+      "username": "pdsmombq",
+      "password": "terqdq67j6mp"
+    },
+    "type": "http",
+    "country": "UNKNOWN",
+    "lastUsed": 0,
+    "successCount": 0,
+    "failCount": 0,
+    "isRotating": false,
+    "source": "custom_list"
+  },
+  {
+    "ip": "154.6.83.174",
+    "port": 6645,
     "auth": {
       "username": "pdsmombq",
       "password": "terqdq67j6mp"
@@ -1050,8 +1065,38 @@
     "source": "custom_list"
   },
   {
+    "ip": "64.137.59.143",
+    "port": 6736,
+    "auth": {
+      "username": "pdsmombq",
+      "password": "terqdq67j6mp"
+    },
+    "type": "http",
+    "country": "UNKNOWN",
+    "lastUsed": 0,
+    "successCount": 0,
+    "failCount": 0,
+    "isRotating": false,
+    "source": "custom_list"
+  },
+  {
     "ip": "92.113.115.28",
     "port": 5975,
+    "auth": {
+      "username": "pdsmombq",
+      "password": "terqdq67j6mp"
+    },
+    "type": "http",
+    "country": "UNKNOWN",
+    "lastUsed": 0,
+    "successCount": 0,
+    "failCount": 0,
+    "isRotating": false,
+    "source": "custom_list"
+  },
+  {
+    "ip": "94.176.212.166",
+    "port": 6682,
     "auth": {
       "username": "pdsmombq",
       "password": "terqdq67j6mp"
@@ -1157,6 +1202,21 @@
   {
     "ip": "38.170.161.149",
     "port": 9200,
+    "auth": {
+      "username": "pdsmombq",
+      "password": "terqdq67j6mp"
+    },
+    "type": "http",
+    "country": "UNKNOWN",
+    "lastUsed": 0,
+    "successCount": 0,
+    "failCount": 0,
+    "isRotating": false,
+    "source": "custom_list"
+  },
+  {
+    "ip": "45.159.55.166",
+    "port": 6538,
     "auth": {
       "username": "pdsmombq",
       "password": "terqdq67j6mp"
@@ -1445,6 +1505,16 @@
     "source": "proxies.txt"
   },
   {
+    "ip": "173.214.177.24",
+    "port": 5715,
+    "auth": {
+      "username": "pdsmombq",
+      "password": "terqdq67j6mp"
+    },
+    "type": "http",
+    "source": "proxies.txt"
+  },
+  {
     "ip": "82.26.240.7",
     "port": 7823,
     "auth": {
@@ -1625,6 +1695,26 @@
     "source": "proxies.txt"
   },
   {
+    "ip": "46.203.88.224",
+    "port": 6848,
+    "auth": {
+      "username": "pdsmombq",
+      "password": "terqdq67j6mp"
+    },
+    "type": "http",
+    "source": "proxies.txt"
+  },
+  {
+    "ip": "64.137.93.15",
+    "port": 6472,
+    "auth": {
+      "username": "pdsmombq",
+      "password": "terqdq67j6mp"
+    },
+    "type": "http",
+    "source": "proxies.txt"
+  },
+  {
     "ip": "145.223.41.4",
     "port": 6275,
     "auth": {
@@ -1707,6 +1797,16 @@
   {
     "ip": "45.131.95.98",
     "port": 5762,
+    "auth": {
+      "username": "pdsmombq",
+      "password": "terqdq67j6mp"
+    },
+    "type": "http",
+    "source": "proxies.txt"
+  },
+  {
+    "ip": "64.64.110.22",
+    "port": 6545,
     "auth": {
       "username": "pdsmombq",
       "password": "terqdq67j6mp"
@@ -1815,6 +1915,16 @@
     "source": "proxies.txt"
   },
   {
+    "ip": "154.6.129.130",
+    "port": 5600,
+    "auth": {
+      "username": "pdsmombq",
+      "password": "terqdq67j6mp"
+    },
+    "type": "http",
+    "source": "proxies.txt"
+  },
+  {
     "ip": "23.95.244.195",
     "port": 6148,
     "auth": {
@@ -1827,16 +1937,6 @@
   {
     "ip": "45.41.177.243",
     "port": 5893,
-    "auth": {
-      "username": "pdsmombq",
-      "password": "terqdq67j6mp"
-    },
-    "type": "http",
-    "source": "proxies.txt"
-  },
-  {
-    "ip": "136.0.207.242",
-    "port": 6819,
     "auth": {
       "username": "pdsmombq",
       "password": "terqdq67j6mp"
@@ -2055,6 +2155,16 @@
     "source": "proxies.txt"
   },
   {
+    "ip": "136.0.189.220",
+    "port": 6947,
+    "auth": {
+      "username": "pdsmombq",
+      "password": "terqdq67j6mp"
+    },
+    "type": "http",
+    "source": "proxies.txt"
+  },
+  {
     "ip": "137.59.7.60",
     "port": 5604,
     "auth": {
@@ -2117,16 +2227,6 @@
   {
     "ip": "45.38.45.103",
     "port": 6042,
-    "auth": {
-      "username": "pdsmombq",
-      "password": "terqdq67j6mp"
-    },
-    "type": "http",
-    "source": "proxies.txt"
-  },
-  {
-    "ip": "46.203.115.226",
-    "port": 6252,
     "auth": {
       "username": "pdsmombq",
       "password": "terqdq67j6mp"
@@ -2215,6 +2315,16 @@
     "source": "proxies.txt"
   },
   {
+    "ip": "173.211.69.126",
+    "port": 6719,
+    "auth": {
+      "username": "pdsmombq",
+      "password": "terqdq67j6mp"
+    },
+    "type": "http",
+    "source": "proxies.txt"
+  },
+  {
     "ip": "103.47.53.128",
     "port": 8426,
     "auth": {
@@ -2245,6 +2355,16 @@
     "source": "proxies.txt"
   },
   {
+    "ip": "136.0.103.51",
+    "port": 5752,
+    "auth": {
+      "username": "pdsmombq",
+      "password": "terqdq67j6mp"
+    },
+    "type": "http",
+    "source": "proxies.txt"
+  },
+  {
     "ip": "104.239.108.145",
     "port": 6380,
     "auth": {
@@ -2267,6 +2387,16 @@
   {
     "ip": "142.111.131.75",
     "port": 6153,
+    "auth": {
+      "username": "pdsmombq",
+      "password": "terqdq67j6mp"
+    },
+    "type": "http",
+    "source": "proxies.txt"
+  },
+  {
+    "ip": "89.213.163.72",
+    "port": 6447,
     "auth": {
       "username": "pdsmombq",
       "password": "terqdq67j6mp"
