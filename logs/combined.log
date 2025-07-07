@@ -23,3 +23,4 @@ info: 🌐 Usando proxy: http://pdsmombq:terqdq67j6mp@173.0.9.3:5586 {"timestamp
 error: ❌ Error en creación: net::ERR_NO_SUPPORTED_PROXIES at https://www.instagram.com/accounts/emailsignup/ {"timestamp":"2025-07-07T06:17:34.223Z"}
 info: 📸 Captura guardada: screenshots/error_1751869054224.png {"timestamp":"2025-07-07T06:17:34.437Z"}
 warn: 🔁 Reintentando (3/3)... {"timestamp":"2025-07-07T06:17:34.437Z"}
+error: ❌ Error en creación: net::ERR_NO_SUPPORTED_PROXIES at https://www.instagram.com/accounts/emailsignup/ {"timestamp":"2025-07-07T06:17:35.742Z"}
