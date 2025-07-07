@@ -35,3 +35,8 @@ info: 📸 Captura guardada: screenshots/error_1751869062066.png {"timestamp":"2
 info: 🌐 Usando proxy: http://pdsmombq-rotate:terqdq67j6mp@p.webshare.io:80 {"timestamp":"2025-07-07T06:17:45.951Z"}
 info: 🌐 Usando proxy: http://pdsmombq:terqdq67j6mp@173.0.9.3:5586 {"timestamp":"2025-07-07T06:17:47.149Z"}
 error: ❌ Error en creación: net::ERR_NO_SUPPORTED_PROXIES at https://www.instagram.com/accounts/emailsignup/ {"timestamp":"2025-07-07T06:17:48.178Z"}
+info: 📸 Captura guardada: screenshots/error_1751869068178.png {"timestamp":"2025-07-07T06:17:48.813Z"}
+warn: 🔁 Reintentando (1/3)... {"timestamp":"2025-07-07T06:17:48.814Z"}
+error: ❌ Error en creación: net::ERR_NO_SUPPORTED_PROXIES at https://www.instagram.com/accounts/emailsignup/ {"timestamp":"2025-07-07T06:17:49.347Z"}
+info: 📸 Captura guardada: screenshots/error_1751869069347.png {"timestamp":"2025-07-07T06:17:49.543Z"}
+warn: 🔁 Reintentando (2/3)... {"timestamp":"2025-07-07T06:17:49.543Z"}
