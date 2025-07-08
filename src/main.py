@@ -1,4 +1,4 @@
-# backend/main.py
+# backend/src/main.py
 import os
 import json
 import subprocess
@@ -18,14 +18,14 @@ logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s [%(levelname)s] %(name)s: %(message)s',
     handlers=[
-        logging.FileHandler("kraveai.log", encoding='utf-8'),
+        logging.FileHandler("../kraveai.log", encoding='utf-8'),  # Logs en la raíz de backend/
         logging.StreamHandler()
     ]
 )
 logger = logging.getLogger("KraveAI-Backend")
 
-# Cargar variables de entorno
-load_dotenv()
+# Cargar variables de entorno desde la raíz
+load_dotenv("../.env")  # Leer .env desde la raíz de backend/
 app = FastAPI(title="KraveAI Backend", version="1.8")
 MAX_CONCURRENT = 3
 cl = None
@@ -100,14 +100,22 @@ def iniciar_sesion_post(datos: LoginRequest):
     try:
         nuevo = Client()
         nuevo.login(datos.usuario, datos.contrasena)
-        cl = nuevo
-        cl.dump_settings("ig_session.json")
-        notify_telegram(f"✅ Sesión iniciada como @{datos.usuario}")
-        logger.info(f"Sesión Instagram iniciada: @{datos.usuario}")
-        return {"exito": True, "usuario": datos.usuario}
+        if nuevo.is_logged_in:
+            cl = nuevo
+            cl.dump_settings("ig_session.json")
+            notify_telegram(f"✅ Sesión iniciada como @{datos.usuario}")
+            logger.info(f"Sesión Instagram iniciada: @{datos.usuario}")
+            return {"exito": True, "usuario": datos.usuario}
+        else:
+            raise Exception("Login no completado, posible verificación requerida")
     except Exception as e:
         logger.error(f"Error inicio sesión: {str(e)}")
-        return JSONResponse(status_code=401, content={"exito": False, "mensaje": f"Error: {str(e)}"})
+        if os.path.exists("ig_session.json"):
+            cl = Client()
+            cl.load_settings("ig_session.json")
+            if cl.is_logged_in:
+                return {"exito": True, "usuario": cl.username, "mensaje": "Sesión cargada desde archivo"}
+        return JSONResponse(status_code=401, content={"exito": False, "mensaje": f"Error: {str(e)}. Podría requerir verificación manual en la app de Instagram."})
 
 @app.get("/cerrar-sesion")
 def cerrar_sesion():
@@ -201,8 +209,10 @@ async def crear_cuentas_sse(request: Request, count: int = 1):
 
 def run_crear_cuenta():
     try:
-        # Ruta ajustada desde la raíz de backend/ a src/accounts/crearCuentaInstagram.js
-        script_path = os.path.join(os.path.dirname(__file__), "src/accounts/crearCuentaInstagram.js")
+        # Ruta ajustada desde src/ a src/accounts/crearCuentaInstagram.js
+        script_path = os.path.join(os.path.dirname(__file__), "accounts/crearCuentaInstagram.js")
+        if not os.path.exists(script_path):
+            return {"status": "error", "error": f"Script no encontrado en {script_path}"}
         result = subprocess.run(
             ["node", script_path],
             capture_output=True,
@@ -213,7 +223,7 @@ def run_crear_cuenta():
             try:
                 return json.loads(result.stdout)
             except json.JSONDecodeError:
-                return {"status": "error", "error": "Respuesta del script no es JSON válido"}
+                return {"status": "error", "error": "Respuesta del script no es JSON válido. Salida: " + result.stdout}
         else:
             return {"status": "error", "error": result.stderr or "Error desconocido en el script"}
     except subprocess.TimeoutExpired as e:
@@ -232,4 +242,4 @@ if __name__ == "__main__":
         workers=1,
         proxy_headers=True,
         forwarded_allow_ips="*"
-    
+    )
