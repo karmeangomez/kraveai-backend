@@ -4,6 +4,7 @@ import json
 import subprocess
 import logging
 import concurrent.futures
+import asyncio
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse, JSONResponse
@@ -18,14 +19,14 @@ logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s [%(levelname)s] %(name)s: %(message)s',
     handlers=[
-        logging.FileHandler("../kraveai.log", encoding='utf-8'),  # Logs en la raíz de backend/
+        logging.FileHandler("../kraveai.log", encoding='utf-8'),
         logging.StreamHandler()
     ]
 )
 logger = logging.getLogger("KraveAI-Backend")
 
 # Cargar variables de entorno desde la raíz
-load_dotenv("../.env")  # Leer .env desde la raíz de backend/
+load_dotenv("../.env")
 app = FastAPI(title="KraveAI Backend", version="1.8")
 MAX_CONCURRENT = 3
 cl = None
@@ -36,10 +37,10 @@ try:
 except Exception as e:
     logger.error(f"Error inicializando Instagram: {str(e)}")
 
-# Middleware CORS
+# Middleware CORS ajustado para túneles (permitir dominios dinámicos)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["*"],  # Ajusta esto si usas un dominio específico de ngrok o personalizado
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"]
@@ -48,7 +49,7 @@ app.add_middleware(
 @app.middleware("http")
 async def cors_headers(request: Request, call_next):
     response = await call_next(request)
-    response.headers["Access-Control-Allow-Origin"] = "*"
+    response.headers["Access-Control-Allow-Origin"] = "*"  # Permitir conexiones desde cualquier origen (ajústalos si es necesario)
     return response
 
 @app.get("/health")
@@ -155,73 +156,116 @@ def buscar_usuario(username: str):
         return JSONResponse(status_code=404, content={"error": str(e)})
 
 @app.get("/create-accounts-sse")
-async def crear_cuentas_sse(request: Request, count: int = 1):
+async def crear_cuentas_sse(request: Request, count: int = 50):  # Default de run.js
     async def event_stream():
         completed = 0
         success = 0
         errors = 0
-        futures = []
+        cuentas_exitosas = []
+        cuentas_fallidas = []
+        fallos_totales = 0
+        max_fallos = 10
 
         if count <= 0 or count > 100:
             yield f"event: error\ndata: {json.dumps({'status': 'error', 'message': 'Cantidad inválida (1-100)'})}\n\n"
             return
 
+        yield f"event: start\ndata: {json.dumps({'message': '🔥 Iniciando KraveAI-Granja Rusa 🔥'})}\n\n"
+
         try:
-            with concurrent.futures.ThreadPoolExecutor(max_workers=MAX_CONCURRENT) as executor:
-                futures = [executor.submit(run_crear_cuenta) for _ in range(count)]
+            base_path = os.path.dirname(os.path.dirname(__file__))  # Sube a backend/ desde src/
+            script_path = os.path.join(base_path, "src", "accounts", "crearCuentaInstagram.js")
+            proxy_script_path = os.path.join(base_path, "src", "proxies", "ultimateProxyMaster.js")
+            if not os.path.exists(script_path):
+                yield f"event: error\ndata: {json.dumps({'status': 'error', 'message': f'Script no encontrado en {script_path}'})}\n\n"
+                return
+            if not os.path.exists(proxy_script_path):
+                yield f"event: error\ndata: {json.dumps({'status': 'error', 'message': f'Proxy master no encontrado en {proxy_script_path}'})}\n\n"
+                return
 
-                for future in concurrent.futures.as_completed(futures):
-                    if await request.is_disconnected():
-                        logger.warning("Cliente desconectado antes de completar el proceso")
-                        break
+            # Inicializar proxies (simulación; ajusta según ultimateProxyMaster.js)
+            yield f"event: progress\ndata: {json.dumps({'message': 'Inicializando proxies...'})}\n\n"
+            proxy_master = subprocess.run(
+                ["node", proxy_script_path, "--init"],
+                capture_output=True,
+                text=True,
+                timeout=30,
+                cwd=base_path
+            )
+            if proxy_master.returncode != 0:
+                yield f"event: error\ndata: {json.dumps({'status': 'error', 'message': 'Error inicializando proxies: ' + proxy_master.stderr})}\n\n"
+                return
 
-                    try:
-                        result = future.result()
-                        if result.get("status") == "success":
-                            yield f"event: account-created\ndata: {json.dumps(result)}\n\n"
-                            success += 1
-                        else:
-                            error_msg = result.get("error", "Error desconocido")
-                            yield f"event: error\ndata: {json.dumps({'status': 'error', 'message': error_msg})}\n\n"
-                            errors += 1
-                    except Exception as e:
-                        yield f"event: error\ndata: {json.dumps({'status': 'error', 'message': str(e)})}\n\n"
-                        errors += 1
-                    finally:
-                        completed += 1
-                        if completed % 2 == 0 or completed == count:
-                            yield f"event: progress\ndata: {json.dumps({'completed': completed, 'total': count, 'success': success, 'errors': errors})}\n\n"
+            for i in range(count):
+                if await request.is_disconnected():
+                    logger.warning("Cliente desconectado antes de completar el proceso")
+                    break
+
+                yield f"event: progress\ndata: {json.dumps({'message': f'🚀 Creando cuenta {i + 1}/{count}'})}\n\n"
+                # Obtener próximo proxy (simulación; ajusta según ultimateProxyMaster.js)
+                proxy_result = subprocess.run(
+                    ["node", proxy_script_path, "--next"],
+                    capture_output=True,
+                    text=True,
+                    timeout=10,
+                    cwd=base_path
+                )
+                proxy = proxy_result.stdout.strip() if proxy_result.returncode == 0 else "http://default-proxy:8080"
+
+                result = await run_single_account(base_path, proxy)
+
+                if result.get("status") == "success":
+                    cuentas_exitosas.append(result)
+                    yield f"event: account-created\ndata: {json.dumps(result)}\n\n"
+                    success += 1
+                else:
+                    cuentas_fallidas.append(result)
+                    yield f"event: error\ndata: {json.dumps({'status': 'error', 'message': result.get('error', 'Error desconocido')})}\n\n"
+                    errors += 1
+                    fallos_totales += 1
+
+                if fallos_totales >= max_fallos:
+                    yield f"event: error\ndata: {json.dumps({'status': 'error', 'message': f'🛑 Proceso detenido por alcanzar {max_fallos} fallos'})}\n\n"
+                    break
+
+                await asyncio.sleep(3)  # Delay de 3 segundos como en run.js
+
+                completed += 1
+                if completed % 2 == 0 or completed == count:
+                    yield f"event: progress\ndata: {json.dumps({'completed': completed, 'total': count, 'success': success, 'errors': errors})}\n\n"
 
             if not await request.is_disconnected():
-                yield "event: complete\ndata: Proceso terminado\n\n"
+                output_path = os.path.join(os.path.dirname(__file__), "cuentas_creadas.json")
+                with open(output_path, "w", encoding="utf-8") as f:
+                    json.dump(cuentas_exitosas, f, indent=2)
+                yield f"event: complete\ndata: {json.dumps({'message': f'📦 Resultado final: ✅ Creadas: {success}, ❌ Fallidas: {errors}, 💾 Guardadas en: {output_path}'})}\n\n"
             else:
-                yield "event: complete\ndata: Proceso interrumpido por desconexión\n\n"
+                yield f"event: complete\ndata: {json.dumps({'message': 'Proceso interrumpido por desconexión'})}\n\n"
 
         except Exception as e:
             logger.error(f"Error en el streaming SSE: {str(e)}")
             yield f"event: error\ndata: {json.dumps({'status': 'error', 'message': 'Error interno del servidor'})}\n\n"
-        finally:
-            for future in futures:
-                if not future.done():
-                    future.cancel()
 
     return StreamingResponse(event_stream(), media_type="text/event-stream")
 
-def run_crear_cuenta():
+async def run_single_account(base_path, proxy):
     try:
-        # Ruta ajustada desde src/ a src/accounts/crearCuentaInstagram.js
-        script_path = os.path.join(os.path.dirname(__file__), "accounts/crearCuentaInstagram.js")
+        script_path = os.path.join(base_path, "src", "accounts", "crearCuentaInstagram.js")
         if not os.path.exists(script_path):
             return {"status": "error", "error": f"Script no encontrado en {script_path}"}
         result = subprocess.run(
-            ["node", script_path],
+            ["node", script_path, "--proxy", proxy],
             capture_output=True,
             text=True,
-            timeout=180
+            timeout=180,
+            cwd=base_path
         )
         if result.returncode == 0:
             try:
-                return json.loads(result.stdout)
+                output = result.stdout.strip()
+                if not output:
+                    return {"status": "error", "error": "Script no devolvió salida"}
+                return json.loads(output)
             except json.JSONDecodeError:
                 return {"status": "error", "error": "Respuesta del script no es JSON válido. Salida: " + result.stdout}
         else:
