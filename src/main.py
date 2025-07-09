@@ -1,4 +1,6 @@
+# ~/kraveai-backend/src/main.py
 import os
+import sys
 import json
 import subprocess
 import logging
@@ -8,6 +10,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse, JSONResponse
 from dotenv import load_dotenv
 from pydantic import BaseModel
+
+# Añade el directorio src al PYTHONPATH
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+
 from login_utils import login_instagram
 from telegram_utils import notify_telegram
 from instagram_utils import crear_cuenta_instagram
@@ -194,7 +200,7 @@ async def crear_cuentas_sse(request: Request, count: int = 1):
                     finally:
                         completed += 1
                         if completed % 2 == 0 or completed == count:
-                            yield f"event: progressxyzprogress\ndata: {json.dumps({'completed': completed, 'total': count, 'success': success, 'errors': errors})}\n\n"
+                            yield f"event: progress\ndata: {json.dumps({'completed': completed, 'total': count, 'success': success, 'errors': errors})}\n\n"
 
             if not await request.is_disconnected():
                 yield "event: complete\ndata: Proceso terminado\n\n"
