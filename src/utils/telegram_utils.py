@@ -1,8 +1,10 @@
 # ~/kraveai-backend/src/telegram_utils.py
 import os
 import requests
-import time
 from requests.exceptions import RequestException
+from fastapi import FastAPI
+
+app = FastAPI()
 
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
@@ -41,3 +43,9 @@ def notify_telegram(message):
         elif "getaddrinfo" in str(error):
             print("   Error de DNS: Verifica tu conexión a internet o configura DNS (8.8.8.8)")
         return False
+
+# Endpoint para que Node.js llame
+@app.post("/api/notify-telegram")
+async def notify_telegram_api(message: str):
+    success = notify_telegram(message)
+    return {"success": success, "message": message}
