@@ -1,18 +1,19 @@
-# ~/kraveai-backend/src/main.py
 import os
 import sys
 import json
 import subprocess
 import logging
 import concurrent.futures
+import threading
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse, JSONResponse
 from dotenv import load_dotenv
 from pydantic import BaseModel
+import uvicorn
 
 # Añade el directorio src al PYTHONPATH
-sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+sys.path.append(os.path.dirname(os.path.abspath(__file__))
 
 from login_utils import login_instagram
 from telegram_utils import notify_telegram
@@ -23,7 +24,7 @@ logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s [%(levelname)s] %(name)s: %(message)s',
     handlers=[
-        logging.FileHandler("../kraveai.log", encoding='utf-8'),  # Logs en la raíz de backend/
+        logging.FileHandler("../kraveai.log", encoding='utf-8'),
         logging.StreamHandler()
     ]
 )
@@ -32,19 +33,21 @@ logger = logging.getLogger("KraveAI-Backend")
 # Cargar variables de entorno desde la raíz
 load_dotenv("../.env")  # Lee el .env desde ~/kraveai-backend/
 
-app = FastAPI(title="KraveAI Backend", version="1.8")
+app = FastAPI(title="KraveAI Backend", version="1.9")
 MAX_CONCURRENT = 3
 cl = None
 
-# Intentar iniciar sesión en Instagram
-try:
-    cl = login_instagram()
-    if cl:
-        logger.info("Cliente Instagram inicializado")
-    else:
-        logger.error("No se pudo iniciar sesión en Instagram")
-except Exception as e:
-    logger.error(f"Error al inicializar Instagram: {str(e)}")
+# Función para iniciar sesión en Instagram
+def init_instagram():
+    global cl
+    try:
+        cl = login_instagram()
+        if cl:
+            logger.info("Cliente Instagram inicializado")
+        else:
+            logger.error("No se pudo iniciar sesión en Instagram")
+    except Exception as e:
+        logger.error(f"Error al inicializar Instagram: {str(e)}")
 
 # Middleware CORS
 app.add_middleware(
@@ -65,7 +68,7 @@ async def cors_headers(request: Request, call_next):
 def health():
     return {
         "status": "OK",
-        "versión": "v1.8 - estable",
+        "versión": "v1.9 - estable",
         "service": "KraveAI Python",
         "login": "Activo" if cl and cl.user_id else "Fallido",
         "concurrent_max": MAX_CONCURRENT
@@ -244,8 +247,7 @@ def run_crear_cuenta():
     except Exception as e:
         return {"status": "error", "error": str(e)}
 
-if __name__ == "__main__":
-    import uvicorn
+def run_uvicorn():
     port = int(os.getenv("PORT", 8000))
     uvicorn.run(
         app,
@@ -254,5 +256,14 @@ if __name__ == "__main__":
         reload=False,
         workers=1,
         proxy_headers=True,
-        forwarded_allow_ips="*"
+        forwarded_allow_ips="*",
+        log_config=None
     )
+
+if __name__ == "__main__":
+    # Iniciar Instagram en un hilo separado para no bloquear
+    threading.Thread(target=init_instagram, daemon=True).start()
+    run_uvicorn()
+else:
+    # Para ejecución con Uvicorn CLI
+    init_instagram()
