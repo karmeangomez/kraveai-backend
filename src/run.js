@@ -16,6 +16,9 @@ async function main() {
 
   const proxyMaster = new UltimateProxyMaster();
   await proxyMaster.initialize();
+  
+  // Limitar proxies a 500 para optimizar memoria
+  proxyMaster.limitProxies(500);
 
   for (let i = 0; i < TOTAL_CUENTAS; i++) {
     console.log(`\n🚀 Creando cuenta ${i + 1}/${TOTAL_CUENTAS}`);
@@ -45,6 +48,18 @@ async function main() {
   console.log(`✅ Creadas: ${cuentasExitosas.length}`);
   console.log(`❌ Fallidas: ${cuentasFallidas.length}`);
   console.log(`💾 Guardadas en: ${salida}`);
+  
+  // Salida para el proceso Python
+  if (cuentasExitosas.length > 0) {
+    console.log(JSON.stringify(cuentasExitosas[cuentasExitosas.length - 1]));
+  } else if (cuentasFallidas.length > 0) {
+    console.log(JSON.stringify(cuentasFallidas[cuentasFallidas.length - 1]));
+  } else {
+    console.log(JSON.stringify({status: "error", error: "No se crearon cuentas"}));
+  }
 }
 
-main();
+main().catch(error => {
+  console.error('❌ Error crítico en run.js:', error);
+  process.exit(1);
+});
