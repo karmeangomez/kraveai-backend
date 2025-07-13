@@ -17,3 +17,7 @@ Thumbs.db
 # Puppeteer local chromium
 .local-chromium/
 kraveai.log
+
+# Python cache
+__pycache__/
+*.py[cod]
