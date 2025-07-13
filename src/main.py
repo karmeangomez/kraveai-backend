@@ -12,32 +12,33 @@ from dotenv import load_dotenv
 from pydantic import BaseModel
 import uvicorn
 
-# Añade el directorio src al PYTHONPATH
-sys.path.append(os.path.dirname(os.path.abspath(__file__))
+# ✅ Corrige el PYTHONPATH para src
+sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), "src"))
 
+# ✅ Importaciones desde src correctamente
 from login_utils import login_instagram
 from telegram_utils import notify_telegram
 from instagram_utils import crear_cuenta_instagram
 
-# Configuración de logging
+# ✅ Logging correcto
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s [%(levelname)s] %(name)s: %(message)s',
     handlers=[
-        logging.FileHandler("../kraveai.log", encoding='utf-8'),
+        logging.FileHandler("kraveai.log", encoding='utf-8'),
         logging.StreamHandler()
     ]
 )
 logger = logging.getLogger("KraveAI-Backend")
 
-# Cargar variables de entorno desde la raíz
-load_dotenv("../.env")  # Lee el .env desde ~/kraveai-backend/
+# ✅ Cargar .env correctamente
+load_dotenv(".env")
 
+# ✅ FastAPI App
 app = FastAPI(title="KraveAI Backend", version="1.9")
 MAX_CONCURRENT = 3
 cl = None
 
-# Función para iniciar sesión en Instagram
 def init_instagram():
     global cl
     try:
@@ -49,7 +50,7 @@ def init_instagram():
     except Exception as e:
         logger.error(f"Error al inicializar Instagram: {str(e)}")
 
-# Middleware CORS
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -58,11 +59,13 @@ app.add_middleware(
     allow_headers=["*"]
 )
 
+
 @app.middleware("http")
 async def cors_headers(request: Request, call_next):
     response = await call_next(request)
     response.headers["Access-Control-Allow-Origin"] = "*"
     return response
+
 
 @app.get("/health")
 def health():
@@ -73,6 +76,7 @@ def health():
         "login": "Activo" if cl and cl.user_id else "Fallido",
         "concurrent_max": MAX_CONCURRENT
     }
+
 
 @app.get("/cuentas")
 def obtener_cuentas():
@@ -87,6 +91,7 @@ def obtener_cuentas():
         logger.error(f"Error leyendo cuentas_creadas.json: {str(e)}")
         raise HTTPException(status_code=500, detail="Error leyendo archivo de cuentas")
 
+
 @app.get("/test-telegram")
 def test_telegram():
     try:
@@ -96,15 +101,18 @@ def test_telegram():
         logger.error(f"Error en test-telegram: {str(e)}")
         raise HTTPException(status_code=500, detail="Error enviando notificación a Telegram")
 
+
 @app.get("/estado-sesion")
 def estado_sesion():
     if cl and cl.user_id:
         return {"status": "activo", "usuario": cl.username}
     return {"status": "inactivo"}
 
+
 class LoginRequest(BaseModel):
     usuario: str
     contrasena: str
+
 
 @app.post("/iniciar-sesion")
 def iniciar_sesion_post(datos: LoginRequest):
@@ -130,6 +138,7 @@ def iniciar_sesion_post(datos: LoginRequest):
                 return {"exito": True, "usuario": cl.username, "mensaje": "Sesión cargada desde archivo"}
         return JSONResponse(status_code=401, content={"exito": False, "mensaje": f"Error: {str(e)}. Podría requerir verificación manual en la app de Instagram."})
 
+
 @app.get("/cerrar-sesion")
 def cerrar_sesion():
     try:
@@ -144,6 +153,7 @@ def cerrar_sesion():
     except Exception as e:
         logger.error(f"Error cerrando sesión: {str(e)}")
         return JSONResponse(status_code=500, content={"exito": False, "mensaje": f"Error: {str(e)}"})
+
 
 @app.get("/buscar-usuario")
 def buscar_usuario(username: str):
@@ -166,6 +176,7 @@ def buscar_usuario(username: str):
     except Exception as e:
         logger.error(f"Error buscando usuario @{username}: {str(e)}")
         return JSONResponse(status_code=404, content={"error": str(e)})
+
 
 @app.get("/create-accounts-sse")
 async def crear_cuentas_sse(request: Request, count: int = 1):
@@ -220,6 +231,7 @@ async def crear_cuentas_sse(request: Request, count: int = 1):
 
     return StreamingResponse(event_stream(), media_type="text/event-stream")
 
+
 def run_crear_cuenta():
     try:
         script_path = os.path.join(os.path.dirname(__file__), "accounts/crearCuentaInstagram.js")
@@ -230,7 +242,7 @@ def run_crear_cuenta():
             capture_output=True,
             text=True,
             timeout=180,
-            cwd=os.path.dirname(__file__)  # Ejecutar desde el directorio src/
+            cwd=os.path.dirname(__file__)
         )
         if result.returncode == 0:
             try:
@@ -242,10 +254,11 @@ def run_crear_cuenta():
                 return {"status": "error", "error": "Respuesta del script no es JSON válido. Salida: " + result.stdout}
         else:
             return {"status": "error", "error": result.stderr or "Error desconocido en el script"}
-    except subprocess.TimeoutExpired as e:
+    except subprocess.TimeoutExpired:
         return {"status": "error", "error": "Tiempo de ejecución excedido (180s)"}
     except Exception as e:
         return {"status": "error", "error": str(e)}
+
 
 def run_uvicorn():
     port = int(os.getenv("PORT", 8000))
@@ -260,10 +273,9 @@ def run_uvicorn():
         log_config=None
     )
 
+
 if __name__ == "__main__":
-    # Iniciar Instagram en un hilo separado para no bloquear
     threading.Thread(target=init_instagram, daemon=True).start()
     run_uvicorn()
 else:
-    # Para ejecución con Uvicorn CLI
     init_instagram()
