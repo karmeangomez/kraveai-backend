@@ -13,12 +13,12 @@ from pydantic import BaseModel
 import uvicorn
 
 # ✅ Corrige el PYTHONPATH para src
-sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), "src"))
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
-# ✅ Importaciones desde src correctamente
+# ✅ Importaciones desde src/utils correctamente
 from login_utils import login_instagram
-from telegram_utils import notify_telegram
 from instagram_utils import crear_cuenta_instagram
+from utils.telegram_utils import notify_telegram  # <--- Aquí la corrección
 
 # ✅ Logging correcto
 logging.basicConfig(
