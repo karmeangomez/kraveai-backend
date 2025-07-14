@@ -12,15 +12,15 @@ from dotenv import load_dotenv
 from pydantic import BaseModel
 import uvicorn
 
-# ✅ Corrige el PYTHONPATH para src
+# PYTHONPATH correcto
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
-# ✅ Importaciones desde src/utils correctamente
+# Importar utilidades
 from login_utils import login_instagram
 from instagram_utils import crear_cuenta_instagram
-from utils.telegram_utils import notify_telegram  # <--- Aquí la corrección
+from utils.telegram_utils import notify_telegram
 
-# ✅ Logging correcto
+# Logger
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s [%(levelname)s] %(name)s: %(message)s',
@@ -31,24 +31,22 @@ logging.basicConfig(
 )
 logger = logging.getLogger("KraveAI-Backend")
 
-# ✅ Cargar .env correctamente
+# Cargar .env
 load_dotenv(".env")
 
-# ✅ FastAPI App
+# App FastAPI
 app = FastAPI(title="KraveAI Backend", version="1.9")
 MAX_CONCURRENT = 3
 cl = None
 
+
 def init_instagram():
     global cl
-    try:
-        cl = login_instagram()
-        if cl:
-            logger.info("Cliente Instagram inicializado")
-        else:
-            logger.error("No se pudo iniciar sesión en Instagram")
-    except Exception as e:
-        logger.error(f"Error al inicializar Instagram: {str(e)}")
+    cl = login_instagram()
+    if cl:
+        logger.info(f"Cliente Instagram iniciado como @{cl.username}")
+    else:
+        logger.warning("❌ No se pudo iniciar sesión en Instagram")
 
 
 app.add_middleware(
@@ -104,6 +102,8 @@ def test_telegram():
 
 @app.get("/estado-sesion")
 def estado_sesion():
+    global cl
+    cl = login_instagram()  # 🔧 Fuerza a verificar cookies en cada request
     if cl and cl.user_id:
         return {"status": "activo", "usuario": cl.username}
     return {"status": "inactivo"}
@@ -136,7 +136,7 @@ def iniciar_sesion_post(datos: LoginRequest):
             cl.load_settings("ig_session.json")
             if cl.is_logged_in:
                 return {"exito": True, "usuario": cl.username, "mensaje": "Sesión cargada desde archivo"}
-        return JSONResponse(status_code=401, content={"exito": False, "mensaje": f"Error: {str(e)}. Podría requerir verificación manual en la app de Instagram."})
+        return JSONResponse(status_code=401, content={"exito": False, "mensaje": f"Error: {str(e)}. Verifica manualmente en la app de Instagram."})
 
 
 @app.get("/cerrar-sesion")
