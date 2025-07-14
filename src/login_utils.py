@@ -1,49 +1,42 @@
-# ~/kraveai-backend/src/login_utils.py
 import os
+import json
 from instagrapi import Client
 from instagrapi.exceptions import LoginRequired, ClientError
+from dotenv import load_dotenv
 
-COOKIE_FILE = "ig_session.json"
-USERNAME = os.getenv("IG_USERNAME")
-PASSWORD = os.getenv("INSTAGRAM_PASS")
+load_dotenv(".env")
 
 
-def login_instagram():
-    """
-    Inicia sesión en Instagram con las credenciales del .env
-    Si ya existe ig_session.json, intenta restaurar sesión.
-    """
-    if not USERNAME or not PASSWORD:
-        raise ValueError("❌ IG_USERNAME o INSTAGRAM_PASS no están configuradas en el entorno (.env)")
-
+def login_instagram(username, password, save_cookie_as):
+    """Inicia sesión individual y guarda la sesión en archivo único."""
     cl = Client()
-    cl.delay_range = [2, 5]  # Evita sospecha por bots
+    cl.delay_range = [2, 5]
 
-    # 🔁 Intenta restaurar sesión si existe ig_session.json
-    if os.path.exists(COOKIE_FILE):
+    if os.path.exists(save_cookie_as):
         try:
-            cl.load_settings(COOKIE_FILE)
-            cl.get_timeline_feed()  # Si no falla, la sesión es válida
-            if cl.user_id:
-                print(f"✅ Sesión restaurada correctamente.")
-                return cl
-        except LoginRequired:
-            print("⚠️ La sesión anterior ha expirado, se intentará login manual.")
-        except ClientError as e:
-            print(f"⚠️ Error al restaurar sesión anterior: {e}")
-        except Exception as e:
-            print(f"⚠️ Falló restaurar sesión por error inesperado: {e}")
-
-    # 🔑 Si no hay sesión válida, login manual
-    try:
-        cl.login(USERNAME, PASSWORD)
-        cl.dump_settings(COOKIE_FILE)
-        if cl.user_id:
-            print(f"✅ Login exitoso como @{USERNAME}")
+            cl.load_settings(save_cookie_as)
+            cl.get_timeline_feed()
+            print(f"✅ Sesión restaurada desde {save_cookie_as}")
             return cl
-    except ClientError as e:
-        print(f"❌ Error de Instagram (ClientError): {e}")
-        return None
+        except (LoginRequired, ClientError):
+            print(f"⚠️ Sesión expirada en {save_cookie_as}, intentando login manual...")
+        except Exception as e:
+            print(f"⚠️ Restauración fallida {save_cookie_as}: {e}")
+
+    try:
+        cl.login(username, password)
+        cl.dump_settings(save_cookie_as)
+        print(f"✅ Login exitoso como @{username} guardado en {save_cookie_as}")
+        return cl
     except Exception as e:
-        print(f"❌ Error inesperado en login: {e}")
+        print(f"❌ Falló login @{username}: {e}")
         return None
+
+
+def cargar_cuentas_guardadas():
+    path = os.path.join(os.path.dirname(__file__), "../cuentas_creadas.json")
+    if not os.path.exists(path):
+        return []
+
+    with open(path, "r", encoding="utf-8") as f:
+        return json.load(f)
