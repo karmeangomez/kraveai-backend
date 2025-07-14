@@ -1,27 +1,23 @@
 import os
 import sys
 import json
-import subprocess
-import logging
-import concurrent.futures
 import threading
+import logging
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import StreamingResponse, JSONResponse
+from fastapi.responses import JSONResponse
 from dotenv import load_dotenv
 from pydantic import BaseModel
+from instagrapi import Client
 import uvicorn
 
-# ✅ Ruta correcta
+# Ajuste PYTHONPATH para src
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
-# ✅ Imports correctos
-from login_utils import login_instagram
-from instagram_utils import crear_cuenta_instagram
+# Utilidades propias
 from utils.telegram_utils import notify_telegram
 
-
-# ✅ Logger
+# Logging
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s [%(levelname)s] %(name)s: %(message)s',
@@ -32,30 +28,17 @@ logging.basicConfig(
 )
 logger = logging.getLogger("KraveAI-Backend")
 
-# ✅ .env
+# Variables Entorno
 load_dotenv(".env")
+IG_USERNAME = os.getenv("IG_USERNAME")
+IG_PASSWORD = os.getenv("INSTAGRAM_PASS")
 
-# ✅ FastAPI App
-app = FastAPI(title="KraveAI Backend", version="1.9")
-MAX_CONCURRENT = 3
-cl = None
-
-
-def init_instagram():
-    global cl
-    cl = login_instagram()
-    if cl:
-        logger.info(f"Cliente Instagram iniciado como @{cl.username}")
-    else:
-        logger.warning("❌ No se pudo iniciar sesión en Instagram")
-
-
-# ✅ CORSMiddleware para tu frontend Netlify
+# Backend FastAPI
+app = FastAPI(title="KraveAI Backend", version="2.0")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "https://kraveai.netlify.app",
-        "http://localhost:5173",
         "http://localhost:3000"
     ],
     allow_credentials=True,
@@ -63,55 +46,76 @@ app.add_middleware(
     allow_headers=["*"]
 )
 
+# Estado Global
+MAX_CONCURRENT = 3
+clients = {}
 
-@app.middleware("http")
-async def cors_headers(request: Request, call_next):
-    response = await call_next(request)
-    response.headers["Access-Control-Allow-Origin"] = "*"
-    return response
+def iniciar_sesion(usuario, contrasena):
+    try:
+        cl = Client()
+        cl.login(usuario, contrasena)
+        cl.dump_settings(f"ig_session_{usuario}.json")
+        logger.info(f"✅ Login exitoso como @{usuario}")
+        return cl
+    except Exception as e:
+        logger.error(f"❌ Fallo login @{usuario}: {str(e)}")
+        return None
+
+
+def cargar_cuentas_guardadas():
+    path = os.path.join(os.path.dirname(__file__), "cuentas_creadas.json")
+    if not os.path.exists(path):
+        return
+    with open(path, "r", encoding="utf-8") as f:
+        cuentas = json.load(f)
+        for cuenta in cuentas:
+            usuario = cuenta.get("usuario")
+            contrasena = cuenta.get("contrasena")
+            if usuario and contrasena:
+                cl = iniciar_sesion(usuario, contrasena)
+                if cl:
+                    clients[usuario] = cl
+                    logger.info(f"✅ {usuario} listo para órdenes")
+
+
+def iniciar_bot_busqueda():
+    global clients
+    cl = None
+    if IG_USERNAME and IG_PASSWORD:
+        cl = iniciar_sesion(IG_USERNAME, IG_PASSWORD)
+        if cl:
+            clients["kraveaibot"] = cl
+            logger.info(f"🔎 kraveaibot iniciado para búsquedas")
+    else:
+        logger.error("❌ IG_USERNAME o INSTAGRAM_PASS no definidos en .env")
 
 
 @app.get("/health")
 def health():
     return {
         "status": "OK",
-        "versión": "v1.9 - estable",
+        "versión": "v2.0 - estable",
         "service": "KraveAI Python",
-        "login": "Activo" if cl and cl.user_id else "Fallido",
-        "concurrent_max": MAX_CONCURRENT
+        "login": "Activo" if "kraveaibot" in clients else "Fallido",
+        "cuentas_cargadas": len(clients)
     }
-
-
-@app.get("/cuentas")
-def obtener_cuentas():
-    path = os.path.join(os.path.dirname(__file__), "cuentas_creadas.json")
-    if not os.path.exists(path):
-        return []
-    try:
-        with open(path, "r", encoding="utf-8") as f:
-            cuentas = json.load(f)
-            return cuentas
-    except Exception as e:
-        logger.error(f"Error leyendo cuentas_creadas.json: {str(e)}")
-        raise HTTPException(status_code=500, detail="Error leyendo archivo de cuentas")
 
 
 @app.get("/test-telegram")
 def test_telegram():
     try:
-        notify_telegram("📲 Prueba de conexión con Telegram desde /test-telegram")
+        notify_telegram("📲 Prueba desde /test-telegram")
         return {"mensaje": "Telegram notificado correctamente"}
     except Exception as e:
-        logger.error(f"Error en test-telegram: {str(e)}")
-        raise HTTPException(status_code=500, detail="Error enviando notificación a Telegram")
+        logger.error(f"Error test-telegram: {str(e)}")
+        raise HTTPException(status_code=500, detail="Error notificando Telegram")
 
 
 @app.get("/estado-sesion")
 def estado_sesion():
-    global cl
-    cl = login_instagram()  # 🔧 Fuerza verificar cada vez
-    if cl and cl.user_id:
-        return {"status": "activo", "usuario": cl.username}
+    cl = clients.get("kraveaibot")
+    if cl:
+        return {"status": "activo", "usuario": IG_USERNAME}
     return {"status": "inactivo"}
 
 
@@ -121,44 +125,30 @@ class LoginRequest(BaseModel):
 
 
 @app.post("/iniciar-sesion")
-def iniciar_sesion_post(datos: LoginRequest):
-    from instagrapi import Client
-    global cl
-    try:
-        nuevo = Client()
-        nuevo.login(datos.usuario, datos.contrasena)
-        if nuevo.account_id:
-            cl = nuevo
-            cl.dump_settings("ig_session.json")
-            notify_telegram(f"✅ Sesión iniciada como @{datos.usuario}")
-            logger.info(f"Sesión Instagram iniciada: @{datos.usuario}")
-            return {"exito": True, "usuario": datos.usuario}
-        else:
-            raise Exception("Login no completado, posible verificación requerida")
-    except Exception as e:
-        logger.error(f"Error inicio sesión: {str(e)}")
-        if os.path.exists("ig_session.json"):
-            cl = Client()
-            cl.load_settings("ig_session.json")
-            if cl.user_id:
-                return {"exito": True, "usuario": cl.username, "mensaje": "Sesión cargada desde archivo"}
-        return JSONResponse(status_code=401, content={"exito": False, "mensaje": f"Error: {str(e)}. Verifica manualmente en la app de Instagram."})
+def iniciar_sesion_manual(datos: LoginRequest):
+    cl = iniciar_sesion(datos.usuario, datos.contrasena)
+    if cl:
+        clients[datos.usuario] = cl
+        notify_telegram(f"✅ Sesión iniciada manualmente como @{datos.usuario}")
+        return {"exito": True, "usuario": datos.usuario}
+    return JSONResponse(
+        status_code=401,
+        content={"exito": False, "mensaje": "Error: Verifica manualmente en Instagram."}
+    )
 
 
 @app.get("/cerrar-sesion")
 def cerrar_sesion():
+    global clients
     try:
-        global cl
-        if cl:
-            cl.logout()
-            cl = None
-        if os.path.exists("ig_session.json"):
-            os.remove("ig_session.json")
-        notify_telegram("👋 Sesión cerrada correctamente")
+        if "kraveaibot" in clients:
+            clients["kraveaibot"].logout()
+            del clients["kraveaibot"]
+            logger.info("kraveaibot cerró sesión")
         return {"exito": True}
     except Exception as e:
-        logger.error(f"Error cerrando sesión: {str(e)}")
-        return JSONResponse(status_code=500, content={"exito": False, "mensaje": f"Error: {str(e)}"})
+        logger.error(f"Error cerrar sesión: {str(e)}")
+        return JSONResponse(status_code=500, content={"exito": False})
 
 
 class GuardarCuentaRequest(BaseModel):
@@ -172,11 +162,11 @@ def guardar_cuenta(datos: GuardarCuentaRequest):
     cuentas = []
 
     if os.path.exists(path):
-        with open(path, "r", encoding="utf-8") as f:
-            try:
+        try:
+            with open(path, "r", encoding="utf-8") as f:
                 cuentas = json.load(f)
-            except json.JSONDecodeError:
-                cuentas = []
+        except:
+            pass
 
     for cuenta in cuentas:
         if cuenta["usuario"] == datos.usuario:
@@ -187,20 +177,22 @@ def guardar_cuenta(datos: GuardarCuentaRequest):
         "contrasena": datos.contrasena
     })
 
-    with open(path, "w", encoding="utf-8") as f:
-        json.dump(cuentas, f, ensure_ascii=False, indent=4)
-
-    return {"exito": True, "mensaje": "Cuenta guardada correctamente"}
+    try:
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump(cuentas, f, ensure_ascii=False, indent=4)
+        return {"exito": True, "mensaje": "Cuenta guardada correctamente"}
+    except Exception as e:
+        logger.error(f"Error guardando cuenta: {str(e)}")
+        return JSONResponse(status_code=500, content={"exito": False, "mensaje": "Error al guardar"})
 
 
 @app.get("/buscar-usuario")
 def buscar_usuario(username: str):
+    cl = clients.get("kraveaibot")
+    if not cl:
+        return JSONResponse(status_code=401, content={"error": "kraveaibot no activo"})
     try:
-        if not cl or not cl.user_id:
-            return JSONResponse(status_code=401, content={"error": "Sesión no activa"})
-
         user = cl.user_info_by_username(username)
-
         return {
             "username": user.username,
             "nombre": user.full_name,
@@ -218,104 +210,23 @@ def buscar_usuario(username: str):
         return JSONResponse(status_code=404, content={"error": "No encontrado o sesión inválida"})
 
 
-@app.get("/create-accounts-sse")
-async def crear_cuentas_sse(request: Request, count: int = 1):
-    async def event_stream():
-        completed = 0
-        success = 0
-        errors = 0
-        futures = []
-
-        if count <= 0 or count > 100:
-            yield f"event: error\ndata: {json.dumps({'status': 'error', 'message': 'Cantidad inválida (1-100)'})}\n\n"
-            return
-
-        try:
-            with concurrent.futures.ThreadPoolExecutor(max_workers=MAX_CONCURRENT) as executor:
-                futures = [executor.submit(run_crear_cuenta) for _ in range(count)]
-
-                for future in concurrent.futures.as_completed(futures):
-                    if await request.is_disconnected():
-                        logger.warning("Cliente desconectado antes de completar el proceso")
-                        break
-
-                    try:
-                        result = future.result()
-                        if result.get("status") == "success":
-                            yield f"event: account-created\ndata: {json.dumps(result)}\n\n"
-                            success += 1
-                        else:
-                            error_msg = result.get("error", "Error desconocido")
-                            yield f"event: error\ndata: {json.dumps({'status': 'error', 'message': error_msg})}\n\n"
-                            errors += 1
-                    except Exception as e:
-                        yield f"event: error\ndata: {json.dumps({'status': 'error', 'message': str(e)})}\n\n"
-                        errors += 1
-                    finally:
-                        completed += 1
-                        if completed % 2 == 0 or completed == count:
-                            yield f"event: progress\ndata: {json.dumps({'completed': completed, 'total': count, 'success': success, 'errors': errors})}\n\n"
-
-            if not await request.is_disconnected():
-                yield "event: complete\ndata: Proceso terminado\n\n"
-            else:
-                yield "event: complete\ndata: Proceso interrumpido por desconexión\n\n"
-
-        except Exception as e:
-            logger.error(f"Error en el streaming SSE: {str(e)}")
-            yield f"event: error\ndata: {json.dumps({'status': 'error', 'message': 'Error interno del servidor'})}\n\n"
-        finally:
-            for future in futures:
-                if not future.done():
-                    future.cancel()
-
-    return StreamingResponse(event_stream(), media_type="text/event-stream")
-
-
-def run_crear_cuenta():
-    try:
-        script_path = os.path.join(os.path.dirname(__file__), "accounts/crearCuentaInstagram.js")
-        if not os.path.exists(script_path):
-            return {"status": "error", "error": f"Script no encontrado en {script_path}"}
-        result = subprocess.run(
-            ["node", script_path],
-            capture_output=True,
-            text=True,
-            timeout=180,
-            cwd=os.path.dirname(__file__)
-        )
-        if result.returncode == 0:
-            try:
-                output = result.stdout.strip()
-                if not output:
-                    return {"status": "error", "error": "Script no devolvió salida"}
-                return json.loads(output)
-            except json.JSONDecodeError:
-                return {"status": "error", "error": "Respuesta del script no es JSON válido. Salida: " + result.stdout}
-        else:
-            return {"status": "error", "error": result.stderr or "Error desconocido en el script"}
-    except subprocess.TimeoutExpired:
-        return {"status": "error", "error": "Tiempo de ejecución excedido (180s)"}
-    except Exception as e:
-        return {"status": "error", "error": str(e)}
-
-
 def run_uvicorn():
-    port = int(os.getenv("PORT", 8000))
     uvicorn.run(
         app,
         host="0.0.0.0",
-        port=port,
+        port=8000,
         reload=False,
-        workers=1,
-        proxy_headers=True,
-        forwarded_allow_ips="*",
-        log_config=None
+        workers=1
     )
 
 
+def startup():
+    iniciar_bot_busqueda()
+    cargar_cuentas_guardadas()
+
+
 if __name__ == "__main__":
-    threading.Thread(target=init_instagram, daemon=True).start()
+    threading.Thread(target=startup).start()
     run_uvicorn()
 else:
-    init_instagram()
+    startup()
