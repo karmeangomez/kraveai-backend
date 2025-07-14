@@ -15,12 +15,10 @@ import uvicorn
 # PYTHONPATH correcto
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
-# Importar utilidades
 from login_utils import login_instagram
 from instagram_utils import crear_cuenta_instagram
 from utils.telegram_utils import notify_telegram
 
-# Logger
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s [%(levelname)s] %(name)s: %(message)s',
@@ -31,10 +29,8 @@ logging.basicConfig(
 )
 logger = logging.getLogger("KraveAI-Backend")
 
-# Cargar .env
 load_dotenv(".env")
 
-# App FastAPI
 app = FastAPI(title="KraveAI Backend", version="1.9")
 MAX_CONCURRENT = 3
 cl = None
@@ -56,13 +52,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"]
 )
-
-
-@app.middleware("http")
-async def cors_headers(request: Request, call_next):
-    response = await call_next(request)
-    response.headers["Access-Control-Allow-Origin"] = "*"
-    return response
 
 
 @app.get("/health")
@@ -103,7 +92,7 @@ def test_telegram():
 @app.get("/estado-sesion")
 def estado_sesion():
     global cl
-    cl = login_instagram()  # 🔧 Fuerza a verificar cookies en cada request
+    cl = login_instagram()
     if cl and cl.user_id:
         return {"status": "activo", "usuario": cl.username}
     return {"status": "inactivo"}
@@ -121,7 +110,7 @@ def iniciar_sesion_post(datos: LoginRequest):
     try:
         nuevo = Client()
         nuevo.login(datos.usuario, datos.contrasena)
-        if nuevo.is_logged_in:
+        if nuevo.user_id:
             cl = nuevo
             cl.dump_settings("ig_session.json")
             notify_telegram(f"✅ Sesión iniciada como @{datos.usuario}")
@@ -134,7 +123,7 @@ def iniciar_sesion_post(datos: LoginRequest):
         if os.path.exists("ig_session.json"):
             cl = Client()
             cl.load_settings("ig_session.json")
-            if cl.is_logged_in:
+            if cl.user_id:
                 return {"exito": True, "usuario": cl.username, "mensaje": "Sesión cargada desde archivo"}
         return JSONResponse(status_code=401, content={"exito": False, "mensaje": f"Error: {str(e)}. Verifica manualmente en la app de Instagram."})
 
@@ -155,12 +144,46 @@ def cerrar_sesion():
         return JSONResponse(status_code=500, content={"exito": False, "mensaje": f"Error: {str(e)}"})
 
 
+class GuardarCuentaRequest(BaseModel):
+    usuario: str
+    contrasena: str
+
+
+@app.post("/guardar-cuenta")
+def guardar_cuenta(datos: GuardarCuentaRequest):
+    path = os.path.join(os.path.dirname(__file__), "cuentas_creadas.json")
+    cuentas = []
+
+    if os.path.exists(path):
+        with open(path, "r", encoding="utf-8") as f:
+            try:
+                cuentas = json.load(f)
+            except json.JSONDecodeError:
+                cuentas = []
+
+    for cuenta in cuentas:
+        if cuenta["usuario"] == datos.usuario:
+            return JSONResponse(status_code=400, content={"exito": False, "mensaje": "Cuenta ya guardada."})
+
+    cuentas.append({
+        "usuario": datos.usuario,
+        "contrasena": datos.contrasena
+    })
+
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump(cuentas, f, ensure_ascii=False, indent=4)
+
+    return {"exito": True, "mensaje": "Cuenta guardada correctamente"}
+
+
 @app.get("/buscar-usuario")
 def buscar_usuario(username: str):
     try:
         if not cl or not cl.user_id:
             return JSONResponse(status_code=401, content={"error": "Sesión no activa"})
+
         user = cl.user_info_by_username(username)
+
         return {
             "username": user.username,
             "nombre": user.full_name,
@@ -175,7 +198,7 @@ def buscar_usuario(username: str):
         }
     except Exception as e:
         logger.error(f"Error buscando usuario @{username}: {str(e)}")
-        return JSONResponse(status_code=404, content={"error": str(e)})
+        return JSONResponse(status_code=404, content={"error": "No encontrado o sesión inválida"})
 
 
 @app.get("/create-accounts-sse")
