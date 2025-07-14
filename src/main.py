@@ -12,7 +12,6 @@ from dotenv import load_dotenv
 from pydantic import BaseModel
 import uvicorn
 
-# PYTHONPATH correcto
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from login_utils import login_instagram
@@ -65,46 +64,8 @@ def health():
     }
 
 
-@app.get("/cuentas")
-def obtener_cuentas():
-    path = os.path.join(os.path.dirname(__file__), "cuentas_creadas.json")
-    if not os.path.exists(path):
-        return []
-    try:
-        with open(path, "r", encoding="utf-8") as f:
-            cuentas = json.load(f)
-            return cuentas
-    except Exception as e:
-        logger.error(f"Error leyendo cuentas_creadas.json: {str(e)}")
-        raise HTTPException(status_code=500, detail="Error leyendo archivo de cuentas")
-
-
-@app.get("/test-telegram")
-def test_telegram():
-    try:
-        notify_telegram("📲 Prueba de conexión con Telegram desde /test-telegram")
-        return {"mensaje": "Telegram notificado correctamente"}
-    except Exception as e:
-        logger.error(f"Error en test-telegram: {str(e)}")
-        raise HTTPException(status_code=500, detail="Error enviando notificación a Telegram")
-
-
-@app.get("/estado-sesion")
-def estado_sesion():
-    global cl
-    cl = login_instagram()
-    if cl and cl.user_id:
-        return {"status": "activo", "usuario": cl.username}
-    return {"status": "inactivo"}
-
-
-class LoginRequest(BaseModel):
-    usuario: str
-    contrasena: str
-
-
 @app.post("/iniciar-sesion")
-def iniciar_sesion_post(datos: LoginRequest):
+def iniciar_sesion_post(datos: BaseModel):
     from instagrapi import Client
     global cl
     try:
@@ -142,6 +103,39 @@ def cerrar_sesion():
     except Exception as e:
         logger.error(f"Error cerrando sesión: {str(e)}")
         return JSONResponse(status_code=500, content={"exito": False, "mensaje": f"Error: {str(e)}"})
+
+
+@app.get("/estado-sesion")
+def estado_sesion():
+    global cl
+    cl = login_instagram()
+    if cl and cl.user_id:
+        return {"status": "activo", "usuario": cl.username}
+    return {"status": "inactivo"}
+
+
+@app.get("/cuentas")
+def obtener_cuentas():
+    path = os.path.join(os.path.dirname(__file__), "cuentas_creadas.json")
+    if not os.path.exists(path):
+        return []
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            cuentas = json.load(f)
+            return cuentas
+    except Exception as e:
+        logger.error(f"Error leyendo cuentas_creadas.json: {str(e)}")
+        raise HTTPException(status_code=500, detail="Error leyendo archivo de cuentas")
+
+
+@app.get("/test-telegram")
+def test_telegram():
+    try:
+        notify_telegram("📲 Prueba de conexión con Telegram desde /test-telegram")
+        return {"mensaje": "Telegram notificado correctamente"}
+    except Exception as e:
+        logger.error(f"Error en test-telegram: {str(e)}")
+        raise HTTPException(status_code=500, detail="Error enviando notificación a Telegram")
 
 
 class GuardarCuentaRequest(BaseModel):
