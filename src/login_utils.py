@@ -24,8 +24,9 @@ def login_instagram():
         try:
             cl.load_settings(COOKIE_FILE)
             cl.get_timeline_feed()  # Si no falla, la sesión es válida
-            print(f"✅ Sesión restaurada correctamente como @{cl.username}")
-            return cl
+            if cl.user_id:
+                print(f"✅ Sesión restaurada correctamente.")
+                return cl
         except LoginRequired:
             print("⚠️ La sesión anterior ha expirado, se intentará login manual.")
         except ClientError as e:
@@ -37,8 +38,9 @@ def login_instagram():
     try:
         cl.login(USERNAME, PASSWORD)
         cl.dump_settings(COOKIE_FILE)
-        print(f"✅ Login exitoso como @{USERNAME}")
-        return cl
+        if cl.user_id:
+            print(f"✅ Login exitoso como @{USERNAME}")
+            return cl
     except ClientError as e:
         print(f"❌ Error de Instagram (ClientError): {e}")
         return None
