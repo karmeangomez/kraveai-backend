@@ -9,9 +9,7 @@ from pydantic import BaseModel
 import uvicorn
 from fastapi.responses import JSONResponse
 from starlette.middleware.cors import CORSMiddleware as StarletteCORSMiddleware
-from login_utils import login_instagram
-
-sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+from src.login_utils import login_instagram  # ✅ CORREGIDO
 
 logging.basicConfig(
     level=logging.INFO,
