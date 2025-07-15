@@ -2,7 +2,9 @@ import os
 from instagrapi import Client
 from instagrapi.exceptions import LoginRequired, ClientError
 
-COOKIE_FILE = "ig_session.json"
+# Usar path absoluto para el archivo de cookies
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+COOKIE_FILE = os.path.join(SCRIPT_DIR, "ig_session.json")
 USERNAME = os.getenv("IG_USERNAME")
 PASSWORD = os.getenv("INSTAGRAM_PASS")
 
