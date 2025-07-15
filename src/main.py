@@ -26,11 +26,19 @@ logger = logging.getLogger("KraveAI")
 app = FastAPI(title="KraveAI Backend", version="2.3")
 cl = None
 
+
 def init_instagram():
     global cl
-    cl = login_instagram()
-    if cl:
-        logger.info(f"Cliente Instagram iniciado como @{cl.username}")
+    try:
+        cl = login_instagram()
+        if cl:
+            logger.info(f"Cliente Instagram iniciado como @{cl.username}")
+        else:
+            logger.warning("Instagram no conectado (cl=None)")
+    except Exception as e:
+        logger.error(f"Error iniciando Instagram: {str(e)}")
+        cl = None
+
 
 app.add_middleware(
     StarletteCORSMiddleware,
@@ -41,6 +49,7 @@ app.add_middleware(
     expose_headers=["*"]
 )
 
+
 @app.get("/health")
 def health():
     auth_status = "Fallido"
@@ -49,14 +58,15 @@ def health():
             auth_data = cl.get_settings().get("authorization_data", {})
             if auth_data.get("ds_user_id") and auth_data.get("sessionid"):
                 auth_status = f"Activo (@{cl.username})"
-    except:
-        pass
+    except Exception as e:
+        logger.warning(f"Error en /health: {e}")
     return {
         "status": "OK",
         "versión": "v2.3 - estable",
         "service": "KraveAI Python",
         "login": auth_status
     }
+
 
 @app.get("/estado-sesion")
 def estado_sesion():
@@ -73,9 +83,11 @@ def estado_sesion():
         logger.error(f"Error en estado-sesion: {str(e)}")
         return {"status": "inactivo", "error": str(e)}
 
+
 class GuardarCuentaRequest(BaseModel):
     usuario: str
     contrasena: str
+
 
 @app.post("/guardar-cuenta")
 def guardar_cuenta(datos: GuardarCuentaRequest):
@@ -99,8 +111,10 @@ def guardar_cuenta(datos: GuardarCuentaRequest):
         logger.error(f"Error guardando cuenta: {str(e)}")
         return JSONResponse(status_code=500, content={"exito": False, "mensaje": "Error interno al guardar"})
 
+
 def run_uvicorn():
     uvicorn.run(app, host="0.0.0.0", port=8000, reload=False)
+
 
 if __name__ == "__main__":
     init_instagram()
