@@ -1,6 +1,5 @@
 import os
 from instagrapi import Client
-from instagrapi.exceptions import LoginRequired, ClientError
 
 # Path absoluto para la cookie
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -12,7 +11,8 @@ PASSWORD = os.getenv("INSTAGRAM_PASS")
 
 def login_instagram():
     if not USERNAME or not PASSWORD:
-        raise ValueError("❌ IG_USERNAME o INSTAGRAM_PASS no configuradas en .env")
+        print("❌ IG_USERNAME o INSTAGRAM_PASS no configuradas en .env")
+        return None
 
     cl = Client()
     cl.delay_range = [2, 5]
@@ -31,7 +31,8 @@ def login_instagram():
         cl.login(USERNAME, PASSWORD)
         auth_data = cl.get_settings().get("authorization_data", {})
         if not auth_data.get("ds_user_id") or not auth_data.get("sessionid"):
-            raise Exception("Login incompleto: falta ds_user_id o sessionid")
+            print("❌ Login incompleto: falta ds_user_id o sessionid")
+            return None
         cl.dump_settings(COOKIE_FILE)
         print(f"✅ Login exitoso como @{cl.username}")
         return cl
