@@ -2,6 +2,7 @@ import os
 import sys
 import json
 import logging
+from pathlib import Path
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
@@ -9,7 +10,12 @@ from pydantic import BaseModel
 import uvicorn
 from fastapi.responses import JSONResponse
 from starlette.middleware.cors import CORSMiddleware as StarletteCORSMiddleware
-from src.login_utils import login_instagram  # ✅ CORREGIDO, ABSOLUTO, NO RELATIVO
+from .login_utils import login_instagram  # Import relativo correcto ✅
+
+# ✅ Cargar .env correctamente
+env_path = Path(__file__).resolve().parent.parent / ".env"
+load_dotenv(env_path)
+print(f"✅ Variables de entorno cargadas desde: {env_path}")
 
 logging.basicConfig(
     level=logging.INFO,
@@ -17,18 +23,14 @@ logging.basicConfig(
 )
 logger = logging.getLogger("KraveAI")
 
-load_dotenv(".env")
-
 app = FastAPI(title="KraveAI Backend", version="2.3")
 cl = None
-
 
 def init_instagram():
     global cl
     cl = login_instagram()
     if cl:
         logger.info(f"Cliente Instagram iniciado como @{cl.username}")
-
 
 app.add_middleware(
     StarletteCORSMiddleware,
@@ -38,7 +40,6 @@ app.add_middleware(
     allow_headers=["*"],
     expose_headers=["*"]
 )
-
 
 @app.get("/health")
 def health():
@@ -57,7 +58,6 @@ def health():
         "login": auth_status
     }
 
-
 @app.get("/estado-sesion")
 def estado_sesion():
     global cl
@@ -73,11 +73,9 @@ def estado_sesion():
         logger.error(f"Error en estado-sesion: {str(e)}")
         return {"status": "inactivo", "error": str(e)}
 
-
 class GuardarCuentaRequest(BaseModel):
     usuario: str
     contrasena: str
-
 
 @app.post("/guardar-cuenta")
 def guardar_cuenta(datos: GuardarCuentaRequest):
@@ -101,10 +99,8 @@ def guardar_cuenta(datos: GuardarCuentaRequest):
         logger.error(f"Error guardando cuenta: {str(e)}")
         return JSONResponse(status_code=500, content={"exito": False, "mensaje": "Error interno al guardar"})
 
-
 def run_uvicorn():
     uvicorn.run(app, host="0.0.0.0", port=8000, reload=False)
-
 
 if __name__ == "__main__":
     init_instagram()
