@@ -1,5 +1,5 @@
-tunnel: 53ecdfb4-a2bf-4797-bdec-e0de68d9536d
-credentials-file: /home/karmean/.cloudflared/53ecdfb4-a2bf-4797-bdec-e0de68d9536d.json
+tunnel: 9477541f-c461-4ee3-9876-eb8bf3740a12
+credentials-file: /home/karmean/.cloudflared/9477541f-c461-4ee3-9876-eb8bf3740a12.json
 
 ingress:
   - hostname: api.kraveapi.xyz
