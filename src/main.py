@@ -9,7 +9,7 @@ from pydantic import BaseModel
 import uvicorn
 from fastapi.responses import JSONResponse
 from starlette.middleware.cors import CORSMiddleware as StarletteCORSMiddleware
-from src.login_utils import login_instagram  # ✅ CORREGIDO
+from src.login_utils import login_instagram  # ✅ CORREGIDO, ABSOLUTO, NO RELATIVO
 
 logging.basicConfig(
     level=logging.INFO,
@@ -22,11 +22,13 @@ load_dotenv(".env")
 app = FastAPI(title="KraveAI Backend", version="2.3")
 cl = None
 
+
 def init_instagram():
     global cl
     cl = login_instagram()
     if cl:
         logger.info(f"Cliente Instagram iniciado como @{cl.username}")
+
 
 app.add_middleware(
     StarletteCORSMiddleware,
@@ -36,6 +38,7 @@ app.add_middleware(
     allow_headers=["*"],
     expose_headers=["*"]
 )
+
 
 @app.get("/health")
 def health():
@@ -54,6 +57,7 @@ def health():
         "login": auth_status
     }
 
+
 @app.get("/estado-sesion")
 def estado_sesion():
     global cl
@@ -69,9 +73,11 @@ def estado_sesion():
         logger.error(f"Error en estado-sesion: {str(e)}")
         return {"status": "inactivo", "error": str(e)}
 
+
 class GuardarCuentaRequest(BaseModel):
     usuario: str
     contrasena: str
+
 
 @app.post("/guardar-cuenta")
 def guardar_cuenta(datos: GuardarCuentaRequest):
@@ -95,8 +101,10 @@ def guardar_cuenta(datos: GuardarCuentaRequest):
         logger.error(f"Error guardando cuenta: {str(e)}")
         return JSONResponse(status_code=500, content={"exito": False, "mensaje": "Error interno al guardar"})
 
+
 def run_uvicorn():
     uvicorn.run(app, host="0.0.0.0", port=8000, reload=False)
+
 
 if __name__ == "__main__":
     init_instagram()
