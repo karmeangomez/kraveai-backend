@@ -1,18 +1,17 @@
 import os
-import sys
 import json
 import logging
 from pathlib import Path
-from fastapi import FastAPI, Request, HTTPException
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from dotenv import load_dotenv
 from pydantic import BaseModel
+from instagrapi import Client
 import uvicorn
-from fastapi.responses import JSONResponse
-from starlette.middleware.cors import CORSMiddleware as StarletteCORSMiddleware
-from .login_utils import login_instagram  # Import relativo correcto ✅
+import threading
 
-# ✅ Cargar .env correctamente
+# Cargar .env correctamente
 env_path = Path(__file__).resolve().parent.parent / ".env"
 load_dotenv(env_path)
 print(f"✅ Variables de entorno cargadas desde: {env_path}")
@@ -23,31 +22,39 @@ logging.basicConfig(
 )
 logger = logging.getLogger("KraveAI")
 
+# Paths
+BASE_PATH = Path(__file__).resolve().parent.parent
+CREADAS_PATH = BASE_PATH / "cuentas_creadas.json"
+ACTIVAS_PATH = BASE_PATH / "cuentas_activas.json"
+SESIONES_DIR = BASE_PATH / "sesiones"
+SESIONES_DIR.mkdir(exist_ok=True)
+
 app = FastAPI(title="KraveAI Backend", version="2.3")
 cl = None
 
 
-def init_instagram():
-    global cl
-    try:
-        cl = login_instagram()
-        if cl:
-            logger.info(f"Cliente Instagram iniciado como @{cl.username}")
-        else:
-            logger.warning("Instagram no conectado (cl=None)")
-    except Exception as e:
-        logger.error(f"Error iniciando Instagram: {str(e)}")
-        cl = None
-
-
-app.add_middleware(
-    StarletteCORSMiddleware,
-    allow_origins=["https://kraveai.netlify.app", "http://localhost:3000"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-    expose_headers=["*"]
-)
+def iniciar_cuentas_guardadas():
+    activas = []
+    if not CREADAS_PATH.exists():
+        logger.warning("No existe cuentas_creadas.json")
+        return
+    with open(CREADAS_PATH, "r", encoding="utf-8") as f:
+        cuentas = json.load(f)
+    for cuenta in cuentas:
+        usuario = cuenta["usuario"]
+        password = cuenta["contrasena"]
+        session_path = SESIONES_DIR / f"ig_session_{usuario}.json"
+        client = Client()
+        try:
+            client.login(usuario, password)
+            client.dump_settings(session_path)
+            activas.append({"usuario": usuario})
+            logger.info(f"✅ Activa: @{usuario}")
+        except Exception as e:
+            logger.warning(f"❌ @{usuario} no se pudo iniciar sesión -> {e}")
+            continue
+    with open(ACTIVAS_PATH, "w", encoding="utf-8") as f:
+        json.dump(activas, f, ensure_ascii=False, indent=4)
 
 
 @app.get("/health")
@@ -72,8 +79,6 @@ def health():
 def estado_sesion():
     global cl
     try:
-        if not cl:
-            init_instagram()
         if cl:
             auth_data = cl.get_settings().get("authorization_data", {})
             if auth_data.get("ds_user_id") and auth_data.get("sessionid"):
@@ -91,11 +96,10 @@ class GuardarCuentaRequest(BaseModel):
 
 @app.post("/guardar-cuenta")
 def guardar_cuenta(datos: GuardarCuentaRequest):
-    path = os.path.join(os.path.dirname(__file__), "../cuentas_creadas.json")
     cuentas = []
-    if os.path.exists(path):
+    if CREADAS_PATH.exists():
         try:
-            with open(path, "r", encoding="utf-8") as f:
+            with open(CREADAS_PATH, "r", encoding="utf-8") as f:
                 cuentas = json.load(f)
         except:
             pass
@@ -104,7 +108,7 @@ def guardar_cuenta(datos: GuardarCuentaRequest):
             return JSONResponse(status_code=400, content={"exito": False, "mensaje": "Cuenta ya guardada."})
     cuentas.append({"usuario": datos.usuario, "contrasena": datos.contrasena})
     try:
-        with open(path, "w", encoding="utf-8") as f:
+        with open(CREADAS_PATH, "w", encoding="utf-8") as f:
             json.dump(cuentas, f, ensure_ascii=False, indent=4)
         return {"exito": True, "mensaje": "Cuenta guardada correctamente"}
     except Exception as e:
@@ -112,12 +116,53 @@ def guardar_cuenta(datos: GuardarCuentaRequest):
         return JSONResponse(status_code=500, content={"exito": False, "mensaje": "Error interno al guardar"})
 
 
+class LoginRequest(BaseModel):
+    usuario: str
+    contrasena: str
+
+
+@app.post("/iniciar-sesion")
+def iniciar_sesion(datos: LoginRequest):
+    global cl
+    session_path = SESIONES_DIR / f"ig_session_{datos.usuario}.json"
+    client = Client()
+    try:
+        client.login(datos.usuario, datos.contrasena)
+        client.dump_settings(session_path)
+        if ACTIVAS_PATH.exists():
+            with open(ACTIVAS_PATH, "r", encoding="utf-8") as f:
+                activas = json.load(f)
+        else:
+            activas = []
+        if {"usuario": datos.usuario} not in activas:
+            activas.append({"usuario": datos.usuario})
+        with open(ACTIVAS_PATH, "w", encoding="utf-8") as f:
+            json.dump(activas, f, ensure_ascii=False, indent=4)
+        logger.info(f"✅ Sesión iniciada y guardada para @{datos.usuario}")
+        return {"exito": True, "usuario": datos.usuario}
+    except Exception as e:
+        logger.error(f"❌ Error iniciando sesión para @{datos.usuario}: {str(e)}")
+        return JSONResponse(status_code=401, content={"exito": False, "mensaje": f"Error: {str(e)}"})
+
+
+@app.on_event("startup")
+def startup_event():
+    global cl
+    threading.Thread(target=iniciar_cuentas_guardadas, daemon=True).start()
+    cl = Client()
+    try:
+        IG_USERNAME = os.getenv("IG_USERNAME")
+        IG_PASSWORD = os.getenv("INSTAGRAM_PASS")
+        if IG_USERNAME and IG_PASSWORD:
+            cl.login(IG_USERNAME, IG_PASSWORD)
+            logger.info(f"KraveAI conectado como @{cl.username}")
+    except Exception as e:
+        logger.warning(f"No se pudo iniciar sesión en cuenta principal: {e}")
+
+
 def run_uvicorn():
     uvicorn.run(app, host="0.0.0.0", port=8000, reload=False)
 
 
 if __name__ == "__main__":
-    init_instagram()
     run_uvicorn()
-else:
-    init_instagram()
