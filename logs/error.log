@@ -271,3 +271,9 @@ error: ⚠️ Error al tomar screenshot: Protocol error (Page.captureScreenshot)
 2025-07-19 14:01:22: ERROR:    [Errno 98] error while attempting to bind on address ('0.0.0.0', 8000): address already in use
 2025-07-19 14:01:22: INFO:     Waiting for application shutdown.
 2025-07-19 14:01:22: INFO:     Application shutdown complete.
+2025-07-19 14:01:23: 2025-07-19 14:01:23,739 [INFO] ✅ Variables de entorno cargadas desde .env
+2025-07-19 14:01:23: INFO:     Started server process [788133]
+2025-07-19 14:01:23: INFO:     Waiting for application startup.
+2025-07-19 14:01:23: 2025-07-19 14:01:23,743 [INFO] 🚀 Iniciando carga de sesiones...
+2025-07-19 14:01:23: 2025-07-19 14:01:23,744 [INFO] https://i.instagram.com/api/v1/launcher/sync/
+2025-07-19 14:01:24: 2025-07-19 14:01:24,064 [INFO] kraveaibot [200] POST https://i.instagram.com/api/v1/launcher/sync/ (269.0.0.18.75, OnePlus 6T Dev)
