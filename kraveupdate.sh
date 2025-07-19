@@ -1,13 +1,15 @@
 #!/bin/bash
+cd ~/kraveai-backend
 echo "🔄 Actualizando KraveAI desde GitHub..."
-
-cd /home/karmean/kraveai-backend
-
-git fetch --all
+git fetch origin
 git reset --hard origin/main
-git pull origin main
+echo "✅ Código actualizado desde GitHub."
 
-pm2 restart backend --update-env
+echo "🚀 Reiniciando backend..."
+source venv/bin/activate
+pm2 restart backend
 pm2 save
+echo "✅ Backend reiniciado."
 
-echo "🚀 Backend reiniciado con éxito. Revisa /health para confirmar login."
+echo "🌐 Verificando /health:"
+curl -s https://api.kraveapi.xyz/health | jq .
