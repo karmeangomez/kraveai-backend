@@ -17,3 +17,10 @@ Already up to date.
 Already up to date.
 Already up to date.
 Already up to date.
+From https://github.com/karmeangomez/kraveai-backend
+   c634d132..60bdab48  main       -> origin/main
+warning: fetch updated the current branch head.
+fast-forwarding your working tree from
+commit 7f8ddfde6409badeed7ba7625c75901bd0f9c5a4.
+error: cannot rebase: You have unstaged changes.
+error: Please commit or stash them.
