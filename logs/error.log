@@ -1118,3 +1118,10 @@ error: ⚠️ Error al tomar screenshot: Protocol error (Page.captureScreenshot)
 2025-07-19 14:04:19: 2025-07-19 14:04:19,321 [INFO] https://i.instagram.com/api/v1/launcher/sync/
 2025-07-19 14:04:19: 2025-07-19 14:04:19,604 [INFO] kraveaibot [200] POST https://i.instagram.com/api/v1/launcher/sync/ (269.0.0.18.75, OnePlus 6T Dev)
 2025-07-19 14:04:19: 2025-07-19 14:04:19,800 [INFO] https://i.instagram.com/api/v1/accounts/login/
+2025-07-19 14:04:21: 2025-07-19 14:04:21,565 [INFO] kraveaibot [400] POST https://i.instagram.com/api/v1/accounts/login/ (269.0.0.18.75, OnePlus 6T Dev)
+2025-07-19 14:04:21: 2025-07-19 14:04:21,565 [ERROR] ❌ Login falló para kraveaibot: We can send you an email to help you get back into your account. If you are sure that the password is correct, then change your IP address, because it is added to the blacklist of the Instagram Server
+2025-07-19 14:04:21: 2025-07-19 14:04:21,568 [INFO] 🚩 Todas las cuentas disponibles fueron cargadas correctamente.
+2025-07-19 14:04:21: INFO:     Application startup complete.
+2025-07-19 14:04:21: ERROR:    [Errno 98] error while attempting to bind on address ('0.0.0.0', 8000): address already in use
+2025-07-19 14:04:21: INFO:     Waiting for application shutdown.
+2025-07-19 14:04:21: INFO:     Application shutdown complete.
