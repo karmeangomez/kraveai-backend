@@ -29004,3 +29004,4 @@ error: ⚠️ Error al tomar screenshot: Protocol error (Page.captureScreenshot)
 2025-07-19 16:01:33: INFO:     Application shutdown complete.
 2025-07-19 16:01:33: INFO:     Started server process [1159875]
 2025-07-19 16:01:33: INFO:     Waiting for application startup.
+2025-07-19 16:01:34: 2025-07-19 16:01:34,736 [INFO] https://i.instagram.com/api/v1/feed/timeline/
