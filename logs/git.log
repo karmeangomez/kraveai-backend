@@ -1,0 +1,14 @@
+warning: fetch updated the current branch head.
+fast-forwarding your working tree from
+commit f4bb28d7d2e7f57f88a87862a88ba617639b783d.
+error: The following untracked working tree files would be overwritten by merge:
+	logs/git.log
+	logs/tunnel.log
+Please move or remove them before you merge.
+Aborting
+fatal: Cannot fast-forward your working tree.
+After making sure that you saved anything precious from
+$ git diff f4bb28d7d2e7f57f88a87862a88ba617639b783d
+output, run
+$ git reset --hard
+to recover.
