@@ -10,27 +10,77 @@ from pydantic import BaseModel
 from instagrapi import Client
 import uvicorn
 
-# Cargar .env
+
+# 📂 Cargar variables .env
 env_path = Path(__file__).resolve().parent.parent / ".env"
 load_dotenv(env_path)
-logger = logging.getLogger("KraveAI")
 
+BASE_PATH = Path(__file__).resolve().parent.parent
+SESIONES_DIR = BASE_PATH / "sesiones"
+SESIONES_DIR.mkdir(exist_ok=True, parents=True)
+CUENTAS_PATH = BASE_PATH / "cuentas_creadas.json"
+
+# 🔥 Logging mejorado
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(message)s",
     handlers=[
         logging.StreamHandler(),
-        logging.FileHandler("kraveai.log")
+        logging.FileHandler(BASE_PATH / "kraveai.log", encoding="utf-8")
     ]
 )
-logger.info("✅ Variables de entorno cargadas")
+logger = logging.getLogger("KraveAI")
 
-BASE_PATH = Path(__file__).resolve().parent.parent
-SESIONES_DIR = BASE_PATH / "sesiones"
-SESIONES_DIR.mkdir(exist_ok=True, parents=True)
+app = FastAPI(title="KraveAI Backend", version="v2.4")
 
-app = FastAPI(title="KraveAI Backend", version="2.4")
+
+def load_client_session(username):
+    session_file = SESIONES_DIR / f"ig_session_{username}.json"
+    cl = Client()
+    if session_file.exists():
+        try:
+            cl.load_settings(session_file)
+            cl.get_timeline_feed()
+            logger.info(f"✅ Sesión restaurada para {username}")
+            return cl
+        except Exception as e:
+            logger.warning(f"⚠️ Falló sesión guardada para {username}: {e}")
+    return None
+
+
+def save_client_session(cl, username):
+    session_file = SESIONES_DIR / f"ig_session_{username}.json"
+    cl.dump_settings(session_file)
+    logger.info(f"💾 Sesión guardada para {username}")
+
+
+# 🔑 Cuenta principal
 cl = None
+
+
+def iniciar_cuenta_principal():
+    global cl
+    username = os.getenv("IG_USERNAME")
+    password = os.getenv("INSTAGRAM_PASS")
+
+    if not username or not password:
+        logger.error("❌ Falta IG_USERNAME o INSTAGRAM_PASS en .env")
+        return
+
+    cl_restored = load_client_session(username)
+    if cl_restored:
+        cl = cl_restored
+        return
+
+    try:
+        cl = Client()
+        logger.info(f"➡️ Iniciando sesión para {username} sin proxy")
+        cl.login(username, password)
+        save_client_session(cl, username)
+        logger.info(f"✅ Login exitoso @{cl.username}")
+    except Exception as e:
+        logger.error(f"🚫 Error al iniciar sesión para {username}: {e}")
+        cl = None
 
 
 def verificar_sesion_activa(client):
@@ -43,28 +93,23 @@ def verificar_sesion_activa(client):
         return False
 
 
+@app.on_event("startup")
+def startup_event():
+    iniciar_cuenta_principal()
+
+
 @app.get("/health")
 def health():
-    try:
-        status = "Fallido"
-        if cl and verificar_sesion_activa(cl):
-            status = f"Activo (@{cl.username})"
-        return {
-            "status": "OK",
-            "versión": "v2.4 - estable",
-            "service": "KraveAI Python",
-            "login": status,
-            "detalle": "Sistema operativo" if status.startswith("Activo") else "Requiere atención"
-        }
-    except Exception as e:
-        logger.error(f"Error crítico en /health: {str(e)}")
-        return JSONResponse(
-            status_code=500,
-            content={
-                "status": "ERROR",
-                "error": str(e)
-            }
-        )
+    status = "Fallido"
+    if cl and verificar_sesion_activa(cl):
+        status = f"Activo (@{cl.username})"
+    return {
+        "status": "OK",
+        "versión": "v2.4",
+        "service": "KraveAI Python",
+        "login": status,
+        "detalle": "Sesión válida" if status.startswith("Activo") else "Requiere atención"
+    }
 
 
 class GuardarCuentaRequest(BaseModel):
@@ -74,70 +119,43 @@ class GuardarCuentaRequest(BaseModel):
 
 @app.post("/guardar-cuenta")
 def guardar_cuenta(datos: GuardarCuentaRequest):
-    cuentas_path = BASE_PATH / "cuentas_creadas.json"
     try:
         cuentas = []
-        if cuentas_path.exists():
-            with open(cuentas_path, "r", encoding="utf-8") as f:
+        if CUENTAS_PATH.exists():
+            with open(CUENTAS_PATH, "r", encoding="utf-8") as f:
                 cuentas = json.load(f)
 
         if any(c["usuario"] == datos.usuario for c in cuentas):
             return JSONResponse(
                 status_code=400,
-                content={"exito": False, "mensaje": "Cuenta ya existe en el sistema"}
+                content={"exito": False, "mensaje": "Cuenta ya registrada"}
             )
 
         cuentas.append({"usuario": datos.usuario, "contrasena": datos.contrasena})
-        with open(cuentas_path, "w", encoding="utf-8") as f:
+        with open(CUENTAS_PATH, "w", encoding="utf-8") as f:
             json.dump(cuentas, f, ensure_ascii=False, indent=4)
 
+        # Guarda la sesión de la nueva cuenta manualmente al guardarla
+        cl_tmp = Client()
+        try:
+            cl_tmp.login(datos.usuario, datos.contrasena)
+            save_client_session(cl_tmp, datos.usuario)
+            logger.info(f"✅ Sesión guardada para nueva cuenta @{datos.usuario}")
+        except Exception as e:
+            logger.warning(f"⚠️ No se pudo iniciar sesión @{datos.usuario}: {e}")
+
         logger.info(f"➕ Nueva cuenta guardada: @{datos.usuario}")
-        return {"exito": True, "mensaje": "Cuenta registrada exitosamente"}
+        return {"exito": True, "mensaje": "Cuenta guardada exitosamente"}
 
     except Exception as e:
         logger.error(f"🚨 Error guardando cuenta: {str(e)}")
         return JSONResponse(
             status_code=500,
-            content={
-                "exito": False,
-                "mensaje": "Error interno del servidor",
-                "detalle": str(e)
-            }
+            content={"exito": False, "mensaje": "Error interno", "detalle": str(e)}
         )
 
 
-@app.on_event("startup")
-def startup_event():
-    global cl
-    cl = Client()
-
-    IG_USERNAME = os.getenv("IG_USERNAME")
-    IG_PASSWORD = os.getenv("INSTAGRAM_PASS")
-
-    if not IG_USERNAME or not IG_PASSWORD:
-        logger.error("❌ Credenciales principales faltan en .env")
-        return
-
-    session_file = SESIONES_DIR / f"ig_session_{IG_USERNAME}.json"
-    if session_file.exists():
-        try:
-            cl.load_settings(session_file)
-            cl.login(IG_USERNAME, IG_PASSWORD)
-            logger.info(f"✅ Sesión cargada y login correcto como @{cl.username}")
-            cl.dump_settings(session_file)
-            return
-        except Exception as e:
-            logger.warning(f"⚠️ Fallo cargando sesión previa: {e}")
-
-    try:
-        logger.info(f"➡️ Intentando login sin proxy como {IG_USERNAME}")
-        cl.login(IG_USERNAME, IG_PASSWORD)
-        cl.dump_settings(session_file)
-        logger.info(f"✅ Login exitoso, sesión guardada como {session_file}")
-    except Exception as e:
-        logger.error(f"🚫 Error en login inicial: {str(e)}")
-
-
+# 🌐 CORS para tu frontend
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
@@ -153,13 +171,7 @@ app.add_middleware(
 
 
 def run_uvicorn():
-    uvicorn.run(
-        app,
-        host="0.0.0.0",
-        port=8000,
-        log_config=None,
-        timeout_keep_alive=300
-    )
+    uvicorn.run(app, host="0.0.0.0", port=8000, timeout_keep_alive=300)
 
 
 if __name__ == "__main__":
