@@ -4455,3 +4455,29 @@ error: ⚠️ Error al tomar screenshot: Protocol error (Page.captureScreenshot)
 2025-07-19 14:40:47: ERROR:    [Errno 98] error while attempting to bind on address ('0.0.0.0', 8000): address already in use
 2025-07-19 14:40:47: INFO:     Waiting for application shutdown.
 2025-07-19 14:40:47: INFO:     Application shutdown complete.
+2025-07-19 14:40:48: 2025-07-19 14:40:48,533 [INFO] ✅ Variables de entorno cargadas
+2025-07-19 14:40:48: INFO:     Started server process [931002]
+2025-07-19 14:40:48: INFO:     Waiting for application startup.
+2025-07-19 14:40:48: 2025-07-19 14:40:48,536 [INFO] ➡️ Intentando login sin proxy como kraveaibot
+2025-07-19 14:40:48: 2025-07-19 14:40:48,536 [INFO] https://i.instagram.com/api/v1/launcher/sync/
+2025-07-19 14:40:48: 2025-07-19 14:40:48,824 [INFO] kraveaibot [200] POST https://i.instagram.com/api/v1/launcher/sync/ (269.0.0.18.75, OnePlus 6T Dev)
+2025-07-19 14:40:49: 2025-07-19 14:40:49,031 [INFO] https://i.instagram.com/api/v1/accounts/login/
+2025-07-19 14:40:50: 2025-07-19 14:40:50,840 [INFO] kraveaibot [400] POST https://i.instagram.com/api/v1/accounts/login/ (269.0.0.18.75, OnePlus 6T Dev)
+2025-07-19 14:40:50: 2025-07-19 14:40:50,840 [ERROR] 🚫 Error en login inicial: We can send you an email to help you get back into your account. If you are sure that the password is correct, then change your IP address, because it is added to the blacklist of the Instagram Server
+2025-07-19 14:40:50: INFO:     Application startup complete.
+2025-07-19 14:40:50: ERROR:    [Errno 98] error while attempting to bind on address ('0.0.0.0', 8000): address already in use
+2025-07-19 14:40:50: INFO:     Waiting for application shutdown.
+2025-07-19 14:40:50: INFO:     Application shutdown complete.
+2025-07-19 14:40:51: 2025-07-19 14:40:51,468 [INFO] ✅ Variables de entorno cargadas
+2025-07-19 14:40:51: INFO:     Started server process [931075]
+2025-07-19 14:40:51: INFO:     Waiting for application startup.
+2025-07-19 14:40:51: 2025-07-19 14:40:51,471 [INFO] ➡️ Intentando login sin proxy como kraveaibot
+2025-07-19 14:40:51: 2025-07-19 14:40:51,471 [INFO] https://i.instagram.com/api/v1/launcher/sync/
+2025-07-19 14:40:51: 2025-07-19 14:40:51,754 [INFO] kraveaibot [200] POST https://i.instagram.com/api/v1/launcher/sync/ (269.0.0.18.75, OnePlus 6T Dev)
+2025-07-19 14:40:51: 2025-07-19 14:40:51,937 [INFO] https://i.instagram.com/api/v1/accounts/login/
+2025-07-19 14:40:53: 2025-07-19 14:40:53,781 [INFO] kraveaibot [400] POST https://i.instagram.com/api/v1/accounts/login/ (269.0.0.18.75, OnePlus 6T Dev)
+2025-07-19 14:40:53: 2025-07-19 14:40:53,782 [ERROR] 🚫 Error en login inicial: We can send you an email to help you get back into your account. If you are sure that the password is correct, then change your IP address, because it is added to the blacklist of the Instagram Server
+2025-07-19 14:40:53: INFO:     Application startup complete.
+2025-07-19 14:40:53: ERROR:    [Errno 98] error while attempting to bind on address ('0.0.0.0', 8000): address already in use
+2025-07-19 14:40:53: INFO:     Waiting for application shutdown.
+2025-07-19 14:40:53: INFO:     Application shutdown complete.
