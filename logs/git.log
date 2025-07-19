@@ -24,3 +24,7 @@ fast-forwarding your working tree from
 commit 7f8ddfde6409badeed7ba7625c75901bd0f9c5a4.
 error: cannot rebase: You have unstaged changes.
 error: Please commit or stash them.
+From https://github.com/karmeangomez/kraveai-backend
+   60bdab48..c9fa5e95  main       -> origin/main
+error: cannot rebase: You have unstaged changes.
+error: Please commit or stash them.
