@@ -17722,3 +17722,5 @@ error: ⚠️ Error al tomar screenshot: Protocol error (Page.captureScreenshot)
 2025-07-19 15:25:04: INFO:     Application shutdown complete.
 2025-07-19 15:25:04: INFO:     Started server process [1065675]
 2025-07-19 15:25:04: INFO:     Waiting for application startup.
+2025-07-19 15:25:24: INFO:     Started server process [1066602]
+2025-07-19 15:25:24: INFO:     Waiting for application startup.
