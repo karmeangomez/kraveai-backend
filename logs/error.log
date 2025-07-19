@@ -15492,3 +15492,35 @@ error: ⚠️ Error al tomar screenshot: Protocol error (Page.captureScreenshot)
 2025-07-19 15:17:41: 2025-07-19 15:17:41,577 [WARNING] ⚠️ Falló sesión guardada para kraveaibot: login_required
 2025-07-19 15:17:41: 2025-07-19 15:17:41,583 [INFO] ➡️ Iniciando sesión para kraveaibot sin proxy
 2025-07-19 15:17:41: 2025-07-19 15:17:41,585 [INFO] https://i.instagram.com/api/v1/launcher/sync/
+2025-07-19 15:17:41: 2025-07-19 15:17:41,881 [INFO] kraveaibot [200] POST https://i.instagram.com/api/v1/launcher/sync/ (269.0.0.18.75, OnePlus 6T Dev)
+2025-07-19 15:17:42: 2025-07-19 15:17:42,082 [INFO] https://i.instagram.com/api/v1/accounts/login/
+2025-07-19 15:17:42: 2025-07-19 15:17:42,534 [INFO] kraveaibot [400] POST https://i.instagram.com/api/v1/accounts/login/ (269.0.0.18.75, OnePlus 6T Dev)
+2025-07-19 15:17:42: 2025-07-19 15:17:42,534 [ERROR] 🚫 Error al iniciar sesión para kraveaibot: Please wait a few minutes before you try again.
+2025-07-19 15:17:42: INFO:     Application startup complete.
+2025-07-19 15:17:42: ERROR:    [Errno 98] error while attempting to bind on address ('0.0.0.0', 8000): address already in use
+2025-07-19 15:17:42: INFO:     Waiting for application shutdown.
+2025-07-19 15:17:42: INFO:     Application shutdown complete.
+2025-07-19 15:17:43: INFO:     Started server process [1046462]
+2025-07-19 15:17:43: INFO:     Waiting for application startup.
+2025-07-19 15:17:44: 2025-07-19 15:17:44,208 [INFO] https://i.instagram.com/api/v1/feed/timeline/
+2025-07-19 15:17:44: 2025-07-19 15:17:44,445 [INFO] None [403] POST https://i.instagram.com/api/v1/feed/timeline/ (269.0.0.18.75, OnePlus 6T Dev)
+2025-07-19 15:17:44: 2025-07-19 15:17:44,445 [WARNING] ⚠️ Falló sesión guardada para kraveaibot: login_required
+2025-07-19 15:17:44: 2025-07-19 15:17:44,447 [INFO] ➡️ Iniciando sesión para kraveaibot sin proxy
+2025-07-19 15:17:44: 2025-07-19 15:17:44,448 [INFO] https://i.instagram.com/api/v1/launcher/sync/
+2025-07-19 15:17:44: 2025-07-19 15:17:44,732 [INFO] kraveaibot [200] POST https://i.instagram.com/api/v1/launcher/sync/ (269.0.0.18.75, OnePlus 6T Dev)
+2025-07-19 15:17:44: 2025-07-19 15:17:44,929 [INFO] https://i.instagram.com/api/v1/accounts/login/
+2025-07-19 15:17:45: 2025-07-19 15:17:45,423 [INFO] kraveaibot [400] POST https://i.instagram.com/api/v1/accounts/login/ (269.0.0.18.75, OnePlus 6T Dev)
+2025-07-19 15:17:45: 2025-07-19 15:17:45,424 [ERROR] 🚫 Error al iniciar sesión para kraveaibot: Please wait a few minutes before you try again.
+2025-07-19 15:17:45: INFO:     Application startup complete.
+2025-07-19 15:17:45: ERROR:    [Errno 98] error while attempting to bind on address ('0.0.0.0', 8000): address already in use
+2025-07-19 15:17:45: INFO:     Waiting for application shutdown.
+2025-07-19 15:17:45: INFO:     Application shutdown complete.
+2025-07-19 15:17:46: INFO:     Started server process [1046488]
+2025-07-19 15:17:46: INFO:     Waiting for application startup.
+2025-07-19 15:17:47: 2025-07-19 15:17:47,115 [INFO] https://i.instagram.com/api/v1/feed/timeline/
+2025-07-19 15:17:47: 2025-07-19 15:17:47,329 [INFO] None [403] POST https://i.instagram.com/api/v1/feed/timeline/ (269.0.0.18.75, OnePlus 6T Dev)
+2025-07-19 15:17:47: 2025-07-19 15:17:47,329 [WARNING] ⚠️ Falló sesión guardada para kraveaibot: login_required
+2025-07-19 15:17:47: 2025-07-19 15:17:47,331 [INFO] ➡️ Iniciando sesión para kraveaibot sin proxy
+2025-07-19 15:17:47: 2025-07-19 15:17:47,332 [INFO] https://i.instagram.com/api/v1/launcher/sync/
+2025-07-19 15:17:47: 2025-07-19 15:17:47,684 [INFO] kraveaibot [200] POST https://i.instagram.com/api/v1/launcher/sync/ (269.0.0.18.75, OnePlus 6T Dev)
+2025-07-19 15:17:47: 2025-07-19 15:17:47,895 [INFO] https://i.instagram.com/api/v1/accounts/login/
