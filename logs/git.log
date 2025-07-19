@@ -33,3 +33,5 @@ fast-forwarding your working tree from
 commit 57a55c80a7061f68b4fc291d3a33b2b45505523e.
 Already up to date.
 Already up to date.
+error: cannot pull with rebase: You have unstaged changes.
+error: please commit or stash them.
