@@ -25994,3 +25994,5 @@ error: ⚠️ Error al tomar screenshot: Protocol error (Page.captureScreenshot)
 2025-07-19 15:51:48: 2025-07-19 15:51:48,604 [WARNING] ⚠️ Falló sesión guardada para kraveaibot: login_required
 2025-07-19 15:51:48: 2025-07-19 15:51:48,605 [INFO] ➡️ Iniciando sesión para kraveaibot sin proxy
 2025-07-19 15:51:48: 2025-07-19 15:51:48,606 [INFO] https://i.instagram.com/api/v1/launcher/sync/
+2025-07-19 15:51:49: 2025-07-19 15:51:49,553 [INFO] kraveaibot [200] POST https://i.instagram.com/api/v1/launcher/sync/ (269.0.0.18.75, OnePlus 6T Dev)
+2025-07-19 15:51:49: 2025-07-19 15:51:49,754 [INFO] https://i.instagram.com/api/v1/accounts/login/
