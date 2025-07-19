@@ -12570,3 +12570,48 @@ error: ⚠️ Error al tomar screenshot: Protocol error (Page.captureScreenshot)
 2025-07-19 15:09:57: INFO:     Waiting for application startup.
 2025-07-19 15:09:57: 2025-07-19 15:09:57,221 [INFO] ➡️ Iniciando sesión para kraveaibot sin proxy
 2025-07-19 15:09:57: 2025-07-19 15:09:57,221 [INFO] https://i.instagram.com/api/v1/launcher/sync/
+2025-07-19 15:09:57: 2025-07-19 15:09:57,516 [INFO] kraveaibot [200] POST https://i.instagram.com/api/v1/launcher/sync/ (269.0.0.18.75, OnePlus 6T Dev)
+2025-07-19 15:09:57: 2025-07-19 15:09:57,754 [INFO] https://i.instagram.com/api/v1/accounts/login/
+2025-07-19 15:09:58: 2025-07-19 15:09:58,280 [INFO] kraveaibot [400] POST https://i.instagram.com/api/v1/accounts/login/ (269.0.0.18.75, OnePlus 6T Dev)
+2025-07-19 15:09:58: 2025-07-19 15:09:58,280 [ERROR] 🚫 Error al iniciar sesión para kraveaibot: Please wait a few minutes before you try again.
+2025-07-19 15:09:58: ERROR:    Traceback (most recent call last):
+2025-07-19 15:09:58:   File "/usr/lib/python3.11/asyncio/runners.py", line 118, in run
+2025-07-19 15:09:58:     return self._loop.run_until_complete(task)
+2025-07-19 15:09:58:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2025-07-19 15:09:58:   File "/usr/lib/python3.11/asyncio/base_events.py", line 653, in run_until_complete
+2025-07-19 15:09:58:     return future.result()
+2025-07-19 15:09:58:            ^^^^^^^^^^^^^^^
+2025-07-19 15:09:58:   File "/home/karmean/kraveai-backend/venv/lib/python3.11/site-packages/uvicorn/server.py", line 78, in serve
+2025-07-19 15:09:58:     await self.startup(sockets=sockets)
+2025-07-19 15:09:58:   File "/home/karmean/kraveai-backend/venv/lib/python3.11/site-packages/uvicorn/server.py", line 89, in startup
+2025-07-19 15:09:58:     await self.lifespan.startup()
+2025-07-19 15:09:58:   File "/home/karmean/kraveai-backend/venv/lib/python3.11/site-packages/uvicorn/lifespan/on.py", line 56, in startup
+2025-07-19 15:09:58:     await self.startup_event.wait()
+2025-07-19 15:09:58:   File "/usr/lib/python3.11/asyncio/locks.py", line 213, in wait
+2025-07-19 15:09:58:     await fut
+2025-07-19 15:09:58: asyncio.exceptions.CancelledError
+2025-07-19 15:09:58: 
+2025-07-19 15:09:58: During handling of the above exception, another exception occurred:
+2025-07-19 15:09:58: 
+2025-07-19 15:09:58: Traceback (most recent call last):
+2025-07-19 15:09:58:   File "/usr/lib/python3.11/asyncio/runners.py", line 190, in run
+2025-07-19 15:09:58:     return runner.run(main)
+2025-07-19 15:09:58:            ^^^^^^^^^^^^^^^^
+2025-07-19 15:09:58:   File "/usr/lib/python3.11/asyncio/runners.py", line 123, in run
+2025-07-19 15:09:58:     raise KeyboardInterrupt()
+2025-07-19 15:09:58: KeyboardInterrupt
+2025-07-19 15:09:58: 
+2025-07-19 15:09:58: During handling of the above exception, another exception occurred:
+2025-07-19 15:09:58: 
+2025-07-19 15:09:58: Traceback (most recent call last):
+2025-07-19 15:09:58:   File "/home/karmean/kraveai-backend/venv/lib/python3.11/site-packages/starlette/routing.py", line 686, in lifespan
+2025-07-19 15:09:58:     await receive()
+2025-07-19 15:09:58:   File "/home/karmean/kraveai-backend/venv/lib/python3.11/site-packages/uvicorn/lifespan/on.py", line 139, in receive
+2025-07-19 15:09:58:     return await self.receive_queue.get()
+2025-07-19 15:09:58:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2025-07-19 15:09:58:   File "/usr/lib/python3.11/asyncio/queues.py", line 158, in get
+2025-07-19 15:09:58:     await getter
+2025-07-19 15:09:58: asyncio.exceptions.CancelledError
+2025-07-19 15:09:58: 
+2025-07-19 15:09:58: 
+2025-07-19 15:09:58: Aborted!
