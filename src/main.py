@@ -11,9 +11,8 @@ from instagrapi import Client
 import uvicorn
 import threading
 
-# Cargar .env
-env_path = Path(__file__).resolve().parent.parent / ".env"
-load_dotenv(env_path)
+# Cargar .env correctamente
+load_dotenv(dotenv_path="/home/karmean/kraveai-backend/.env")
 
 logging.basicConfig(
     level=logging.INFO,
@@ -32,6 +31,7 @@ cl = None
 
 
 def iniciar_cuentas_guardadas():
+    global cl
     activas = []
     if not CREADAS_PATH.exists():
         logger.warning("No existe cuentas_creadas.json")
@@ -48,6 +48,8 @@ def iniciar_cuentas_guardadas():
             client.dump_settings(session_path)
             activas.append({"usuario": usuario})
             logger.info(f"✅ Activa: @{usuario}")
+            cl = client  # ✅ ahora cl tiene una sesión válida para /health
+            break  # solo la primera cuenta
         except Exception as e:
             logger.warning(f"❌ @{usuario} no se pudo iniciar sesión -> {e}")
             continue
@@ -139,6 +141,7 @@ def iniciar_sesion(datos: LoginRequest):
         with open(ACTIVAS_PATH, "w", encoding="utf-8") as f:
             json.dump(activas, f, ensure_ascii=False, indent=4)
 
+        cl = client
         logger.info(f"✅ Sesión iniciada y guardada para @{datos.usuario}")
         return {"exito": True, "usuario": datos.usuario}
     except Exception as e:
