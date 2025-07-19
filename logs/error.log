@@ -11012,3 +11012,15 @@ error: ⚠️ Error al tomar screenshot: Protocol error (Page.captureScreenshot)
 2025-07-19 15:06:33: 2025-07-19 15:06:33,086 [INFO] ➡️ Intentando login sin proxy como kraveaibot
 2025-07-19 15:06:33: 2025-07-19 15:06:33,087 [INFO] https://i.instagram.com/api/v1/launcher/sync/
 2025-07-19 15:06:33: 2025-07-19 15:06:33,399 [INFO] kraveaibot [200] POST https://i.instagram.com/api/v1/launcher/sync/ (269.0.0.18.75, OnePlus 6T Dev)
+2025-07-19 15:06:33: 2025-07-19 15:06:33,599 [INFO] https://i.instagram.com/api/v1/accounts/login/
+2025-07-19 15:06:34: 2025-07-19 15:06:34,181 [INFO] kraveaibot [400] POST https://i.instagram.com/api/v1/accounts/login/ (269.0.0.18.75, OnePlus 6T Dev)
+2025-07-19 15:06:34: 2025-07-19 15:06:34,181 [ERROR] 🚫 Error en login inicial: Please wait a few minutes before you try again.
+2025-07-19 15:06:34: INFO:     Application startup complete.
+2025-07-19 15:06:34: ERROR:    [Errno 98] error while attempting to bind on address ('0.0.0.0', 8000): address already in use
+2025-07-19 15:06:34: INFO:     Waiting for application shutdown.
+2025-07-19 15:06:34: INFO:     Application shutdown complete.
+2025-07-19 15:06:34: 2025-07-19 15:06:34,698 [INFO] ✅ Variables de entorno cargadas
+2025-07-19 15:06:34: INFO:     Started server process [1016340]
+2025-07-19 15:06:34: INFO:     Waiting for application startup.
+2025-07-19 15:06:34: 2025-07-19 15:06:34,701 [INFO] ➡️ Intentando login sin proxy como kraveaibot
+2025-07-19 15:06:34: 2025-07-19 15:06:34,701 [INFO] https://i.instagram.com/api/v1/launcher/sync/
