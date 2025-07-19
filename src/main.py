@@ -20,7 +20,7 @@ SESIONES_DIR = BASE_PATH / "sesiones"
 SESIONES_DIR.mkdir(exist_ok=True, parents=True)
 CUENTAS_PATH = BASE_PATH / "cuentas_creadas.json"
 
-# 🔥 Logging mejorado
+# 🔥 Logging
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(message)s",
@@ -155,7 +155,7 @@ def guardar_cuenta(datos: GuardarCuentaRequest):
         )
 
 
-# 🌐 CORS para tu frontend
+# 🌐 CORS
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
