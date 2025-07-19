@@ -21382,3 +21382,6 @@ error: ⚠️ Error al tomar screenshot: Protocol error (Page.captureScreenshot)
 2025-07-19 15:37:26: ERROR:    [Errno 98] error while attempting to bind on address ('0.0.0.0', 8000): address already in use
 2025-07-19 15:37:26: INFO:     Waiting for application shutdown.
 2025-07-19 15:37:26: INFO:     Application shutdown complete.
+2025-07-19 15:37:27: INFO:     Started server process [1098379]
+2025-07-19 15:37:27: INFO:     Waiting for application startup.
+2025-07-19 15:37:28: 2025-07-19 15:37:28,446 [INFO] https://i.instagram.com/api/v1/feed/timeline/
