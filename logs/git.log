@@ -35,3 +35,5 @@ Already up to date.
 Already up to date.
 error: cannot pull with rebase: You have unstaged changes.
 error: please commit or stash them.
+error: cannot pull with rebase: You have unstaged changes.
+error: please commit or stash them.
