@@ -5,58 +5,32 @@ from pathlib import Path
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel
 from dotenv import load_dotenv
+from pydantic import BaseModel
 from instagrapi import Client
-import threading
 import uvicorn
+import threading
 
-# === Paths ===
+# Cargar .env
+env_path = Path(__file__).resolve().parent.parent / ".env"
+load_dotenv(env_path)
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s]: %(message)s",
+)
+logger = logging.getLogger("KraveAI")
+
 BASE_PATH = Path(__file__).resolve().parent.parent
 CREADAS_PATH = BASE_PATH / "cuentas_creadas.json"
 ACTIVAS_PATH = BASE_PATH / "cuentas_activas.json"
 SESIONES_DIR = BASE_PATH / "sesiones"
 SESIONES_DIR.mkdir(exist_ok=True)
 
-# === Env ===
-env_path = BASE_PATH / ".env"
-load_dotenv(env_path)
-print(f"✅ Variables de entorno cargadas desde: {env_path}")
-
-# === Logging ===
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s [%(levelname)s]: %(message)s',
-)
-logger = logging.getLogger("KraveAI")
-
 app = FastAPI(title="KraveAI Backend", version="2.3")
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["https://kraveai.netlify.app", "http://localhost:3000"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-    expose_headers=["*"],
-)
-
-# === Global ===
 cl = None
 
 
-# === Modelos ===
-class GuardarCuentaRequest(BaseModel):
-    usuario: str
-    contrasena: str
-
-
-class LoginRequest(BaseModel):
-    usuario: str
-    contrasena: str
-
-
-# === Funciones ===
 def iniciar_cuentas_guardadas():
     activas = []
     if not CREADAS_PATH.exists():
@@ -81,7 +55,6 @@ def iniciar_cuentas_guardadas():
         json.dump(activas, f, ensure_ascii=False, indent=4)
 
 
-# === Endpoints ===
 @app.get("/health")
 def health():
     auth_status = "Fallido"
@@ -114,6 +87,11 @@ def estado_sesion():
         return {"status": "inactivo", "error": str(e)}
 
 
+class GuardarCuentaRequest(BaseModel):
+    usuario: str
+    contrasena: str
+
+
 @app.post("/guardar-cuenta")
 def guardar_cuenta(datos: GuardarCuentaRequest):
     cuentas = []
@@ -136,8 +114,14 @@ def guardar_cuenta(datos: GuardarCuentaRequest):
         return JSONResponse(status_code=500, content={"exito": False, "mensaje": "Error interno al guardar"})
 
 
+class LoginRequest(BaseModel):
+    usuario: str
+    contrasena: str
+
+
 @app.post("/iniciar-sesion")
 def iniciar_sesion(datos: LoginRequest):
+    global cl
     session_path = SESIONES_DIR / f"ig_session_{datos.usuario}.json"
     client = Client()
     try:
@@ -159,10 +143,9 @@ def iniciar_sesion(datos: LoginRequest):
         return {"exito": True, "usuario": datos.usuario}
     except Exception as e:
         logger.error(f"❌ Error iniciando sesión para @{datos.usuario}: {str(e)}")
-        return JSONResponse(status_code=401, content={"exito": False, "mensaje": str(e)})
+        return JSONResponse(status_code=401, content={"exito": False, "mensaje": f"Error: {str(e)}"})
 
 
-# === Startup ===
 @app.on_event("startup")
 def startup_event():
     global cl
@@ -176,6 +159,16 @@ def startup_event():
             logger.info(f"KraveAI conectado como @{cl.username}")
     except Exception as e:
         logger.warning(f"No se pudo iniciar sesión en cuenta principal: {e}")
+
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["https://kraveai.netlify.app", "http://localhost:3000"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+    expose_headers=["*"],
+)
 
 
 def run_uvicorn():
