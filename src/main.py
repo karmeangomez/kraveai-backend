@@ -49,7 +49,6 @@ def health():
         status = "Fallido"
         if cl and verificar_sesion_activa(cl):
             status = f"Activo (@{cl.username})"
-
         return {
             "status": "OK",
             "versión": "v2.4 - estable",
@@ -89,7 +88,6 @@ def guardar_cuenta(datos: GuardarCuentaRequest):
             )
 
         cuentas.append({"usuario": datos.usuario, "contrasena": datos.contrasena})
-
         with open(cuentas_path, "w", encoding="utf-8") as f:
             json.dump(cuentas, f, ensure_ascii=False, indent=4)
 
@@ -120,32 +118,24 @@ def startup_event():
         logger.error("❌ Credenciales principales faltan en .env")
         return
 
-    logger.info(f"🔑 Intentando login como: {IG_USERNAME}")
+    session_file = SESIONES_DIR / f"ig_session_{IG_USERNAME}.json"
+    if session_file.exists():
+        try:
+            cl.load_settings(session_file)
+            cl.login(IG_USERNAME, IG_PASSWORD)
+            logger.info(f"✅ Sesión cargada y login correcto como @{cl.username}")
+            cl.dump_settings(session_file)
+            return
+        except Exception as e:
+            logger.warning(f"⚠️ Fallo cargando sesión previa: {e}")
 
-    settings_file = BASE_PATH / f"ig_session_{IG_USERNAME}.json"
     try:
-        proxy_user = os.getenv('WEBSHARE_RESIDENTIAL_USER')
-        proxy_pass = os.getenv('WEBSHARE_RESIDENTIAL_PASS')
-
-        if proxy_user and proxy_pass:
-            proxy_str = f"http://{proxy_user}:{proxy_pass}@p.webshare.io:80"
-            logger.info(f"🔌 Configurando proxy: {proxy_user[:4]}****@{proxy_pass[:2]}****")
-            cl.set_proxy(proxy_str)
-
-        if settings_file.exists():
-            cl.load_settings(str(settings_file))
-            cl.login(IG_USERNAME, IG_PASSWORD)
-        else:
-            cl.login(IG_USERNAME, IG_PASSWORD)
-            cl.dump_settings(str(settings_file))
-
-        if verificar_sesion_activa(cl):
-            logger.info(f"✅ Login exitoso como @{cl.username}")
-        else:
-            logger.warning("⚠️ Sesión iniciada pero no válida")
-
-    except Exception as global_error:
-        logger.critical(f"💥 Error global en startup: {str(global_error)}")
+        logger.info(f"➡️ Intentando login sin proxy como {IG_USERNAME}")
+        cl.login(IG_USERNAME, IG_PASSWORD)
+        cl.dump_settings(session_file)
+        logger.info(f"✅ Login exitoso, sesión guardada como {session_file}")
+    except Exception as e:
+        logger.error(f"🚫 Error en login inicial: {str(e)}")
 
 
 app.add_middleware(
