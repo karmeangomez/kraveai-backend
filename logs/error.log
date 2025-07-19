@@ -25164,3 +25164,40 @@ error: ⚠️ Error al tomar screenshot: Protocol error (Page.captureScreenshot)
 2025-07-19 15:49:10: INFO:     Application shutdown complete.
 2025-07-19 15:49:10: INFO:     Started server process [1129018]
 2025-07-19 15:49:10: INFO:     Waiting for application startup.
+2025-07-19 15:49:11: 2025-07-19 15:49:11,768 [INFO] https://i.instagram.com/api/v1/feed/timeline/
+2025-07-19 15:49:11: 2025-07-19 15:49:11,963 [INFO] None [403] POST https://i.instagram.com/api/v1/feed/timeline/ (269.0.0.18.75, OnePlus 6T Dev)
+2025-07-19 15:49:11: 2025-07-19 15:49:11,963 [WARNING] ⚠️ Falló sesión guardada para kraveaibot: login_required
+2025-07-19 15:49:11: 2025-07-19 15:49:11,965 [INFO] ➡️ Iniciando sesión para kraveaibot sin proxy
+2025-07-19 15:49:11: 2025-07-19 15:49:11,966 [INFO] https://i.instagram.com/api/v1/launcher/sync/
+2025-07-19 15:49:12: 2025-07-19 15:49:12,213 [INFO] kraveaibot [200] POST https://i.instagram.com/api/v1/launcher/sync/ (269.0.0.18.75, OnePlus 6T Dev)
+2025-07-19 15:49:12: 2025-07-19 15:49:12,425 [INFO] https://i.instagram.com/api/v1/accounts/login/
+2025-07-19 15:49:12: 2025-07-19 15:49:12,852 [INFO] kraveaibot [400] POST https://i.instagram.com/api/v1/accounts/login/ (269.0.0.18.75, OnePlus 6T Dev)
+2025-07-19 15:49:12: 2025-07-19 15:49:12,853 [ERROR] 🚫 Error al iniciar sesión para kraveaibot: Please wait a few minutes before you try again.
+2025-07-19 15:49:12: INFO:     Application startup complete.
+2025-07-19 15:49:12: ERROR:    [Errno 98] error while attempting to bind on address ('0.0.0.0', 8000): address already in use
+2025-07-19 15:49:12: INFO:     Waiting for application shutdown.
+2025-07-19 15:49:12: INFO:     Application shutdown complete.
+2025-07-19 15:49:13: INFO:     Started server process [1129090]
+2025-07-19 15:49:13: INFO:     Waiting for application startup.
+2025-07-19 15:49:14: 2025-07-19 15:49:14,375 [INFO] https://i.instagram.com/api/v1/feed/timeline/
+2025-07-19 15:49:14: 2025-07-19 15:49:14,622 [INFO] None [403] POST https://i.instagram.com/api/v1/feed/timeline/ (269.0.0.18.75, OnePlus 6T Dev)
+2025-07-19 15:49:14: 2025-07-19 15:49:14,622 [WARNING] ⚠️ Falló sesión guardada para kraveaibot: login_required
+2025-07-19 15:49:14: 2025-07-19 15:49:14,624 [INFO] ➡️ Iniciando sesión para kraveaibot sin proxy
+2025-07-19 15:49:14: 2025-07-19 15:49:14,624 [INFO] https://i.instagram.com/api/v1/launcher/sync/
+2025-07-19 15:49:14: 2025-07-19 15:49:14,922 [INFO] kraveaibot [200] POST https://i.instagram.com/api/v1/launcher/sync/ (269.0.0.18.75, OnePlus 6T Dev)
+2025-07-19 15:49:15: 2025-07-19 15:49:15,117 [INFO] https://i.instagram.com/api/v1/accounts/login/
+2025-07-19 15:49:15: 2025-07-19 15:49:15,588 [INFO] kraveaibot [400] POST https://i.instagram.com/api/v1/accounts/login/ (269.0.0.18.75, OnePlus 6T Dev)
+2025-07-19 15:49:15: 2025-07-19 15:49:15,588 [ERROR] 🚫 Error al iniciar sesión para kraveaibot: Please wait a few minutes before you try again.
+2025-07-19 15:49:15: INFO:     Application startup complete.
+2025-07-19 15:49:15: ERROR:    [Errno 98] error while attempting to bind on address ('0.0.0.0', 8000): address already in use
+2025-07-19 15:49:15: INFO:     Waiting for application shutdown.
+2025-07-19 15:49:15: INFO:     Application shutdown complete.
+2025-07-19 15:49:16: INFO:     Started server process [1129174]
+2025-07-19 15:49:16: INFO:     Waiting for application startup.
+2025-07-19 15:49:17: 2025-07-19 15:49:17,126 [INFO] https://i.instagram.com/api/v1/feed/timeline/
+2025-07-19 15:49:17: 2025-07-19 15:49:17,366 [INFO] None [403] POST https://i.instagram.com/api/v1/feed/timeline/ (269.0.0.18.75, OnePlus 6T Dev)
+2025-07-19 15:49:17: 2025-07-19 15:49:17,366 [WARNING] ⚠️ Falló sesión guardada para kraveaibot: login_required
+2025-07-19 15:49:17: 2025-07-19 15:49:17,368 [INFO] ➡️ Iniciando sesión para kraveaibot sin proxy
+2025-07-19 15:49:17: 2025-07-19 15:49:17,369 [INFO] https://i.instagram.com/api/v1/launcher/sync/
+2025-07-19 15:49:17: 2025-07-19 15:49:17,611 [INFO] kraveaibot [200] POST https://i.instagram.com/api/v1/launcher/sync/ (269.0.0.18.75, OnePlus 6T Dev)
+2025-07-19 15:49:17: 2025-07-19 15:49:17,890 [INFO] https://i.instagram.com/api/v1/accounts/login/
