@@ -8892,3 +8892,5 @@ error: ⚠️ Error al tomar screenshot: Protocol error (Page.captureScreenshot)
 2025-07-19 15:02:00: INFO:     Waiting for application startup.
 2025-07-19 15:02:00: 2025-07-19 15:02:00,710 [INFO] ➡️ Intentando login sin proxy como kraveaibot
 2025-07-19 15:02:00: 2025-07-19 15:02:00,711 [INFO] https://i.instagram.com/api/v1/launcher/sync/
+2025-07-19 15:02:01: 2025-07-19 15:02:01,041 [INFO] kraveaibot [200] POST https://i.instagram.com/api/v1/launcher/sync/ (269.0.0.18.75, OnePlus 6T Dev)
+2025-07-19 15:02:01: 2025-07-19 15:02:01,240 [INFO] https://i.instagram.com/api/v1/accounts/login/
