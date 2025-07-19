@@ -935,3 +935,4 @@ error: ⚠️ Error al tomar screenshot: Protocol error (Page.captureScreenshot)
 2025-07-19 14:03:38: 2025-07-19 14:03:38,894 [INFO] 🚀 Iniciando carga de sesiones...
 2025-07-19 14:03:38: 2025-07-19 14:03:38,896 [INFO] https://i.instagram.com/api/v1/launcher/sync/
 2025-07-19 14:03:39: 2025-07-19 14:03:39,150 [INFO] kraveaibot [200] POST https://i.instagram.com/api/v1/launcher/sync/ (269.0.0.18.75, OnePlus 6T Dev)
+2025-07-19 14:03:39: 2025-07-19 14:03:39,387 [INFO] https://i.instagram.com/api/v1/accounts/login/
