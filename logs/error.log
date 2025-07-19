@@ -6586,3 +6586,8 @@ error: ⚠️ Error al tomar screenshot: Protocol error (Page.captureScreenshot)
 2025-07-19 14:57:14: ERROR:    [Errno 98] error while attempting to bind on address ('0.0.0.0', 8000): address already in use
 2025-07-19 14:57:14: INFO:     Waiting for application shutdown.
 2025-07-19 14:57:14: INFO:     Application shutdown complete.
+2025-07-19 14:57:15: 2025-07-19 14:57:15,525 [INFO] ✅ Variables de entorno cargadas
+2025-07-19 14:57:15: INFO:     Started server process [989808]
+2025-07-19 14:57:15: INFO:     Waiting for application startup.
+2025-07-19 14:57:15: 2025-07-19 14:57:15,530 [INFO] ➡️ Intentando login sin proxy como kraveaibot
+2025-07-19 14:57:15: 2025-07-19 14:57:15,531 [INFO] https://i.instagram.com/api/v1/launcher/sync/
