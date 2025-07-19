@@ -89,3 +89,8 @@ error: ⚠️ Error al tomar screenshot: Protocol error (Page.captureScreenshot)
 2025-07-19T13:24:12: /usr/bin/bash: /usr/bin/bash: cannot execute binary file
 2025-07-19T13:24:12: /usr/bin/bash: /usr/bin/bash: cannot execute binary file
 2025-07-19T13:24:12: /usr/bin/bash: /usr/bin/bash: cannot execute binary file
+2025-07-19 14:00:18: 2025-07-19 14:00:18,270 [INFO] ✅ Variables de entorno cargadas desde .env
+2025-07-19 14:00:18: INFO:     Started server process [784584]
+2025-07-19 14:00:18: INFO:     Waiting for application startup.
+2025-07-19 14:00:18: 2025-07-19 14:00:18,275 [INFO] 🚀 Iniciando carga de sesiones...
+2025-07-19 14:00:18: 2025-07-19 14:00:18,276 [INFO] https://i.instagram.com/api/v1/launcher/sync/
