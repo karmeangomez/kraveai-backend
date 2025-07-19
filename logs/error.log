@@ -34794,3 +34794,10 @@ error: ⚠️ Error al tomar screenshot: Protocol error (Page.captureScreenshot)
 2025-07-19 16:21:05: INFO:     Application shutdown complete.
 2025-07-19 16:21:06: INFO:     Started server process [1206792]
 2025-07-19 16:21:06: INFO:     Waiting for application startup.
+2025-07-19 16:21:07: 2025-07-19 16:21:07,075 [INFO] https://i.instagram.com/api/v1/feed/timeline/
+2025-07-19 16:21:07: 2025-07-19 16:21:07,311 [INFO] None [403] POST https://i.instagram.com/api/v1/feed/timeline/ (269.0.0.18.75, OnePlus 6T Dev)
+2025-07-19 16:21:07: 2025-07-19 16:21:07,311 [WARNING] ⚠️ Falló sesión guardada para kraveaibot: login_required
+2025-07-19 16:21:07: 2025-07-19 16:21:07,318 [INFO] ➡️ Iniciando sesión para kraveaibot sin proxy
+2025-07-19 16:21:07: 2025-07-19 16:21:07,319 [INFO] https://i.instagram.com/api/v1/launcher/sync/
+2025-07-19 16:21:07: 2025-07-19 16:21:07,582 [INFO] kraveaibot [200] POST https://i.instagram.com/api/v1/launcher/sync/ (269.0.0.18.75, OnePlus 6T Dev)
+2025-07-19 16:21:07: 2025-07-19 16:21:07,799 [INFO] https://i.instagram.com/api/v1/accounts/login/
