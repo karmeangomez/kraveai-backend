@@ -11,7 +11,7 @@ from instagrapi import Client
 import uvicorn
 
 
-# 📂 Cargar variables .env
+# 📂 Cargar .env correctamente
 env_path = Path(__file__).resolve().parent.parent / ".env"
 load_dotenv(env_path)
 
@@ -20,7 +20,7 @@ SESIONES_DIR = BASE_PATH / "sesiones"
 SESIONES_DIR.mkdir(exist_ok=True, parents=True)
 CUENTAS_PATH = BASE_PATH / "cuentas_creadas.json"
 
-# 🔥 Logging
+# 🔥 Logging claro
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(message)s",
@@ -155,7 +155,7 @@ def guardar_cuenta(datos: GuardarCuentaRequest):
         )
 
 
-# 🌐 CORS
+# 🌐 CORS para tu frontend
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
