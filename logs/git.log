@@ -12,3 +12,4 @@ $ git diff f4bb28d7d2e7f57f88a87862a88ba617639b783d
 output, run
 $ git reset --hard
 to recover.
+Already up to date.
