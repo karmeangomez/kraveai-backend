@@ -1,10 +1,14 @@
+# main.py
 import os
+import json
 import logging
 from pathlib import Path
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from instagrapi import Client
+from fastapi.responses import JSONResponse
 from dotenv import load_dotenv
+from pydantic import BaseModel
+from instagrapi import Client
 import uvicorn
 
 # Cargar .env
@@ -14,9 +18,13 @@ load_dotenv(env_path)
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s]: %(message)s")
 logger = logging.getLogger("KraveAI")
 
+BASE_PATH = Path(__file__).resolve().parent.parent
+ACTIVAS_PATH = BASE_PATH / "cuentas_activas.json"
+SESIONES_DIR = BASE_PATH / "sesiones"
+SESIONES_DIR.mkdir(exist_ok=True)
+
 app = FastAPI(title="KraveAI Backend", version="2.3")
 cl = None
-
 
 @app.get("/health")
 def health():
@@ -35,26 +43,62 @@ def health():
         "login": auth_status
     }
 
+@app.get("/estado-sesion")
+def estado_sesion():
+    global cl
+    try:
+        if cl:
+            auth_data = cl.get_settings().get("authorization_data", {})
+            if auth_data.get("ds_user_id") and auth_data.get("sessionid"):
+                return {"status": "activo", "usuario": cl.username}
+        return {"status": "inactivo"}
+    except Exception as e:
+        logger.error(f"Error en estado-sesion: {str(e)}")
+        return {"status": "inactivo", "error": str(e)}
+
+class GuardarCuentaRequest(BaseModel):
+    usuario: str
+    contrasena: str
+
+@app.post("/guardar-cuenta")
+def guardar_cuenta(datos: GuardarCuentaRequest):
+    cuentas = []
+    creadas_path = BASE_PATH / "cuentas_creadas.json"
+    if creadas_path.exists():
+        try:
+            with open(creadas_path, "r", encoding="utf-8") as f:
+                cuentas = json.load(f)
+        except:
+            pass
+    for cuenta in cuentas:
+        if cuenta["usuario"] == datos.usuario:
+            return JSONResponse(status_code=400, content={"exito": False, "mensaje": "Cuenta ya guardada."})
+    cuentas.append({"usuario": datos.usuario, "contrasena": datos.contrasena})
+    try:
+        with open(creadas_path, "w", encoding="utf-8") as f:
+            json.dump(cuentas, f, ensure_ascii=False, indent=4)
+        return {"exito": True, "mensaje": "Cuenta guardada correctamente"}
+    except Exception as e:
+        logger.error(f"Error guardando cuenta: {str(e)}")
+        return JSONResponse(status_code=500, content={"exito": False, "mensaje": "Error interno al guardar"})
 
 @app.on_event("startup")
 def startup_event():
     global cl
     cl = Client()
     try:
-        proxy = {
-            "http": f"http://{os.getenv('WEBSHARE_RESIDENTIAL_USER')}:{os.getenv('WEBSHARE_RESIDENTIAL_PASS')}@p.webshare.io:80",
-            "https": f"http://{os.getenv('WEBSHARE_RESIDENTIAL_USER')}:{os.getenv('WEBSHARE_RESIDENTIAL_PASS')}@p.webshare.io:80"
-        }
-        cl.set_proxy(proxy)
-
         IG_USERNAME = os.getenv("IG_USERNAME")
         IG_PASSWORD = os.getenv("INSTAGRAM_PASS")
         if IG_USERNAME and IG_PASSWORD:
+            proxy = {
+                "http": f"http://{os.getenv('WEBSHARE_RESIDENTIAL_USER')}:{os.getenv('WEBSHARE_RESIDENTIAL_PASS')}@p.webshare.io:80",
+                "https": f"http://{os.getenv('WEBSHARE_RESIDENTIAL_USER')}:{os.getenv('WEBSHARE_RESIDENTIAL_PASS')}@p.webshare.io:80"
+            }
+            cl.set_proxy(proxy)
             cl.login(IG_USERNAME, IG_PASSWORD)
             logger.info(f"KraveAI conectado como @{cl.username}")
     except Exception as e:
         logger.warning(f"No se pudo iniciar sesión en cuenta principal: {e}")
-
 
 app.add_middleware(
     CORSMiddleware,
@@ -62,12 +106,11 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["*"],
 )
-
 
 def run_uvicorn():
     uvicorn.run(app, host="0.0.0.0", port=8000, reload=False)
-
 
 if __name__ == "__main__":
     run_uvicorn()
