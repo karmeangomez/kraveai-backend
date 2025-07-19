@@ -25162,3 +25162,5 @@ error: ⚠️ Error al tomar screenshot: Protocol error (Page.captureScreenshot)
 2025-07-19 15:49:10: ERROR:    [Errno 98] error while attempting to bind on address ('0.0.0.0', 8000): address already in use
 2025-07-19 15:49:10: INFO:     Waiting for application shutdown.
 2025-07-19 15:49:10: INFO:     Application shutdown complete.
+2025-07-19 15:49:10: INFO:     Started server process [1129018]
+2025-07-19 15:49:10: INFO:     Waiting for application startup.
