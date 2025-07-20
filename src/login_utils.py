@@ -1,61 +1,46 @@
 import os
 from instagrapi import Client
-from instagrapi.exceptions import LoginRequired, BadPassword, PleaseWaitFewMinutes
+from dotenv import load_dotenv
 from pathlib import Path
 
-SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-SESIONES_DIR = os.path.join(SCRIPT_DIR, "sesiones")
-os.makedirs(SESIONES_DIR, exist_ok=True)
-SESSION_FILE = os.path.join(SESIONES_DIR, "ig_session_kraveaibot.json")
+# Cargar .env
+BASE_DIR = Path(__file__).resolve().parent
+load_dotenv(BASE_DIR / ".env")
 
 USERNAME = os.getenv("IG_USERNAME")
 PASSWORD = os.getenv("INSTAGRAM_PASS")
 
-
-def is_session_valid(client):
-    try:
-        client.get_timeline_feed()
-        return True
-    except Exception:
-        return False
-
+SESSION_FILE = BASE_DIR / "sesiones" / f"ig_session_{USERNAME}.json"
 
 def login_instagram():
-    if not USERNAME or not PASSWORD:
-        print("❌ IG_USERNAME o INSTAGRAM_PASS no configuradas en .env")
-        return None
-
     cl = Client()
-    cl.delay_range = [3, 7]  # Evita spam y simula humano
+    cl.delay_range = [3, 7]  # Más humano
+    # Aplica proxy residencial
+    cl.set_proxy(f"http://{os.getenv('WEBSHARE_RESIDENTIAL_USER')}:{os.getenv('WEBSHARE_RESIDENTIAL_PASS')}@p.webshare.io:80")
 
-    # Intenta cargar la sesión
-    if os.path.exists(SESSION_FILE):
+    if SESSION_FILE.exists():
         try:
             cl.load_settings(SESSION_FILE)
-            if is_session_valid(cl):
-                print(f"✅ Sesión restaurada como @{cl.username}")
-                return cl
-            else:
-                print("⚠️ Sesión inválida, eliminando archivo.")
-                os.remove(SESSION_FILE)
+            cl.get_timeline_feed()
+            print(f"✅ Sesión restaurada como @{cl.username}")
+            return cl
         except Exception as e:
-            print(f"⚠️ Error cargando sesión: {str(e)}")
-            os.remove(SESSION_FILE)
+            print(f"⚠️ Sesión inválida, eliminando: {e}")
+            SESSION_FILE.unlink()
 
-    # Si no hay sesión válida, hace login limpio
     try:
-        print(f"➡️ Iniciando sesión para @{USERNAME} (sin proxy)")
         cl.login(USERNAME, PASSWORD)
         cl.dump_settings(SESSION_FILE)
         print(f"✅ Login exitoso como @{cl.username}")
         return cl
-    except BadPassword:
-        print("❌ Contraseña incorrecta.")
-    except PleaseWaitFewMinutes:
-        print("🚫 Instagram pide esperar unos minutos. Cambia tu IP.")
-    except LoginRequired:
-        print("🔑 Instagram requiere nuevo inicio de sesión.")
     except Exception as e:
-        print(f"❌ Error desconocido: {str(e)}")
+        print(f"❌ Error en login: {e}")
+        return None
 
-    return None
+
+def is_session_valid(cl):
+    try:
+        cl.get_timeline_feed()
+        return True
+    except Exception:
+        return False
