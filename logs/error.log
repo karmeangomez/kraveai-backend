@@ -40798,3 +40798,17 @@ error: ⚠️ Error al tomar screenshot: Protocol error (Page.captureScreenshot)
 2025-07-20 14:03:23: ERROR:    [Errno 98] error while attempting to bind on address ('0.0.0.0', 8000): address already in use
 2025-07-20 14:03:23: INFO:     Waiting for application shutdown.
 2025-07-20 14:03:23: INFO:     Application shutdown complete.
+2025-07-20 14:03:24: INFO:     Started server process [237688]
+2025-07-20 14:03:24: INFO:     Waiting for application startup.
+2025-07-20 14:03:24: 2025-07-20 14:03:24,411 [ERROR] 🚨 No se pudo restaurar la sesión. Verifica manualmente en /sesiones/
+2025-07-20 14:03:24: INFO:     Application startup complete.
+2025-07-20 14:03:24: ERROR:    [Errno 98] error while attempting to bind on address ('0.0.0.0', 8000): address already in use
+2025-07-20 14:03:24: INFO:     Waiting for application shutdown.
+2025-07-20 14:03:24: INFO:     Application shutdown complete.
+2025-07-20 14:03:24: INFO:     Started server process [237717]
+2025-07-20 14:03:24: INFO:     Waiting for application startup.
+2025-07-20 14:03:24: 2025-07-20 14:03:24,934 [ERROR] 🚨 No se pudo restaurar la sesión. Verifica manualmente en /sesiones/
+2025-07-20 14:03:24: INFO:     Application startup complete.
+2025-07-20 14:03:24: ERROR:    [Errno 98] error while attempting to bind on address ('0.0.0.0', 8000): address already in use
+2025-07-20 14:03:24: INFO:     Waiting for application shutdown.
+2025-07-20 14:03:24: INFO:     Application shutdown complete.
