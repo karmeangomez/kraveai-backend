@@ -4,6 +4,7 @@ from instagrapi import Client
 from pathlib import Path
 from instagrapi.exceptions import LoginRequired, BadPassword, PleaseWaitFewMinutes
 
+# 📂 Sesiones fuera de src por seguridad
 SESSION_FILE = Path(__file__).resolve().parent.parent / "sesiones" / "ig_session_kraveaibot.json"
 PROXY_FILE = Path(__file__).resolve().parent / "proxies" / "proxies.txt"
 
@@ -12,10 +13,22 @@ PASSWORD = os.getenv("INSTAGRAM_PASS")
 
 
 def load_proxies():
+    """Carga proxies desde proxies.txt y normaliza formato"""
     proxies = []
     if PROXY_FILE.exists():
         with open(PROXY_FILE, "r") as f:
-            proxies = [f"http://{line.strip()}" for line in f if line.strip()]
+            for line in f:
+                line = line.strip()
+                if line:
+                    if line.count(":") == 3:  # host:port:user:pass
+                        host, port, user, pwd = line.split(":")
+                        proxy_str = f"http://{user}:{pwd}@{host}:{port}"
+                    elif "@" in line:
+                        proxy_str = f"http://{line}"
+                    else:
+                        proxy_str = f"http://{line}"
+                    proxies.append(proxy_str)
+                    print(f"🔌 Proxy transformado: {line} → {proxy_str}")
     return proxies
 
 
@@ -25,7 +38,7 @@ def random_proxy(proxies):
 
 def login_instagram():
     if not USERNAME or not PASSWORD:
-        print("❌ IG_USERNAME o INSTAGRAM_PASS no configuradas en .env")
+        print("❌ Faltan IG_USERNAME o INSTAGRAM_PASS en .env")
         return None
 
     cl = Client()
@@ -34,10 +47,11 @@ def login_instagram():
     proxies = load_proxies()
     proxy = random_proxy(proxies)
     if proxy:
-        cl.set_proxy(proxy)
-        print(f"🌐 Proxy asignado: {proxy}")
-    else:
-        print("⚠️ No se encontraron proxies, usando IP local")
+        try:
+            cl.set_proxy(proxy)
+            print(f"🌐 Proxy activado: {proxy}")
+        except Exception as e:
+            print(f"⚠️ Proxy inválido: {e} — usando IP local")
 
     if SESSION_FILE.exists():
         try:
@@ -46,22 +60,22 @@ def login_instagram():
             print(f"✅ Sesión restaurada como @{cl.username}")
             return cl
         except Exception as e:
-            print(f"⚠️ Sesión dañada: {e}, eliminando...")
+            print(f"⚠️ Sesión corrupta eliminada: {e}")
             SESSION_FILE.unlink(missing_ok=True)
 
     try:
         print(f"➡️ Iniciando sesión como @{USERNAME}")
         cl.login(USERNAME, PASSWORD)
         cl.dump_settings(SESSION_FILE)
-        print(f"✅ Login exitoso como @{cl.username}")
+        print(f"✅ Login exitoso @{cl.username}")
         return cl
     except BadPassword:
         print("❌ Contraseña incorrecta.")
     except PleaseWaitFewMinutes:
-        print("🚫 IP bloqueada temporalmente. Cambia IP o usa proxy.")
+        print("⏳ Instagram pide esperar. Cambia IP o proxy.")
     except LoginRequired:
-        print("🔐 Sesión caducada, requiere login manual.")
+        print("🔐 Instagram requiere login manual. Borra sesión y reintenta.")
     except Exception as e:
-        print(f"❌ Otro error: {e}")
+        print(f"❌ Error inesperado: {str(e)}")
 
     return None
