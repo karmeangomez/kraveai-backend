@@ -39909,3 +39909,58 @@ error: ⚠️ Error al tomar screenshot: Protocol error (Page.captureScreenshot)
 2025-07-20 13:43:53:   File "/home/karmean/kraveai-backend/src/main.py", line 9, in <module>
 2025-07-20 13:43:53:     from login_utils import login_instagram, is_session_valid
 2025-07-20 13:43:53: ModuleNotFoundError: No module named 'login_utils'
+2025-07-20 13:59:07: Traceback (most recent call last):
+2025-07-20 13:59:07:   File "<frozen runpy>", line 198, in _run_module_as_main
+2025-07-20 13:59:07:   File "<frozen runpy>", line 88, in _run_code
+2025-07-20 13:59:07:   File "/home/karmean/kraveai-backend/venv/lib/python3.11/site-packages/uvicorn/__main__.py", line 4, in <module>
+2025-07-20 13:59:07:     uvicorn.main()
+2025-07-20 13:59:07:   File "/home/karmean/kraveai-backend/venv/lib/python3.11/site-packages/click/core.py", line 1442, in __call__
+2025-07-20 13:59:07:     return self.main(*args, **kwargs)
+2025-07-20 13:59:07:            ^^^^^^^^^^^^^^^^^^^^^^^^^^
+2025-07-20 13:59:07:   File "/home/karmean/kraveai-backend/venv/lib/python3.11/site-packages/click/core.py", line 1363, in main
+2025-07-20 13:59:07:     rv = self.invoke(ctx)
+2025-07-20 13:59:07:          ^^^^^^^^^^^^^^^^
+2025-07-20 13:59:07:   File "/home/karmean/kraveai-backend/venv/lib/python3.11/site-packages/click/core.py", line 1226, in invoke
+2025-07-20 13:59:07:     return ctx.invoke(self.callback, **ctx.params)
+2025-07-20 13:59:07:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2025-07-20 13:59:07:   File "/home/karmean/kraveai-backend/venv/lib/python3.11/site-packages/click/core.py", line 794, in invoke
+2025-07-20 13:59:07:     return callback(*args, **kwargs)
+2025-07-20 13:59:07:            ^^^^^^^^^^^^^^^^^^^^^^^^^
+2025-07-20 13:59:07:   File "/home/karmean/kraveai-backend/venv/lib/python3.11/site-packages/uvicorn/main.py", line 410, in main
+2025-07-20 13:59:07:     run(
+2025-07-20 13:59:07:   File "/home/karmean/kraveai-backend/venv/lib/python3.11/site-packages/uvicorn/main.py", line 578, in run
+2025-07-20 13:59:07:     server.run()
+2025-07-20 13:59:07:   File "/home/karmean/kraveai-backend/venv/lib/python3.11/site-packages/uvicorn/server.py", line 61, in run
+2025-07-20 13:59:07:     return asyncio.run(self.serve(sockets=sockets))
+2025-07-20 13:59:07:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2025-07-20 13:59:07:   File "/usr/lib/python3.11/asyncio/runners.py", line 190, in run
+2025-07-20 13:59:07:     return runner.run(main)
+2025-07-20 13:59:07:            ^^^^^^^^^^^^^^^^
+2025-07-20 13:59:07:   File "/usr/lib/python3.11/asyncio/runners.py", line 118, in run
+2025-07-20 13:59:07:     return self._loop.run_until_complete(task)
+2025-07-20 13:59:07:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2025-07-20 13:59:07:   File "/usr/lib/python3.11/asyncio/base_events.py", line 653, in run_until_complete
+2025-07-20 13:59:07:     return future.result()
+2025-07-20 13:59:07:            ^^^^^^^^^^^^^^^
+2025-07-20 13:59:07:   File "/home/karmean/kraveai-backend/venv/lib/python3.11/site-packages/uvicorn/server.py", line 68, in serve
+2025-07-20 13:59:07:     config.load()
+2025-07-20 13:59:07:   File "/home/karmean/kraveai-backend/venv/lib/python3.11/site-packages/uvicorn/config.py", line 473, in load
+2025-07-20 13:59:07:     self.loaded_app = import_from_string(self.app)
+2025-07-20 13:59:07:                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2025-07-20 13:59:07:   File "/home/karmean/kraveai-backend/venv/lib/python3.11/site-packages/uvicorn/importer.py", line 24, in import_from_string
+2025-07-20 13:59:07:     raise exc from None
+2025-07-20 13:59:07:   File "/home/karmean/kraveai-backend/venv/lib/python3.11/site-packages/uvicorn/importer.py", line 21, in import_from_string
+2025-07-20 13:59:07:     module = importlib.import_module(module_str)
+2025-07-20 13:59:07:              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2025-07-20 13:59:07:   File "/usr/lib/python3.11/importlib/__init__.py", line 126, in import_module
+2025-07-20 13:59:07:     return _bootstrap._gcd_import(name[level:], package, level)
+2025-07-20 13:59:07:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2025-07-20 13:59:07:   File "<frozen importlib._bootstrap>", line 1206, in _gcd_import
+2025-07-20 13:59:07:   File "<frozen importlib._bootstrap>", line 1178, in _find_and_load
+2025-07-20 13:59:07:   File "<frozen importlib._bootstrap>", line 1149, in _find_and_load_unlocked
+2025-07-20 13:59:07:   File "<frozen importlib._bootstrap>", line 690, in _load_unlocked
+2025-07-20 13:59:07:   File "<frozen importlib._bootstrap_external>", line 940, in exec_module
+2025-07-20 13:59:07:   File "<frozen importlib._bootstrap>", line 241, in _call_with_frames_removed
+2025-07-20 13:59:07:   File "/home/karmean/kraveai-backend/src/main.py", line 9, in <module>
+2025-07-20 13:59:07:     from login_utils import login_instagram, is_session_valid
+2025-07-20 13:59:07: ModuleNotFoundError: No module named 'login_utils'
