@@ -40882,3 +40882,24 @@ error: ⚠️ Error al tomar screenshot: Protocol error (Page.captureScreenshot)
 2025-07-20 14:03:31: ERROR:    [Errno 98] error while attempting to bind on address ('0.0.0.0', 8000): address already in use
 2025-07-20 14:03:31: INFO:     Waiting for application shutdown.
 2025-07-20 14:03:31: INFO:     Application shutdown complete.
+2025-07-20 14:03:32: INFO:     Started server process [237966]
+2025-07-20 14:03:32: INFO:     Waiting for application startup.
+2025-07-20 14:03:32: 2025-07-20 14:03:32,070 [ERROR] 🚨 No se pudo restaurar la sesión. Verifica manualmente en /sesiones/
+2025-07-20 14:03:32: INFO:     Application startup complete.
+2025-07-20 14:03:32: ERROR:    [Errno 98] error while attempting to bind on address ('0.0.0.0', 8000): address already in use
+2025-07-20 14:03:32: INFO:     Waiting for application shutdown.
+2025-07-20 14:03:32: INFO:     Application shutdown complete.
+2025-07-20 14:03:32: INFO:     Started server process [238007]
+2025-07-20 14:03:32: INFO:     Waiting for application startup.
+2025-07-20 14:03:32: 2025-07-20 14:03:32,640 [ERROR] 🚨 No se pudo restaurar la sesión. Verifica manualmente en /sesiones/
+2025-07-20 14:03:32: INFO:     Application startup complete.
+2025-07-20 14:03:32: ERROR:    [Errno 98] error while attempting to bind on address ('0.0.0.0', 8000): address already in use
+2025-07-20 14:03:32: INFO:     Waiting for application shutdown.
+2025-07-20 14:03:32: INFO:     Application shutdown complete.
+2025-07-20 14:03:33: INFO:     Started server process [238036]
+2025-07-20 14:03:33: INFO:     Waiting for application startup.
+2025-07-20 14:03:33: 2025-07-20 14:03:33,205 [ERROR] 🚨 No se pudo restaurar la sesión. Verifica manualmente en /sesiones/
+2025-07-20 14:03:33: INFO:     Application startup complete.
+2025-07-20 14:03:33: ERROR:    [Errno 98] error while attempting to bind on address ('0.0.0.0', 8000): address already in use
+2025-07-20 14:03:33: INFO:     Waiting for application shutdown.
+2025-07-20 14:03:33: INFO:     Application shutdown complete.
