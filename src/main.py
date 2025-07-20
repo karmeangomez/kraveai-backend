@@ -5,7 +5,9 @@ from dotenv import load_dotenv
 from src.login_utils import login_instagram
 import uvicorn
 
+# 🔑 Cargar .env
 load_dotenv()
+
 app = FastAPI(title="KraveAI Backend", version="v2.5")
 
 cl = None
