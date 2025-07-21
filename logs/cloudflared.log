@@ -17,3 +17,5 @@
 2025-07-21T22:28:29Z INF Registered tunnel connection connIndex=1 connection=21e5b219-fb68-458b-818c-9b6b9fd76566 event=0 ip=198.41.200.23 location=dfw06 protocol=quic
 2025-07-21T22:28:29Z INF Tunnel connection curve preferences: [X25519MLKEM768 CurveP256] connIndex=2 event=0 ip=198.41.192.7
 2025-07-21T22:28:29Z INF Registered tunnel connection connIndex=2 connection=e408cc72-a8ca-48ab-8edd-8fd7cf1c781a event=0 ip=198.41.192.7 location=qro01 protocol=quic
+2025-07-21T22:28:30Z INF Tunnel connection curve preferences: [X25519MLKEM768 CurveP256] connIndex=3 event=0 ip=198.41.200.73
+2025-07-21T22:28:31Z INF Registered tunnel connection connIndex=3 connection=a11c580b-3c2a-4e02-afc5-a9fce66051a3 event=0 ip=198.41.200.73 location=dfw06 protocol=quic
