@@ -112,21 +112,4 @@ def add_account(acc: ManualAccount, bg: BackgroundTasks):
 def list_accounts():
     return {"accounts": list(SESSIONS.keys())}
 
-# 6️⃣ Keep-alive para mantener sesiones vivas
-async def keep_alive(username: str):
-    while True:
-        await asyncio.sleep(300)  # 5 min
-        cl = SESSIONS.get(username)
-        if cl:
-            try:
-                cl.account_info()
-                print(f"🔁 Keep-alive {username}")
-            except Exception:
-                print(f"💀 Sesión expiró {username}")
-                SESSIONS.pop(username, None)
-                break
-
-# 7️⃣ Arrancar
-if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+#
