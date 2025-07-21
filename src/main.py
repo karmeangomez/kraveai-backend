@@ -1,29 +1,20 @@
 # ~/kraveai-backend/src/main.py
 import os
 import json
-import time
 import asyncio
-from typing import Dict, Any
+from typing import Dict
 from fastapi import FastAPI, HTTPException, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
+from login_utils import login_instagram  # ✅ Usa tu lógica
 from instagrapi import Client
-from dotenv import load_dotenv
 
-ENV_PATH = "/home/karmean/kraveai-backend/.env"
-if os.path.exists(ENV_PATH):
-    load_dotenv(ENV_PATH)
-
-app = FastAPI(title="KraveAI Backend", version="v3.2")
+app = FastAPI(title="KraveAI Backend", version="v3.3")
 
 # CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "https://kraveai.netlify.app",
-        "http://localhost:3000",
-        "https://app.kraveapi.xyz"
-    ],
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -43,7 +34,7 @@ STORE_FILE = "/home/karmean/kraveai-backend/session_store.json"
 
 def load_store():
     if os.path.exists(STORE_FILE):
-        with open(STORE_FILE, "r") as f:
+        with open(STORE_FILE) as f:
             return json.load(f)
     return {}
 
@@ -51,39 +42,33 @@ def save_store(data: dict):
     with open(STORE_FILE, "w") as f:
         json.dump(data, f, indent=2)
 
-# Login automático al arrancar
+# 1️⃣ Login automático de cuenta principal
 @app.on_event("startup")
 async def startup_event():
-    # Login cuenta principal
-    cl = Client()
-    cl.set_proxy(os.getenv("PROXY_URL", ""))
-    try:
-        cl.login(os.getenv("IG_USER"), os.getenv("IG_PASS"))
+    cl = login_instagram()
+    if cl:
         SESSIONS["krave"] = cl
         print("✅ Sesión 'krave' iniciada")
-    except Exception as e:
-        print("❌ No se pudo iniciar sesión 'krave':", e)
+    else:
+        print("❌ No se pudo iniciar sesión 'krave'")
 
-    # Login cuentas guardadas
+    # Restaurar cuentas manuales
     store = load_store()
-    for user, pwd in store.items():
+    for u, p in store.items():
         try:
             c = Client()
-            c.set_proxy(os.getenv("PROXY_URL", ""))
-            c.login(user, pwd)
-            SESSIONS[user] = c
-            print(f"✅ Sesión '{user}' restaurada")
+            c.login(u, p)
+            SESSIONS[u] = c
+            print(f"✅ Sesión '{u}' restaurada")
         except Exception as e:
-            print(f"⚠️ Fallo al restaurar '{user}':", e)
+            print(f"⚠️ Fallo al restaurar '{u}':", e)
 
-# Health-check
+# 2️⃣ Health-check
 @app.get("/health")
 def health():
-    krave = SESSIONS.get("krave")
-    status = "Activo" if krave else "Inactivo"
-    return {"status": "OK", "krave": status}
+    return {"status": "OK", "accounts": list(SESSIONS.keys())}
 
-# Buscar usuario (usa cuenta principal)
+# 3️⃣ Buscar usuario (usa cuenta "krave")
 @app.post("/search")
 def search_user(data: SearchUser):
     cl = SESSIONS.get("krave")
@@ -100,35 +85,37 @@ def search_user(data: SearchUser):
             "biography": user.biography,
             "is_private": user.is_private,
             "is_verified": user.is_verified,
-            "is_business": user.is_business,
             "profile_pic_url": str(user.profile_pic_url),
         }
     except Exception as e:
         raise HTTPException(400, str(e))
 
-# Guardar cuenta manual
+# 4️⃣ Añadir cuenta manual
 @app.post("/add_account")
-def add_account(acc: ManualAccount, background: BackgroundTasks):
+def add_account(acc: ManualAccount, bg: BackgroundTasks):
     if acc.username in SESSIONS:
         raise HTTPException(409, "Cuenta ya existe")
     try:
         cl = Client()
-        cl.set_proxy(os.getenv("PROXY_URL", ""))
         cl.login(acc.username, acc.password)
         SESSIONS[acc.username] = cl
         store = load_store()
         store[acc.username] = acc.password
         save_store(store)
-        # Keep alive
-        background.add_task(keep_alive, acc.username)
+        bg.add_task(keep_alive, acc.username)
         return {"detail": "Cuenta añadida y activa"}
     except Exception as e:
         raise HTTPException(400, str(e))
 
-# Keep-alive en segundo plano
+# 5️⃣ Listar cuentas activas
+@app.get("/accounts")
+def list_accounts():
+    return {"accounts": list(SESSIONS.keys())}
+
+# 6️⃣ Keep-alive para mantener sesiones vivas
 async def keep_alive(username: str):
     while True:
-        await asyncio.sleep(300)  # cada 5 min
+        await asyncio.sleep(300)  # 5 min
         cl = SESSIONS.get(username)
         if cl:
             try:
@@ -139,7 +126,7 @@ async def keep_alive(username: str):
                 SESSIONS.pop(username, None)
                 break
 
-# Listar cuentas activas
-@app.get("/accounts")
-def list_accounts():
-    return {"accounts": list(SESSIONS.keys())}
+# 7️⃣ Arrancar
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8000)
