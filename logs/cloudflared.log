@@ -37,3 +37,5 @@
 2025-07-21T22:35:17Z ERR Request failed error="Incoming request ended abruptly: context canceled" connIndex=1 dest=https://api.kraveapi.xyz/health event=0 ip=198.41.200.23 type=http
 2025-07-21T22:35:26Z ERR  error="Incoming request ended abruptly: context canceled" connIndex=2 event=1 ingressRule=0 originService=http://localhost:8000
 2025-07-21T22:35:26Z ERR Request failed error="Incoming request ended abruptly: context canceled" connIndex=2 dest=https://api.kraveapi.xyz/health event=0 ip=198.41.192.7 type=http
+2025-07-21T22:36:27Z ERR  error="Incoming request ended abruptly: context canceled" connIndex=0 event=1 ingressRule=0 originService=http://localhost:8000
+2025-07-21T22:36:27Z ERR Request failed error="Incoming request ended abruptly: context canceled" connIndex=0 dest=https://api.kraveapi.xyz/health event=0 ip=198.41.192.167 type=http
