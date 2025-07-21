@@ -3,11 +3,11 @@ import os
 import time
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from .login_utils import login_instagram
+from login_utils import login_instagram   # 1️⃣ CORREGIDO: sin punto
 import uvicorn
 from dotenv import load_dotenv
 
-# 1️⃣ Carga segura del .env
+# 2️⃣ Carga segura del .env
 ENV_PATH = "/home/karmean/kraveai-backend/.env"
 if os.path.exists(ENV_PATH):
     load_dotenv(ENV_PATH, override=True)
@@ -17,7 +17,7 @@ else:
 
 app = FastAPI(title="KraveAI Backend", version="v3.1")
 
-# 2️⃣ Variables globales de sesión
+# 3️⃣ Variables globales de sesión
 cl = None
 LAST_LOGIN_ATTEMPT = 0
 
@@ -32,16 +32,14 @@ def initialize_session():
     if not cl:
         print("⚠️ No se pudo establecer sesión inicial")
 
-# 3️⃣ Health-check robusto: siempre reintenta si cl es None
+# 4️⃣ Health-check robusto
 @app.get("/health")
 def health_check():
     global cl, LAST_LOGIN_ATTEMPT
-
     status = "Fallido"
     detalle = "Requiere atención"
     username = "N/A"
 
-    # 🔁 Siempre reintenta si cl está vacío
     if cl is None:
         print("🔄 Forzando login porque cl está vacío...")
         cl = login_instagram()
@@ -73,7 +71,7 @@ def health_check():
         "timestamp": int(time.time()),
     }
 
-# 4️⃣ CORS para tu frontend
+# 5️⃣ CORS
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
@@ -87,7 +85,7 @@ app.add_middleware(
     expose_headers=["X-Status-Message"],
 )
 
-# 5️⃣ Arranque del servidor Uvicorn
+# 6️⃣ Arranque
 def run_server():
     uvicorn.run(
         app,
