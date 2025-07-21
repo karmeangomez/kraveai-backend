@@ -3233,3 +3233,114 @@
 2025-07-21 12:23:21: ❌ Faltan IG_USERNAME o INSTAGRAM_PASS en .env
 2025-07-21 12:23:22: ❌ Faltan IG_USERNAME o INSTAGRAM_PASS en .env
 2025-07-21 12:23:22: ❌ Faltan IG_USERNAME o INSTAGRAM_PASS en .env
+2025-07-21 12:26:21: ✅ .env cargado desde /home/karmean/kraveai-backend/.env
+2025-07-21 12:26:21: ✅ .env cargado desde /home/karmean/kraveai-backend/.env
+2025-07-21 12:26:21: 
+2025-07-21 12:26:21: ==================================================
+2025-07-21 12:26:21: 🔥 INICIANDO BACKEND KRAVEAI - SISTEMA AUTO-REPARABLE
+2025-07-21 12:26:21: ==================================================
+2025-07-21 12:26:21: 🔌 Proxy #1: p.webshare.io:80:pdsmombq-1:terqdq67j6mp → http://pdsmombq-1:terqdq67j6mp@p.webshare.io:80
+2025-07-21 12:26:21: 🔌 Proxy #2: p.webshare.io:80:pdsmombq-2:terqdq67j6mp → http://pdsmombq-2:terqdq67j6mp@p.webshare.io:80
+2025-07-21 12:26:21: 
+2025-07-21 12:26:21: 🔌 Proxy #4: p.webshare.io:80:pdsmombq-4:terqdq67j6mp → http://pdsmombq-4:terqdq67j6mp@p.webshare.io:80
+2025-07-21 12:26:21: 🔌 Proxy #5: p.webshare.io:80:pdsmombq-5:terqdq67j6mp → http://pdsmombq-5:terqdq67j6mp@p.webshare.io:80
+2025-07-21 12:26:21: 🔌 Proxy #6: p.webshare.io:80:pdsmombq-6:terqdq67j6mp → http://pdsmombq-6:terqdq67j6mp@p.webshare.io:80
+2025-07-21 12:26:21: 🔌 Proxy #7: p.webshare.io:80:pdsmombq-7:terqdq67j6mp → http://pdsmombq-7:terqdq67j6mp@p.webshare.io:80
+2025-07-21 12:26:21: 🔌 Proxy #8: p.webshare.io:80:pdsmombq-8:terqdq67j6mp → http://pdsmombq-8:terqdq67j6mp@p.webshare.io:80
+2025-07-21 12:26:21: 🔌 Proxy #9: p.webshare.io:80:pdsmombq-9:terqdq67j6mp → http://pdsmombq-9:terqdq67j6mp@p.webshare.io:80
+2025-07-21 12:26:21: 🔌 Proxy #10: p.webshare.io:80:pdsmombq-10:terqdq67j6mp → http://pdsmombq-10:terqdq67j6mp@p.webshare.io:80
+2025-07-21 12:26:21: 🔌 Proxy #11: p.webshare.io:80:pdsmombq-11:terqdq67j6mp → http://pdsmombq-11:terqdq67j6mp@p.webshare.io:80
+2025-07-21 12:26:21: 🔌 Proxy #12: p.webshare.io:80:pdsmombq-12:terqdq67j6mp → http://pdsmombq-12:terqdq67j6mp@p.webshare.io:80
+2025-07-21 12:26:21: 🔌 Proxy #13: p.webshare.io:80:pdsmombq-13:terqdq67j6mp → http://pdsmombq-13:terqdq67j6mp@p.webshare.io:80
+2025-07-21 12:26:21: 🔌 Proxy #14: p.webshare.io:80:pdsmombq-14:terqdq67j6mp → http://pdsmombq-14:terqdq67j6mp@p.webshare.io:80
+2025-07-21 12:26:21: 🔌 Proxy #15: p.webshare.io:80:pdsmombq-15:terqdq67j6mp → http://pdsmombq-15:terqdq67j6mp@p.webshare.io:80
+2025-07-21 12:26:21: 🔌 Proxy #16: p.webshare.io:80:pdsmombq-16:terqdq67j6mp → http://pdsmombq-16:terqdq67j6mp@p.webshare.io:80
+2025-07-21 12:26:21: 🔌 Proxy #17: p.webshare.io:80:pdsmombq-17:terqdq67j6mp → http://pdsmombq-17:terqdq67j6mp@p.webshare.io:80
+2025-07-21 12:26:21: 🔌 Proxy #18: p.webshare.io:80:pdsmombq-18:terqdq67j6mp → http://pdsmombq-18:terqdq67j6mp@p.webshare.io:80
+2025-07-21 12:26:21: 🔌 Proxy #19: p.webshare.io:80:pdsmombq-19:terqdq67j6mp → http://pdsmombq-19:terqdq67j6mp@p.webshare.io:80
+2025-07-21 12:26:21: 🔌 Proxy #20: p.webshare.io:80:pdsmombq-20:terqdq67j6mp → http://pdsmombq-20:terqdq67j6mp@p.webshare.io:80
+2025-07-21 12:26:21: 🔌 Proxy #21: p.webshare.io:80:pdsmombq-21:terqdq67j6mp → http://pdsmombq-21:terqdq67j6mp@p.webshare.io:80
+2025-07-21 12:26:21: 🔌 Proxy #22: p.webshare.io:80:pdsmombq-22:terqdq67j6mp → http://pdsmombq-22:terqdq67j6mp@p.webshare.io:80
+2025-07-21 12:26:21: 🔌 Proxy #23: p.webshare.io:80:pdsmombq-23:terqdq67j6mp → http://pdsmombq-23:terqdq67j6mp@p.webshare.io:80
+2025-07-21 12:26:21: 🔌 Proxy #24: p.webshare.io:80:pdsmombq-24:terqdq67j6mp → http://pdsmombq-24:terqdq67j6mp@p.webshare.io:80
+2025-07-21 12:26:21: 🔌 Proxy #25: p.webshare.io:80:pdsmombq-25:terqdq67j6mp → http://pdsmombq-25:terqdq67j6mp@p.webshare.io:80
+2025-07-21 12:26:21: 🔌 Proxy #26: p.webshare.io:80:pdsmombq-26:terqdq67j6mp → http://pdsmombq-26:terqdq67j6mp@p.webshare.io:80
+2025-07-21 12:26:21: 🔌 Proxy #27: p.webshare.io:80:pdsmombq-27:terqdq67j6mp → http://pdsmombq-27:terqdq67j6mp@p.webshare.io:80
+2025-07-21 12:26:21: 🔌 Proxy #28: p.webshare.io:80:pdsmombq-28:terqdq67j6mp → http://pdsmombq-28:terqdq67j6mp@p.webshare.io:80
+2025-07-21 12:26:21: 🔌 Proxy #29: p.webshare.io:80:pdsmombq-29:terqdq67j6mp → http://pdsmombq-29:terqdq67j6mp@p.webshare.io:80
+2025-07-21 12:26:21: 🔌 Proxy #30: p.webshare.io:80:pdsmombq-30:terqdq67j6mp → http://pdsmombq-30:terqdq67j6mp@p.webshare.io:80
+2025-07-21 12:26:21: 🔌 Proxy #31: p.webshare.io:80:pdsmombq-31:terqdq67j6mp → http://pdsmombq-31:terqdq67j6mp@p.webshare.io:80
+2025-07-21 12:26:21: 🔌 Proxy #32: p.webshare.io:80:pdsmombq-32:terqdq67j6mp → http://pdsmombq-32:terqdq67j6mp@p.webshare.io:80
+2025-07-21 12:26:21: 🔌 Proxy #33: p.webshare.io:80:pdsmombq-33:terqdq67j6mp → http://pdsmombq-33:terqdq67j6mp@p.webshare.io:80
+2025-07-21 12:26:21: 🔌 Proxy #34: p.webshare.io:80:pdsmombq-34:terqdq67j6mp → http://pdsmombq-34:terqdq67j6mp@p.webshare.io:80
+2025-07-21 12:26:21: 🔌 Proxy #35: p.webshare.io:80:pdsmombq-35:terqdq67j6mp → http://pdsmombq-35:terqdq67j6mp@p.webshare.io:80
+2025-07-21 12:26:21: 🔌 Proxy #36: p.webshare.io:80:pdsmombq-36:terqdq67j6mp → http://pdsmombq-36:terqdq67j6mp@p.webshare.io:80
+2025-07-21 12:26:21: 🔌 Proxy #37: p.webshare.io:80:pdsmombq-37:terqdq67j6mp → http://pdsmombq-37:terqdq67j6mp@p.webshare.io:80
+2025-07-21 12:26:21: 🔌 Proxy #38: p.webshare.io:80:pdsmombq-38:terqdq67j6mp → http://pdsmombq-38:terqdq67j6mp@p.webshare.io:80
+2025-07-21 12:26:21: 🔌 Proxy #39: p.webshare.io:80:pdsmombq-39:terqdq67j6mp → http://pdsmombq-39:terqdq67j6mp@p.webshare.io:80
+2025-07-21 12:26:21: 🔌 Proxy #40: p.webshare.io:80:pdsmombq-40:terqdq67j6mp → http://pdsmombq-40:terqdq67j6mp@p.webshare.io:80
+2025-07-21 12:26:21: 🔌 Proxy #41: p.webshare.io:80:pdsmombq-41:terqdq67j6mp → http://pdsmombq-41:terqdq67j6mp@p.webshare.io:80
+2025-07-21 12:26:21: 🔌 Proxy #42: p.webshare.io:80:pdsmombq-42:terqdq67j6mp → http://pdsmombq-42:terqdq67j6mp@p.webshare.io:80
+2025-07-21 12:26:21: 🔌 Proxy #43: p.webshare.io:80:pdsmombq-43:terqdq67j6mp → http://pdsmombq-43:terqdq67j6mp@p.webshare.io:80
+2025-07-21 12:26:21: 
+2025-07-21 12:26:21: 🔌 Proxy #45: p.webshare.io:80:pdsmombq-45:terqdq67j6mp → http://pdsmombq-45:terqdq67j6mp@p.webshare.io:80
+2025-07-21 12:26:21: 🔌 Proxy #46: p.webshare.io:80:pdsmombq-46:terqdq67j6mp → http://pdsmombq-46:terqdq67j6mp@p.webshare.io:80
+2025-07-21 12:26:21: 🔌 Proxy #47: p.webshare.io:80:pdsmombq-47:terqdq67j6mp → http://pdsmombq-47:terqdq67j6mp@p.webshare.io:80
+2025-07-21 12:26:21: 🔌 Proxy #48: p.webshare.io:80:pdsmombq-48:terqdq67j6mp → http://pdsmombq-48:terqdq67j6mp@p.webshare.io:80
+2025-07-21 12:26:21: 🔌 Proxy #49: p.webshare.io:80:pdsmombq-49:terqdq67j6mp → http://pdsmombq-49:terqdq67j6mp@p.webshare.io:80
+2025-07-21 12:26:21: 🔌 Proxy #50: p.webshare.io:80:pdsmombq-50:terqdq67j6mp → http://pdsmombq-50:terqdq67j6mp@p.webshare.io:80
+2025-07-21 12:26:21: 🔌 Proxy #51: p.webshare.io:80:pdsmombq-51:terqdq67j6mp → http://pdsmombq-51:terqdq67j6mp@p.webshare.io:80
+2025-07-21 12:26:21: 🔌 Proxy #52: p.webshare.io:80:pdsmombq-52:terqdq67j6mp → http://pdsmombq-52:terqdq67j6mp@p.webshare.io:80
+2025-07-21 12:26:21: 🔌 Proxy #53: p.webshare.io:80:pdsmombq-53:terqdq67j6mp → http://pdsmombq-53:terqdq67j6mp@p.webshare.io:80
+2025-07-21 12:26:21: 🔌 Proxy #54: p.webshare.io:80:pdsmombq-54:terqdq67j6mp → http://pdsmombq-54:terqdq67j6mp@p.webshare.io:80
+2025-07-21 12:26:21: 🔌 Proxy #55: p.webshare.io:80:pdsmombq-55:terqdq67j6mp → http://pdsmombq-55:terqdq67j6mp@p.webshare.io:80
+2025-07-21 12:26:21: 🔌 Proxy #56: p.webshare.io:80:pdsmombq-56:terqdq67j6mp → http://pdsmombq-56:terqdq67j6mp@p.webshare.io:80
+2025-07-21 12:26:21: 🔌 Proxy #57: p.webshare.io:80:pdsmombq-57:terqdq67j6mp → http://pdsmombq-57:terqdq67j6mp@p.webshare.io:80
+2025-07-21 12:26:21: 🔌 Proxy #58: p.webshare.io:80:pdsmombq-58:terqdq67j6mp → http://pdsmombq-58:terqdq67j6mp@p.webshare.io:80
+2025-07-21 12:26:21: 🔌 Proxy #59: p.webshare.io:80:pdsmombq-59:terqdq67j6mp → http://pdsmombq-59:terqdq67j6mp@p.webshare.io:80
+2025-07-21 12:26:21: 🔌 Proxy #60: p.webshare.io:80:pdsmombq-60:terqdq67j6mp → http://pdsmombq-60:terqdq67j6mp@p.webshare.io:80
+2025-07-21 12:26:21: 🔌 Proxy #61: p.webshare.io:80:pdsmombq-61:terqdq67j6mp → http://pdsmombq-61:terqdq67j6mp@p.webshare.io:80
+2025-07-21 12:26:21: 🔌 Proxy #62: p.webshare.io:80:pdsmombq-62:terqdq67j6mp → http://pdsmombq-62:terqdq67j6mp@p.webshare.io:80
+2025-07-21 12:26:21: 🔌 Proxy #63: p.webshare.io:80:pdsmombq-63:terqdq67j6mp → http://pdsmombq-63:terqdq67j6mp@p.webshare.io:80
+2025-07-21 12:26:21: 🔌 Proxy #64: p.webshare.io:80:pdsmombq-64:terqdq67j6mp → http://pdsmombq-64:terqdq67j6mp@p.webshare.io:80
+2025-07-21 12:26:21: 🔌 Proxy #65: p.webshare.io:80:pdsmombq-65:terqdq67j6mp → http://pdsmombq-65:terqdq67j6mp@p.webshare.io:80
+2025-07-21 12:26:21: 🔌 Proxy #66: p.webshare.io:80:pdsmombq-66:terqdq67j6mp → http://pdsmombq-66:terqdq67j6mp@p.webshare.io:80
+2025-07-21 12:26:21: 🔌 Proxy #67: p.webshare.io:80:pdsmombq-67:terqdq67j6mp → http://pdsmombq-67:terqdq67j6mp@p.webshare.io:80
+2025-07-21 12:26:21: 🔌 Proxy #68: p.webshare.io:80:pdsmombq-68:terqdq67j6mp → http://pdsmombq-68:terqdq67j6mp@p.webshare.io:80
+2025-07-21 12:26:21: 🔌 Proxy #69: p.webshare.io:80:pdsmombq-69:terqdq67j6mp → http://pdsmombq-69:terqdq67j6mp@p.webshare.io:80
+2025-07-21 12:26:21: 🔌 Proxy #70: p.webshare.io:80:pdsmombq-70:terqdq67j6mp → http://pdsmombq-70:terqdq67j6mp@p.webshare.io:80
+2025-07-21 12:26:21: 🔌 Proxy #71: p.webshare.io:80:pdsmombq-71:terqdq67j6mp → http://pdsmombq-71:terqdq67j6mp@p.webshare.io:80
+2025-07-21 12:26:21: 🔌 Proxy #72: p.webshare.io:80:pdsmombq-72:terqdq67j6mp → http://pdsmombq-72:terqdq67j6mp@p.webshare.io:80
+2025-07-21 12:26:21: 🔌 Proxy #73: p.webshare.io:80:pdsmombq-73:terqdq67j6mp → http://pdsmombq-73:terqdq67j6mp@p.webshare.io:80
+2025-07-21 12:26:21: 🔌 Proxy #74: p.webshare.io:80:pdsmombq-74:terqdq67j6mp → http://pdsmombq-74:terqdq67j6mp@p.webshare.io:80
+2025-07-21 12:26:21: 🔌 Proxy #75: p.webshare.io:80:pdsmombq-75:terqdq67j6mp → http://pdsmombq-75:terqdq67j6mp@p.webshare.io:80
+2025-07-21 12:26:21: 🔌 Proxy #76: p.webshare.io:80:pdsmombq-76:terqdq67j6mp → http://pdsmombq-76:terqdq67j6mp@p.webshare.io:80
+2025-07-21 12:26:21: 🔌 Proxy #77: p.webshare.io:80:pdsmombq-77:terqdq67j6mp → http://pdsmombq-77:terqdq67j6mp@p.webshare.io:80
+2025-07-21 12:26:21: 🔌 Proxy #78: p.webshare.io:80:pdsmombq-78:terqdq67j6mp → http://pdsmombq-78:terqdq67j6mp@p.webshare.io:80
+2025-07-21 12:26:21: 🔌 Proxy #79: p.webshare.io:80:pdsmombq-79:terqdq67j6mp → http://pdsmombq-79:terqdq67j6mp@p.webshare.io:80
+2025-07-21 12:26:21: 🔌 Proxy #80: p.webshare.io:80:pdsmombq-80:terqdq67j6mp → http://pdsmombq-80:terqdq67j6mp@p.webshare.io:80
+2025-07-21 12:26:21: 🔌 Proxy #81: p.webshare.io:80:pdsmombq-81:terqdq67j6mp → http://pdsmombq-81:terqdq67j6mp@p.webshare.io:80
+2025-07-21 12:26:21: 🔌 Proxy #82: p.webshare.io:80:pdsmombq-82:terqdq67j6mp → http://pdsmombq-82:terqdq67j6mp@p.webshare.io:80
+2025-07-21 12:26:21: 🔌 Proxy #83: p.webshare.io:80:pdsmombq-83:terqdq67j6mp → http://pdsmombq-83:terqdq67j6mp@p.webshare.io:80
+2025-07-21 12:26:21: 🔌 Proxy #84: p.webshare.io:80:pdsmombq-84:terqdq67j6mp → http://pdsmombq-84:terqdq67j6mp@p.webshare.io:80
+2025-07-21 12:26:21: 🔌 Proxy #85: p.webshare.io:80:pdsmombq-85:terqdq67j6mp → http://pdsmombq-85:terqdq67j6mp@p.webshare.io:80
+2025-07-21 12:26:21: 🔌 Proxy #86: p.webshare.io:80:pdsmombq-86:terqdq67j6mp → http://pdsmombq-86:terqdq67j6mp@p.webshare.io:80
+2025-07-21 12:26:21: 🔌 Proxy #87: p.webshare.io:80:pdsmombq-87:terqdq67j6mp → http://pdsmombq-87:terqdq67j6mp@p.webshare.io:80
+2025-07-21 12:26:21: 🔌 Proxy #88: p.webshare.io:80:pdsmombq-88:terqdq67j6mp → http://pdsmombq-88:terqdq67j6mp@p.webshare.io:80
+2025-07-21 12:26:21: 🔌 Proxy #89: p.webshare.io:80:pdsmombq-89:terqdq67j6mp → http://pdsmombq-89:terqdq67j6mp@p.webshare.io:80
+2025-07-21 12:26:21: 🔌 Proxy #90: p.webshare.io:80:pdsmombq-90:terqdq67j6mp → http://pdsmombq-90:terqdq67j6mp@p.webshare.io:80
+2025-07-21 12:26:21: 🔌 Proxy #91: p.webshare.io:80:pdsmombq-91:terqdq67j6mp → http://pdsmombq-91:terqdq67j6mp@p.webshare.io:80
+2025-07-21 12:26:21: 🔌 Proxy #92: p.webshare.io:80:pdsmombq-92:terqdq67j6mp → http://pdsmombq-92:terqdq67j6mp@p.webshare.io:80
+2025-07-21 12:26:21: 🔌 Proxy #93: p.webshare.io:80:pdsmombq-93:terqdq67j6mp → http://pdsmombq-93:terqdq67j6mp@p.webshare.io:80
+2025-07-21 12:26:21: 🔌 Proxy #94: p.webshare.io:80:pdsmombq-94:terqdq67j6mp → http://pdsmombq-94:terqdq67j6mp@p.webshare.io:80
+2025-07-21 12:26:21: 🔌 Proxy #95: p.webshare.io:80:pdsmombq-95:terqdq67j6mp → http://pdsmombq-95:terqdq67j6mp@p.webshare.io:80
+2025-07-21 12:26:21: 🔌 Proxy #96: p.webshare.io:80:pdsmombq-96:terqdq67j6mp → http://pdsmombq-96:terqdq67j6mp@p.webshare.io:80
+2025-07-21 12:26:21: 🔌 Proxy #97: p.webshare.io:80:pdsmombq-97:terqdq67j6mp → http://pdsmombq-97:terqdq67j6mp@p.webshare.io:80
+2025-07-21 12:26:21: 🔌 Proxy #98: p.webshare.io:80:pdsmombq-98:terqdq67j6mp → http://pdsmombq-98:terqdq67j6mp@p.webshare.io:80
+2025-07-21 12:26:21: 🔌 Proxy #99: p.webshare.io:80:pdsmombq-99:terqdq67j6mp → http://pdsmombq-99:terqdq67j6mp@p.webshare.io:80
+2025-07-21 12:26:21: 🔌 Proxy #100: p.webshare.io:80:pdsmombq-100:terqdq67j6mp → http://pdsmombq-100:terqdq67j6mp@p.webshare.io:80
+2025-07-21 12:26:21: 📊 Total proxies válidos: 100
+2025-07-21 12:26:21: 
+2025-07-21 12:26:21: 🔑 INTENTO #1/3
+2025-07-21 12:26:21: 🌐 Proxy: p.webshare.io:80
+2025-07-21 12:26:21: 🔓 Login nuevo como @kraveaibot
