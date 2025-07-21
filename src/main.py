@@ -41,6 +41,7 @@ def health_check():
     detalle = "Requiere atención"
     username = "N/A"
 
+    # 🔁 Siempre reintenta si cl está vacío
     if cl is None:
         print("🔄 Forzando login porque cl está vacío...")
         cl = login_instagram()
@@ -52,7 +53,9 @@ def health_check():
             status = f"Activo (@{username})"
             detalle = "Sesión válida"
         except Exception as e:
-            print(f"⚠️ Sesión expirada: {str(e)}")
+            status = "Fallido"
+            detalle = str(e)[:100]
+            print(f"⚠️ Sesión expirada. Reintentando...")
             cl = login_instagram()
             LAST_LOGIN_ATTEMPT = time.time()
             if cl:
