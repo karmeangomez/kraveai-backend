@@ -25,3 +25,4 @@ echo "🩺 Verificando /health:"
 curl -s https://api.kraveapi.xyz/health | jq || curl -s https://api.kraveapi.xyz/health
 
 echo "🚀 KraveAI está listo. 🎉"
+
