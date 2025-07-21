@@ -1,17 +1,15 @@
 module.exports = {
   apps: [{
-    name: "backend",
-    script: "/home/karmean/kraveai-backend/start.sh",
+    name: "kraveai-backend",
+    script: "src/main.py",
+    interpreter: "venv/bin/python",
     cwd: "/home/karmean/kraveai-backend",
-    autorestart: true,
-    watch: false,
-    max_memory_restart: "300M",
     env: {
       NODE_ENV: "production"
     },
-    log_date_format: "YYYY-MM-DD HH:mm Z",
-    error_file: "logs/error.log",
+    error_file: "logs/err.log",
     out_file: "logs/out.log",
-    combine_logs: true
+    log_file: "logs/combined.log",
+    time: true
   }]
-};
+}
