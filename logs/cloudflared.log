@@ -39,3 +39,16 @@
 2025-07-21T22:35:26Z ERR Request failed error="Incoming request ended abruptly: context canceled" connIndex=2 dest=https://api.kraveapi.xyz/health event=0 ip=198.41.192.7 type=http
 2025-07-21T22:36:27Z ERR  error="Incoming request ended abruptly: context canceled" connIndex=0 event=1 ingressRule=0 originService=http://localhost:8000
 2025-07-21T22:36:27Z ERR Request failed error="Incoming request ended abruptly: context canceled" connIndex=0 dest=https://api.kraveapi.xyz/health event=0 ip=198.41.192.167 type=http
+2025-07-21T22:37:05Z INF Initiating graceful shutdown due to signal terminated ...
+2025-07-21T22:37:05Z ERR Failed to serve tunnel connection error="context canceled" connIndex=2 event=0 ip=198.41.192.7
+2025-07-21T22:37:05Z INF Retrying connection in up to 1s connIndex=2 event=0 ip=198.41.192.7
+2025-07-21T22:37:05Z ERR Failed to serve tunnel connection error="context canceled" connIndex=3 event=0 ip=198.41.200.73
+2025-07-21T22:37:05Z INF Retrying connection in up to 1s connIndex=3 event=0 ip=198.41.200.73
+2025-07-21T22:37:05Z ERR Failed to serve tunnel connection error="context canceled" connIndex=0 event=0 ip=198.41.192.167
+2025-07-21T22:37:05Z INF Retrying connection in up to 1s connIndex=0 event=0 ip=198.41.192.167
+2025-07-21T22:37:05Z ERR Failed to serve tunnel connection error="context canceled" connIndex=1 event=0 ip=198.41.200.23
+2025-07-21T22:37:05Z INF Retrying connection in up to 1s connIndex=1 event=0 ip=198.41.200.23
+2025-07-21T22:37:05Z ERR no more connections active and exiting
+2025-07-21T22:37:05Z INF Tunnel server stopped
+2025-07-21T22:37:05Z ERR icmp router terminated error="context canceled"
+2025-07-21T22:37:05Z INF Metrics server stopped
