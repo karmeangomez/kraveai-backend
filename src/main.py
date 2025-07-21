@@ -1,16 +1,13 @@
 # 📁 /home/karmean/kraveai-backend/src/main.py
 import os
 import time
-import threading
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
-from login_utils import login_instagram
+from login_utils import login_instagram   # 1️⃣ CORREGIDO: sin punto
 import uvicorn
 from dotenv import load_dotenv
-import json
 
-# 1️⃣ Carga segura del .env
+# 2️⃣ Carga segura del .env
 ENV_PATH = "/home/karmean/kraveai-backend/.env"
 if os.path.exists(ENV_PATH):
     load_dotenv(ENV_PATH, override=True)
@@ -18,13 +15,12 @@ if os.path.exists(ENV_PATH):
 else:
     raise RuntimeError("Archivo .env no encontrado")
 
-app = FastAPI(title="KraveAI Backend", version="v3.2")
+app = FastAPI(title="KraveAI Backend", version="v3.1")
 
-# 2️⃣ Variables globales de sesión
+# 3️⃣ Variables globales de sesión
 cl = None
 LAST_LOGIN_ATTEMPT = 0
 
-# 3️⃣ Estado global: sesión activa (siempre la misma)
 @app.on_event("startup")
 def initialize_session():
     global cl, LAST_LOGIN_ATTEMPT
@@ -36,7 +32,7 @@ def initialize_session():
     if not cl:
         print("⚠️ No se pudo establecer sesión inicial")
 
-# 4️⃣ Health-check robusto: siempre reintenta si cl es None
+# 4️⃣ Health-check robusto
 @app.get("/health")
 def health_check():
     global cl, LAST_LOGIN_ATTEMPT
@@ -79,9 +75,9 @@ def health_check():
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
-        "https://kraveai.netlify.app",
+        "https://kraveai.netlify.app ",
         "http://localhost:3000",
-        "https://app.kraveapi.xyz",
+        "https://app.kraveapi.xyz ",
     ],
     allow_credentials=True,
     allow_methods=["*"],
@@ -89,7 +85,7 @@ app.add_middleware(
     expose_headers=["X-Status-Message"],
 )
 
-# 6️⃣ Arranque del servidor Uvicorn
+# 6️⃣ Arranque
 def run_server():
     uvicorn.run(
         app,
