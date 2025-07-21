@@ -95,3 +95,5 @@ warning: fetch updated the current branch head.
 fast-forwarding your working tree from
 commit b0c8a53a4998d29412ad3d7f336f72de4a22330b.
 Already up to date.
+error: cannot pull with rebase: You have unstaged changes.
+error: please commit or stash them.
