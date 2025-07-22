@@ -129,8 +129,8 @@ def search_user(data: SearchUser):
         raise HTTPException(400, str(e))
 
 
-@app.post("/add_account")
-def add_account(acc: ManualAccount, bg: BackgroundTasks):
+@app.post("/guardar-cuenta")
+def guardar_cuenta(acc: ManualAccount):
     if acc.username in SESSIONS:
         raise HTTPException(409, "Cuenta ya existe")
     try:
@@ -139,9 +139,9 @@ def add_account(acc: ManualAccount, bg: BackgroundTasks):
         store = load_store()
         store[acc.username] = acc.password
         save_store(store)
-        return {"detail": "Cuenta añadida y activa"}
+        return {"exito": True, "mensaje": "Cuenta añadida y activa"}
     except Exception as e:
-        raise HTTPException(400, str(e))
+        raise HTTPException(400, f"Error: {str(e)}")
 
 
 @app.get("/accounts")
