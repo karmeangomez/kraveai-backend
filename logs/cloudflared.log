@@ -16,3 +16,5 @@ nohup: ignoring input
 2025-07-22T18:30:39Z INF Registered tunnel connection connIndex=0 connection=d5e2a9d3-699e-4c98-bb87-1f7cb8f25a35 event=0 ip=198.41.200.43 location=dfw08 protocol=quic
 2025-07-22T18:30:39Z INF Tunnel connection curve preferences: [X25519MLKEM768 CurveP256] connIndex=1 event=0 ip=198.41.192.57
 2025-07-22T18:30:39Z INF Registered tunnel connection connIndex=1 connection=55bc9f78-baa5-403a-a178-8e18d8c522bc event=0 ip=198.41.192.57 location=qro01 protocol=quic
+2025-07-22T18:30:40Z INF Tunnel connection curve preferences: [X25519MLKEM768 CurveP256] connIndex=2 event=0 ip=198.41.192.67
+2025-07-22T18:30:40Z INF Registered tunnel connection connIndex=2 connection=7cfd5a24-33d8-4ff7-ad78-e7c6c94038c3 event=0 ip=198.41.192.67 location=qro01 protocol=quic
