@@ -1,28 +1,18 @@
 #!/bin/bash
-echo "🛠️  Iniciando KraveAI Backend + Cloudflare Tunnel..."
+cd /home/karmean/kraveai-backend/
+source venv/bin/activate
 
-# Activar entorno virtual para ti en consola si quieres usarlo después
-source ~/kraveai-backend/venv/bin/activate
+echo "🔄 Reiniciando backend..."
+pm2 restart backend
 
-# Reiniciar backend FastAPI con PM2
-echo "🔄 Reiniciando backend con PM2..."
-pm2 restart backend || pm2 start ~/kraveai-backend/start.sh --name backend && pm2 save
+echo "⏳ Esperando backend responda /health..."
+until curl -s http://127.0.0.1:8000/health | grep "OK"; do
+  sleep 2
+done
 
-# Verificar backend activo
+echo "✅ Backend responde correctamente."
+
+echo "🔄 Reiniciando Cloudflare Tunnel..."
+pkill -f cloudflared
 sleep 2
-echo "✅ Backend está corriendo:"
-pm2 ls | grep backend
-
-# Iniciar Cloudflare Tunnel manualmente (corre en segundo plano)
-echo "🌐 Iniciando túnel Cloudflare..."
-nohup cloudflared tunnel run kraveai > ~/kraveai-backend/logs/cloudflared.log 2>&1 &
-
-sleep 2
-echo "✅ Cloudflare Tunnel está corriendo (en background)"
-
-# Verificar que /health está OK
-echo "🩺 Verificando /health:"
-curl -s https://api.kraveapi.xyz/health | jq || curl -s https://api.kraveapi.xyz/health
-
-echo "🚀 KraveAI está listo. 🎉"
-
+cloudflared tunnel run kraveapi &
