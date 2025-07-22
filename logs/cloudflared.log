@@ -1,30 +1,14 @@
-nohup: ignoring input
-2025-07-22T18:30:39Z INF Starting tunnel tunnelID=53ecdfb4-a2bf-4797-bdec-e0de68d9536d
-2025-07-22T18:30:39Z INF Version 2025.7.0 (Checksum 61c0235634539582b6729294005a8d717fc8ccd4a20c40dbe91721851540c4b2)
-2025-07-22T18:30:39Z INF GOOS: linux, GOVersion: go1.24.4, GoArch: arm
-2025-07-22T18:30:39Z INF Settings: map[cred-file:/home/karmean/.cloudflared/53ecdfb4-a2bf-4797-bdec-e0de68d9536d.json credentials-file:/home/karmean/.cloudflared/53ecdfb4-a2bf-4797-bdec-e0de68d9536d.json]
-2025-07-22T18:30:39Z INF cloudflared will not automatically update if installed by a package manager.
-2025-07-22T18:30:39Z INF Generated Connector ID: b04f80ef-44b7-4537-93d9-9541ee9e4f82
-2025-07-22T18:30:39Z INF Initial protocol quic
-2025-07-22T18:30:39Z INF ICMP proxy will use 192.168.1.185 as source for IPv4
-2025-07-22T18:30:39Z INF ICMP proxy will use 2806:10a6:20:6c0e::3 in zone wlan0 as source for IPv6
-2025-07-22T18:30:39Z INF ICMP proxy will use 192.168.1.185 as source for IPv4
-2025-07-22T18:30:39Z INF ICMP proxy will use 2806:10a6:20:6c0e::3 in zone wlan0 as source for IPv6
-2025-07-22T18:30:39Z INF Starting metrics server on 127.0.0.1:20241/metrics
-2025-07-22T18:30:39Z INF Tunnel connection curve preferences: [X25519MLKEM768 CurveP256] connIndex=0 event=0 ip=198.41.200.43
-2025/07/22 12:30:39 failed to sufficiently increase receive buffer size (was: 208 kiB, wanted: 7168 kiB, got: 416 kiB). See https://github.com/quic-go/quic-go/wiki/UDP-Buffer-Sizes for details.
-2025-07-22T18:30:39Z INF Registered tunnel connection connIndex=0 connection=d5e2a9d3-699e-4c98-bb87-1f7cb8f25a35 event=0 ip=198.41.200.43 location=dfw08 protocol=quic
-2025-07-22T18:30:39Z INF Tunnel connection curve preferences: [X25519MLKEM768 CurveP256] connIndex=1 event=0 ip=198.41.192.57
-2025-07-22T18:30:39Z INF Registered tunnel connection connIndex=1 connection=55bc9f78-baa5-403a-a178-8e18d8c522bc event=0 ip=198.41.192.57 location=qro01 protocol=quic
-2025-07-22T18:30:40Z INF Tunnel connection curve preferences: [X25519MLKEM768 CurveP256] connIndex=2 event=0 ip=198.41.192.67
-2025-07-22T18:30:40Z INF Registered tunnel connection connIndex=2 connection=7cfd5a24-33d8-4ff7-ad78-e7c6c94038c3 event=0 ip=198.41.192.67 location=qro01 protocol=quic
-2025-07-22T18:30:41Z INF Tunnel connection curve preferences: [X25519MLKEM768 CurveP256] connIndex=3 event=0 ip=198.41.200.113
-2025-07-22T18:30:41Z INF Registered tunnel connection connIndex=3 connection=ae0886a0-3054-49b7-b722-34209ec03450 event=0 ip=198.41.200.113 location=dfw08 protocol=quic
-2025-07-22T18:30:42Z ERR  error="Unable to reach the origin service. The service may be down or it may not be responding to traffic from cloudflared: dial tcp [::1]:8000: connect: connection refused" connIndex=0 event=1 ingressRule=0 originService=http://localhost:8000
-2025-07-22T18:30:42Z ERR Request failed error="Unable to reach the origin service. The service may be down or it may not be responding to traffic from cloudflared: dial tcp [::1]:8000: connect: connection refused" connIndex=0 dest=https://api.kraveapi.xyz/health event=0 ip=198.41.200.43 type=http
-2025-07-22T18:30:42Z ERR  error="Unable to reach the origin service. The service may be down or it may not be responding to traffic from cloudflared: dial tcp [::1]:8000: connect: connection refused" connIndex=2 event=1 ingressRule=0 originService=http://localhost:8000
-2025-07-22T18:30:42Z ERR Request failed error="Unable to reach the origin service. The service may be down or it may not be responding to traffic from cloudflared: dial tcp [::1]:8000: connect: connection refused" connIndex=2 dest=https://api.kraveapi.xyz/webhook/github event=0 ip=198.41.192.67 type=http
-2025-07-22T18:30:43Z ERR  error="Unable to reach the origin service. The service may be down or it may not be responding to traffic from cloudflared: dial tcp [::1]:8000: connect: connection refused" connIndex=0 event=1 ingressRule=0 originService=http://localhost:8000
-2025-07-22T18:30:43Z ERR Request failed error="Unable to reach the origin service. The service may be down or it may not be responding to traffic from cloudflared: dial tcp [::1]:8000: connect: connection refused" connIndex=0 dest=https://api.kraveapi.xyz/webhook/github event=0 ip=198.41.200.43 type=http
-2025-07-22T18:30:45Z ERR  error="Unable to reach the origin service. The service may be down or it may not be responding to traffic from cloudflared: dial tcp [::1]:8000: connect: connection refused" connIndex=2 event=1 ingressRule=0 originService=http://localhost:8000
-2025-07-22T18:30:45Z ERR Request failed error="Unable to reach the origin service. The service may be down or it may not be responding to traffic from cloudflared: dial tcp [::1]:8000: connect: connection refused" connIndex=2 dest=https://api.kraveapi.xyz/webhook/github event=0 ip=198.41.192.67 type=http
+2025-07-22T18:30:47Z INF Starting tunnel tunnelID=53ecdfb4-a2bf-4797-bdec-e0de68d9536d
+2025-07-22T18:30:47Z INF Version 2025.7.0 (Checksum 61c0235634539582b6729294005a8d717fc8ccd4a20c40dbe91721851540c4b2)
+2025-07-22T18:30:47Z INF GOOS: linux, GOVersion: go1.24.4, GoArch: arm
+2025-07-22T18:30:47Z INF Settings: map[cred-file:/home/karmean/.cloudflared/53ecdfb4-a2bf-4797-bdec-e0de68d9536d.json credentials-file:/home/karmean/.cloudflared/53ecdfb4-a2bf-4797-bdec-e0de68d9536d.json]
+2025-07-22T18:30:47Z INF cloudflared will not automatically update if installed by a package manager.
+2025-07-22T18:30:47Z INF Generated Connector ID: be7a2841-ac5a-4ccd-a60b-3500726f276a
+2025-07-22T18:30:47Z INF Initial protocol quic
+2025-07-22T18:30:47Z INF ICMP proxy will use 192.168.1.185 as source for IPv4
+2025-07-22T18:30:47Z INF ICMP proxy will use 2806:10a6:20:6c0e::3 in zone wlan0 as source for IPv6
+2025-07-22T18:30:47Z INF ICMP proxy will use 192.168.1.185 as source for IPv4
+2025-07-22T18:30:47Z INF ICMP proxy will use 2806:10a6:20:6c0e::3 in zone wlan0 as source for IPv6
+2025-07-22T18:30:47Z INF Starting metrics server on 127.0.0.1:20243/metrics
+2025-07-22T18:30:47Z INF Tunnel connection curve preferences: [X25519MLKEM768 CurveP256] connIndex=0 event=0 ip=198.41.200.193
+2025/07/22 12:30:47 failed to sufficiently increase receive buffer size (was: 208 kiB, wanted: 7168 kiB, got: 416 kiB). See https://github.com/quic-go/quic-go/wiki/UDP-Buffer-Sizes for details.
