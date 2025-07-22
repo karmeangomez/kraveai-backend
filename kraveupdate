@@ -1,0 +1,11 @@
+#!/bin/bash
+echo "🔄 Actualizando KraveAI desde GitHub..."
+git pull origin main
+echo "✅ Código actualizado desde GitHub."
+
+echo "🚀 Reiniciando SOLO BACKEND..."
+pm2 restart backend
+pm2 save
+
+echo "🌐 Verificando /health:"
+curl -s https://api.kraveapi.xyz/health || echo "Error al conectar /health"
