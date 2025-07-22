@@ -1,4 +1,3 @@
-# ~/kraveai-backend/src/main.py
 import os
 import json
 import asyncio
@@ -6,7 +5,7 @@ from typing import Dict
 from fastapi import FastAPI, HTTPException, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from login_utils import login_instagram  # ✅ Usa tu lógica
+from src.login_utils import login_instagram  # ✅ IMPORT CORRECTO
 from instagrapi import Client
 
 app = FastAPI(title="KraveAI Backend", version="v3.3")
@@ -32,15 +31,18 @@ class SearchUser(BaseModel):
 SESSIONS: Dict[str, Client] = {}
 STORE_FILE = "/home/karmean/kraveai-backend/session_store.json"
 
+
 def load_store():
     if os.path.exists(STORE_FILE):
         with open(STORE_FILE) as f:
             return json.load(f)
     return {}
 
+
 def save_store(data: dict):
     with open(STORE_FILE, "w") as f:
         json.dump(data, f, indent=2)
+
 
 # 1️⃣ Login automático de cuenta principal
 @app.on_event("startup")
@@ -63,10 +65,12 @@ async def startup_event():
         except Exception as e:
             print(f"⚠️ Fallo al restaurar '{u}':", e)
 
+
 # 2️⃣ Health-check
 @app.get("/health")
 def health():
     return {"status": "OK", "accounts": list(SESSIONS.keys())}
+
 
 # 3️⃣ Buscar usuario (usa cuenta "krave")
 @app.post("/search")
@@ -90,6 +94,7 @@ def search_user(data: SearchUser):
     except Exception as e:
         raise HTTPException(400, str(e))
 
+
 # 4️⃣ Añadir cuenta manual
 @app.post("/add_account")
 def add_account(acc: ManualAccount, bg: BackgroundTasks):
@@ -107,9 +112,20 @@ def add_account(acc: ManualAccount, bg: BackgroundTasks):
     except Exception as e:
         raise HTTPException(400, str(e))
 
+
 # 5️⃣ Listar cuentas activas
 @app.get("/accounts")
 def list_accounts():
     return {"accounts": list(SESSIONS.keys())}
 
-#
+
+# Función ficticia para mantener sesión activa (si la usas más adelante)
+async def keep_alive(username: str):
+    while True:
+        try:
+            cl = SESSIONS.get(username)
+            if cl:
+                cl.get_timeline_feed()
+            await asyncio.sleep(300)
+        except Exception:
+            break
