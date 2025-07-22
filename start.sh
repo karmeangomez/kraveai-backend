@@ -1,3 +1,4 @@
 #!/bin/bash
-source ~/kraveai-backend/venv/bin/activate
-exec python ~/kraveai-backend/src/main.py
+cd /home/karmean/kraveai-backend/
+source venv/bin/activate
+uvicorn src.main:app --host 127.0.0.1 --port 8000 --reload
