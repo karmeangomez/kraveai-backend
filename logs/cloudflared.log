@@ -18,3 +18,9 @@ nohup: ignoring input
 2025-07-22T18:30:39Z INF Registered tunnel connection connIndex=1 connection=55bc9f78-baa5-403a-a178-8e18d8c522bc event=0 ip=198.41.192.57 location=qro01 protocol=quic
 2025-07-22T18:30:40Z INF Tunnel connection curve preferences: [X25519MLKEM768 CurveP256] connIndex=2 event=0 ip=198.41.192.67
 2025-07-22T18:30:40Z INF Registered tunnel connection connIndex=2 connection=7cfd5a24-33d8-4ff7-ad78-e7c6c94038c3 event=0 ip=198.41.192.67 location=qro01 protocol=quic
+2025-07-22T18:30:41Z INF Tunnel connection curve preferences: [X25519MLKEM768 CurveP256] connIndex=3 event=0 ip=198.41.200.113
+2025-07-22T18:30:41Z INF Registered tunnel connection connIndex=3 connection=ae0886a0-3054-49b7-b722-34209ec03450 event=0 ip=198.41.200.113 location=dfw08 protocol=quic
+2025-07-22T18:30:42Z ERR  error="Unable to reach the origin service. The service may be down or it may not be responding to traffic from cloudflared: dial tcp [::1]:8000: connect: connection refused" connIndex=0 event=1 ingressRule=0 originService=http://localhost:8000
+2025-07-22T18:30:42Z ERR Request failed error="Unable to reach the origin service. The service may be down or it may not be responding to traffic from cloudflared: dial tcp [::1]:8000: connect: connection refused" connIndex=0 dest=https://api.kraveapi.xyz/health event=0 ip=198.41.200.43 type=http
+2025-07-22T18:30:42Z ERR  error="Unable to reach the origin service. The service may be down or it may not be responding to traffic from cloudflared: dial tcp [::1]:8000: connect: connection refused" connIndex=2 event=1 ingressRule=0 originService=http://localhost:8000
+2025-07-22T18:30:42Z ERR Request failed error="Unable to reach the origin service. The service may be down or it may not be responding to traffic from cloudflared: dial tcp [::1]:8000: connect: connection refused" connIndex=2 dest=https://api.kraveapi.xyz/webhook/github event=0 ip=198.41.192.67 type=http
