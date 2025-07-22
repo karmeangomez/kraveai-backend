@@ -1,4 +1,3 @@
-# ~/kraveai-backend/src/main.py
 import os
 import json
 from pathlib import Path
@@ -148,3 +147,9 @@ def add_account(acc: ManualAccount, bg: BackgroundTasks):
 @app.get("/accounts")
 def list_accounts():
     return {"accounts": list(SESSIONS.keys())}
+
+
+# 🔥 NECESARIO PARA CORRER uvicorn DESDE PYTHON
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run("src.main:app", host="127.0.0.1", port=8000, reload=False)
