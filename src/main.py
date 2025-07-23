@@ -6,19 +6,18 @@ from fastapi import FastAPI, HTTPException, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from instagrapi import Client
-from src.login_utils import load_proxies, get_random_proxy
 from dotenv import load_dotenv
+from src.login_utils import load_proxies, get_random_proxy
 
 # Cargar .env
 ENV_PATH = Path("/home/karmean/kraveai-backend/.env")
 if ENV_PATH.exists():
     load_dotenv(dotenv_path=ENV_PATH, override=True)
-    print(f"✅ .env cargado desde {ENV_PATH}")
 
-# Variables
-SESSION_DIR = Path("/home/karmean/kraveai-backend/sesiones")
-STORE_FILE = Path("/home/karmean/kraveai-backend/session_store.json")
+# Configuración de rutas y variables
+SESSION_DIR = Path("sesiones")
 SESSION_DIR.mkdir(parents=True, exist_ok=True)
+STORE_FILE = Path("cuentas_creadas.json")
 
 USERNAME = os.getenv("IG_USERNAME")
 PASSWORD = os.getenv("INSTAGRAM_PASS")
@@ -34,18 +33,15 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Models
 class ManualAccount(BaseModel):
-    username: str
-    password: str
+    usuario: str
+    contrasena: str
 
 class SearchUser(BaseModel):
     username: str
 
-# Sessions
 SESSIONS: Dict[str, Client] = {}
 
-# Cargar proxies
 proxies = load_proxies()
 
 def save_store(data: dict):
@@ -70,11 +66,10 @@ def iniciar_sesion(username, password):
         cl.set_proxy(proxy)
 
     session_file = session_file_path(username)
-
     if session_file.exists():
         try:
             cl.load_settings(session_file)
-            cl.user_info(cl.user_id)
+            cl.get_timeline_feed()
             print(f"✅ Sesión restaurada @{username}")
             return cl
         except Exception:
@@ -85,71 +80,81 @@ def iniciar_sesion(username, password):
     print(f"🎉 Login nuevo @{username}")
     return cl
 
-
 @app.on_event("startup")
-async def startup_event():
-    store = load_store()
-
-    # kraveaibot obligatorio activo para búsqueda
+def startup_event():
     if USERNAME and PASSWORD:
-        SESSIONS["krave"] = iniciar_sesion(USERNAME, PASSWORD)
+        try:
+            SESSIONS["krave"] = iniciar_sesion(USERNAME, PASSWORD)
+        except Exception as e:
+            print(f"⚠️ Error iniciando sesión principal: {e}")
 
-    for user, pwd in store.items():
+    for user, pwd in load_store().items():
         if user != USERNAME:
             try:
                 SESSIONS[user] = iniciar_sesion(user, pwd)
             except Exception as e:
                 print(f"⚠️ Error cargando {user}: {e}")
 
-
 @app.get("/health")
 def health():
     return {"status": "OK", "accounts": list(SESSIONS.keys())}
 
+@app.get("/estado-sesion")
+def estado_sesion():
+    return {"status": "activo" if "krave" in SESSIONS else "inactivo"}
 
-@app.post("/search")
-def search_user(data: SearchUser):
+@app.post("/iniciar-sesion")
+def iniciar_sesion_manual(data: ManualAccount):
+    try:
+        cl = iniciar_sesion(data.usuario, data.contrasena)
+        SESSIONS[data.usuario] = cl
+        return {"exito": True, "usuario": data.usuario}
+    except Exception as e:
+        return {"exito": False, "mensaje": str(e)}
+
+@app.get("/cerrar-sesion")
+def cerrar_sesion():
+    if "krave" in SESSIONS:
+        del SESSIONS["krave"]
+        f = session_file_path(USERNAME)
+        if f.exists():
+            f.unlink()
+        return {"exito": True}
+    return {"exito": False, "mensaje": "Sesión no activa"}
+
+@app.post("/guardar-cuenta")
+def guardar_cuenta(data: ManualAccount):
+    try:
+        cl = iniciar_sesion(data.usuario, data.contrasena)
+        SESSIONS[data.usuario] = cl
+        store = load_store()
+        store[data.usuario] = data.contrasena
+        save_store(store)
+        return {"exito": True}
+    except Exception as e:
+        return {"exito": False, "mensaje": str(e)}
+
+@app.post("/buscar-usuario")
+def buscar_usuario(data: SearchUser):
     cl = SESSIONS.get("krave")
     if not cl:
-        raise HTTPException(503, "Sesión 'krave' no disponible")
+        raise HTTPException(503, "Sesión de búsqueda no activa")
     try:
         user = cl.user_info_by_username(data.username.strip("@"))
         return {
             "username": user.username,
-            "full_name": user.full_name,
-            "followers": user.follower_count,
-            "following": user.following_count,
-            "posts": user.media_count,
-            "biography": user.biography,
-            "is_private": user.is_private,
-            "is_verified": user.is_verified,
-            "profile_pic_url": str(user.profile_pic_url),
+            "nombre": user.full_name,
+            "foto": user.profile_pic_url,
+            "publicaciones": user.media_count,
+            "seguidores": user.follower_count,
+            "seguidos": user.following_count,
+            "biografia": user.biography,
+            "privado": user.is_private,
+            "verificado": user.is_verified,
         }
     except Exception as e:
         raise HTTPException(400, str(e))
 
-
-@app.post("/guardar-cuenta")
-def guardar_cuenta(acc: ManualAccount):
-    if acc.username in SESSIONS:
-        raise HTTPException(409, "Cuenta ya existe")
-    try:
-        cl = iniciar_sesion(acc.username, acc.password)
-        SESSIONS[acc.username] = cl
-        store = load_store()
-        store[acc.username] = acc.password
-        save_store(store)
-        return {"exito": True, "mensaje": "Cuenta añadida y activa"}
-    except Exception as e:
-        raise HTTPException(400, f"Error: {str(e)}")
-
-
-@app.get("/accounts")
-def list_accounts():
-    return {"accounts": list(SESSIONS.keys())}
-
-
-# 🔥 NECESARIO PARA CORRER uvicorn DESDE PYTHON
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("src.main:app", host="127.0.0.1", port=8000, reload=False)
+    uvicorn.run("src.main:app", host="127.0.0.1", port=8000)
