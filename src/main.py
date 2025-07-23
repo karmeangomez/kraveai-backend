@@ -14,7 +14,7 @@ ENV_PATH = Path("/home/karmean/kraveai-backend/.env")
 if ENV_PATH.exists():
     load_dotenv(dotenv_path=ENV_PATH, override=True)
 
-# Configuración de rutas
+# Configuración de rutas y variables
 SESSION_DIR = Path("sesiones")
 SESSION_DIR.mkdir(parents=True, exist_ok=True)
 STORE_FILE = Path("cuentas_creadas.json")
@@ -24,6 +24,7 @@ PASSWORD = os.getenv("INSTAGRAM_PASS")
 
 # FastAPI
 app = FastAPI(title="KraveAI Backend", version="v3.3")
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -40,6 +41,7 @@ class SearchUser(BaseModel):
     username: str
 
 SESSIONS: Dict[str, Client] = {}
+
 proxies = load_proxies()
 
 def save_store(data: dict):
@@ -58,12 +60,12 @@ def session_file_path(username):
 def iniciar_sesion(username, password):
     cl = Client()
     cl.delay_range = [3, 7]
+
     proxy = get_random_proxy(proxies)
     if proxy:
         cl.set_proxy(proxy)
 
     session_file = session_file_path(username)
-
     if session_file.exists():
         try:
             cl.load_settings(session_file)
