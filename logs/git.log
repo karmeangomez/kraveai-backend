@@ -161,3 +161,8 @@ Already up to date.
 Already up to date.
 Already up to date.
 Already up to date.
+warning: fetch updated the current branch head.
+fast-forwarding your working tree from
+commit 21fc8c52fd72312f3b680a12d59779646a5cf931.
+error: cannot rebase: You have unstaged changes.
+error: Please commit or stash them.
