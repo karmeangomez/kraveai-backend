@@ -2,10 +2,12 @@ import os
 import json
 from pathlib import Path
 from typing import Dict
-from fastapi import FastAPI, HTTPException, BackgroundTasks
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from instagrapi import Client
+from instagrapi.exceptions import ChallengeRequired, ClientError
 from dotenv import load_dotenv
 from src.login_utils import load_proxies, get_random_proxy
 
@@ -23,7 +25,7 @@ USERNAME = os.getenv("IG_USERNAME")
 PASSWORD = os.getenv("INSTAGRAM_PASS")
 
 # FastAPI
-app = FastAPI(title="KraveAI Backend", version="v3.3")
+app = FastAPI(title="KraveAI Backend", version="v3.4")
 
 app.add_middleware(
     CORSMiddleware,
@@ -41,7 +43,6 @@ class SearchUser(BaseModel):
     username: str
 
 SESSIONS: Dict[str, Client] = {}
-
 proxies = load_proxies()
 
 def save_store(data: dict):
@@ -60,38 +61,73 @@ def session_file_path(username):
 def iniciar_sesion(username, password):
     cl = Client()
     cl.delay_range = [3, 7]
-
+    
+    # Configuración avanzada para evitar detección
+    cl.set_locale("en_US")
+    cl.set_country("US")
+    cl.set_country_code(1)
+    cl.set_timezone_offset(-18000)
+    cl.set_device({
+        "app_version": "267.1.0.19.301",
+        "android_version": 25,
+        "android_release": "7.1.2",
+        "dpi": "640dpi",
+        "resolution": "1440x2560",
+        "manufacturer": "OnePlus",
+        "device": "ONEPLUS A3010",
+        "model": "OnePlus3T",
+        "cpu": "qcom"
+    })
+    
     proxy = get_random_proxy(proxies)
     if proxy:
+        print(f"🌐 Usando proxy: {proxy}")
         cl.set_proxy(proxy)
 
     session_file = session_file_path(username)
     if session_file.exists():
         try:
             cl.load_settings(session_file)
-            cl.get_timeline_feed()
+            cl.get_timeline_feed()  # Verificar sesión
             print(f"✅ Sesión restaurada @{username}")
             return cl
-        except Exception:
+        except Exception as e:
+            print(f"⚠️ Sesión inválida: {e}")
             session_file.unlink(missing_ok=True)
 
-    cl.login(username, password)
-    cl.dump_settings(session_file)
-    print(f"🎉 Login nuevo @{username}")
-    return cl
+    try:
+        cl.login(username, password)
+        cl.dump_settings(session_file)
+        print(f"🎉 Login nuevo @{username}")
+        return cl
+    except ChallengeRequired as e:
+        error_msg = "Instagram requiere verificación. Por favor inicia sesión manualmente en la app oficial."
+        print(f"🔐 {error_msg}")
+        raise Exception(error_msg)
+    except ClientError as e:
+        error_msg = f"Error de Instagram: {e.message}"
+        print(f"❌ {error_msg}")
+        raise Exception(error_msg)
+    except Exception as e:
+        error_msg = f"Error inesperado: {str(e)}"
+        print(f"❌ {error_msg}")
+        raise
 
 @app.on_event("startup")
 def startup_event():
     if USERNAME and PASSWORD:
         try:
             SESSIONS["krave"] = iniciar_sesion(USERNAME, PASSWORD)
+            print(f"Sesión principal iniciada: krave")
         except Exception as e:
             print(f"⚠️ Error iniciando sesión principal: {e}")
 
-    for user, pwd in load_store().items():
-        if user != USERNAME:
+    store = load_store()
+    for user, pwd in store.items():
+        if user != USERNAME and user not in SESSIONS:
             try:
                 SESSIONS[user] = iniciar_sesion(user, pwd)
+                print(f"Sesión cargada para: {user}")
             except Exception as e:
                 print(f"⚠️ Error cargando {user}: {e}")
 
@@ -101,7 +137,8 @@ def health():
 
 @app.get("/estado-sesion")
 def estado_sesion():
-    return {"status": "activo" if "krave" in SESSIONS else "inactivo"}
+    status = "activo" if "krave" in SESSIONS else "inactivo"
+    return {"status": status, "usuario": USERNAME if status == "activo" else None}
 
 @app.post("/iniciar-sesion")
 def iniciar_sesion_manual(data: ManualAccount):
@@ -110,7 +147,10 @@ def iniciar_sesion_manual(data: ManualAccount):
         SESSIONS[data.usuario] = cl
         return {"exito": True, "usuario": data.usuario}
     except Exception as e:
-        return {"exito": False, "mensaje": str(e)}
+        return JSONResponse(
+            status_code=400,
+            content={"exito": False, "mensaje": str(e)}
+        )
 
 @app.get("/cerrar-sesion")
 def cerrar_sesion():
@@ -132,7 +172,19 @@ def guardar_cuenta(data: ManualAccount):
         save_store(store)
         return {"exito": True}
     except Exception as e:
-        return {"exito": False, "mensaje": str(e)}
+        return JSONResponse(
+            status_code=400,
+            content={"exito": False, "mensaje": str(e)}
+        )
+
+@app.get("/cuentas-activas")
+def listar_cuentas_activas():
+    return {
+        "cuentas": [
+            {"usuario": user, "estado": "activa"} 
+            for user in SESSIONS.keys()
+        ]
+    }
 
 @app.post("/buscar-usuario")
 def buscar_usuario(data: SearchUser):
