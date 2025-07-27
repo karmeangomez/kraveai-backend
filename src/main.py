@@ -1,26 +1,25 @@
-# main.py - KraveAI v8.0 (Integración Real Instagram)
 import os
-import logging
 import json
+import logging
 from fastapi import FastAPI, Query, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.routing import APIRoute
-from instagrapi import Client
-from instagrapi.exceptions import ChallengeRequired, LoginRequired, ClientError
+from dotenv import load_dotenv
+from login_utils import login_instagram, restaurar_sesion
 
-# Configuración básica de logging
+# Configuración inicial
+load_dotenv()
+logger = logging.getLogger("KraveAI")
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    handlers=[logging.StreamHandler()]
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
-logger = logging.getLogger("KraveAI")
 
-# 1. Crear la aplicación FastAPI
-app = FastAPI(title="KraveAI Backend", version="8.0")
+# Crear aplicación FastAPI
+app = FastAPI(title="KraveAI Backend", version="1.0")
 
-# 2. Configurar CORS
+# Configurar CORS
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -29,15 +28,19 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# 3. Variable global para el cliente de Instagram
+# Variable global para el cliente principal
 cliente_principal = None
 
-# 4. Definir endpoints básicos
+# ================ ENDPOINTS ================
 @app.get("/health")
 def health_check():
-    """Endpoint básico de verificación de salud"""
-    estado = "OK" if cliente_principal else "WARNING"
-    return {"status": estado, "version": app.version}
+    """Endpoint de verificación de salud"""
+    estado = "OK" if cliente_principal and cliente_principal.user_id else "WARNING"
+    return {
+        "status": estado, 
+        "version": app.version,
+        "usuario": cliente_principal.username if cliente_principal else None
+    }
 
 @app.get("/test")
 def test_endpoint():
@@ -47,14 +50,14 @@ def test_endpoint():
 @app.get("/debug-rutas")
 def debug_rutas():
     """Endpoint para depuración: muestra todas las rutas registradas"""
-    rutas = [
-        {
-            "ruta": route.path,
-            "metodos": list(route.methods),
-            "nombre": route.name
-        }
-        for route in app.routes if isinstance(route, APIRoute)
-    ]
+    rutas = []
+    for route in app.routes:
+        if isinstance(route, APIRoute):
+            rutas.append({
+                "ruta": route.path,
+                "metodos": list(route.methods),
+                "nombre": route.name
+            })
     return {"rutas": rutas}
 
 @app.get("/estado-sesion")
@@ -64,14 +67,14 @@ def estado_sesion():
         return {
             "status": "activa",
             "usuario": cliente_principal.username,
-            "user_id": cliente_principal.user_id
+            "user_id": cliente_principal.user_id,
+            "seguidores": cliente_principal.account_info().follower_count
         }
     return JSONResponse(
         content={"status": "inactiva", "error": "No hay sesión activa"},
         status_code=401
     )
 
-# 5. Endpoint para iniciar sesión manualmente
 @app.post("/iniciar-sesion")
 async def iniciar_sesion(request: Request):
     """Inicia sesión en Instagram manualmente"""
@@ -86,21 +89,9 @@ async def iniciar_sesion(request: Request):
             raise HTTPException(400, "Faltan credenciales")
         
         # Crear nuevo cliente
-        cl = Client()
-        
-        # Intentar cargar sesión existente
-        session_file = f"src/sessions/{usuario}.json"
-        if os.path.exists(session_file):
-            cl.load_settings(session_file)
-            logger.info(f"Sesión cargada para {usuario}")
-        else:
-            logger.info(f"Iniciando nueva sesión para {usuario}")
-        
-        # Iniciar sesión
-        cl.login(usuario, password)
-        
-        # Guardar sesión
-        cl.dump_settings(session_file)
+        cl = login_instagram(usuario, password)
+        if not cl:
+            raise HTTPException(401, "No se pudo iniciar sesión")
         
         # Establecer como cliente principal
         cliente_principal = cl
@@ -112,12 +103,8 @@ async def iniciar_sesion(request: Request):
             "user_id": cliente_principal.user_id
         }
         
-    except (ChallengeRequired, LoginRequired) as e:
-        logger.error(f"Error de inicio de sesión: {str(e)}")
-        return JSONResponse(
-            content={"error": "Verificación requerida", "code": "CHALLENGE_REQUIRED"},
-            status_code=401
-        )
+    except HTTPException as e:
+        raise e
     except Exception as e:
         logger.error(f"Error crítico: {str(e)}")
         return JSONResponse(
@@ -125,12 +112,9 @@ async def iniciar_sesion(request: Request):
             status_code=500
         )
 
-# 6. Endpoint de búsqueda con Instagram real
 @app.get("/buscar-usuario")
-def buscar_usuario_real(username: str = Query(..., min_length=1)):
-    """Busca información real de usuario en Instagram"""
-    global cliente_principal
-    
+def buscar_usuario(username: str = Query(..., min_length=1)):
+    """Busca información de usuario en Instagram"""
     if not cliente_principal or not cliente_principal.user_id:
         raise HTTPException(
             status_code=503,
@@ -150,71 +134,62 @@ def buscar_usuario_real(username: str = Query(..., min_length=1)):
             "is_private": user.is_private,
             "media_count": user.media_count
         }
-    except (ChallengeRequired, LoginRequired) as e:
-        logger.error(f"Error de sesión: {str(e)}")
-        raise HTTPException(
-            status_code=401,
-            detail="Sesión inválida. Requiere reautenticación"
-        )
-    except ClientError as e:
-        logger.error(f"Error de cliente: {str(e)}")
-        raise HTTPException(
-            status_code=400,
-            detail="Usuario no encontrado o cuenta privada"
-        )
     except Exception as e:
-        logger.error(f"Error inesperado: {str(e)}")
-        raise HTTPException(
-            status_code=500,
-            detail="Error interno del servidor"
-        )
+        logger.error(f"Error buscando usuario: {str(e)}")
+        raise HTTPException(500, "Error en búsqueda")
 
-# 7. Evento de startup para cargar sesión automáticamente
+@app.get("/cuentas-activas")
+def cuentas_activas():
+    """Lista de cuentas activas"""
+    # En esta versión solo manejamos una cuenta
+    if cliente_principal and cliente_principal.user_id:
+        return {
+            "cuentas": [{
+                "usuario": cliente_principal.username,
+                "user_id": cliente_principal.user_id
+            }]
+        }
+    return {"cuentas": []}
+
+# ================ INICIALIZACIÓN ================
 @app.on_event("startup")
 def init_app():
     global cliente_principal
     logger.info("🚀 Iniciando servicio de Instagram...")
     
     # Credenciales de kraveaibot
-    USER = os.getenv("INSTAGRAM_USER", "kraveaibot")
-    PASS = os.getenv("INSTAGRAM_PASS", "tu_password")
+    USER = os.getenv("INSTAGRAM_USER")
+    PASS = os.getenv("INSTAGRAM_PASS")
+    
+    if not USER or not PASS:
+        logger.error("❌ Faltan variables de entorno: INSTAGRAM_USER o INSTAGRAM_PASS")
+        return
     
     try:
-        cl = Client()
-        
-        # Intentar cargar sesión existente
-        session_file = f"src/sessions/{USER}.json"
-        if os.path.exists(session_file):
-            logger.info(f"♻️ Intentando cargar sesión existente para {USER}")
-            cl.load_settings(session_file)
-            
-            # Verificar si la sesión es válida
-            try:
-                user_info = cl.account_info()
-                logger.info(f"✅ Sesión válida para @{user_info.username}")
-                cliente_principal = cl
-                return
-            except (ChallengeRequired, LoginRequired):
-                logger.warning("⚠️ Sesión expirada, iniciando nueva sesión")
-        
-        # Iniciar nueva sesión si no hay sesión válida
-        logger.info(f"🔑 Iniciando nueva sesión para {USER}")
-        cl.login(USER, PASS)
-        
-        # Guardar sesión
-        os.makedirs("src/sessions", exist_ok=True)
-        cl.dump_settings(session_file)
-        
-        cliente_principal = cl
-        logger.info(f"✅ Sesión iniciada correctamente para @{USER}")
-        
-        # Verificar conexión
-        user_info = cliente_principal.account_info()
-        logger.info(f"👤 Usuario: @{user_info.username} | Seguidores: {user_info.follower_count}")
-        
+        cliente_principal = login_instagram(USER, PASS)
+        if cliente_principal:
+            user_info = cliente_principal.account_info()
+            logger.info(f"✅ Sesión activa: @{user_info.username}")
+            logger.info(f"👤 Seguidores: {user_info.follower_count}")
+        else:
+            logger.error("❌ No se pudo iniciar sesión en Instagram")
     except Exception as e:
-        logger.critical(f"❌ Error crítico en inicio de sesión: {str(e)}")
-        cliente_principal = None
+        logger.error(f"❌ Error en inicialización: {str(e)}")
 
 # Mensaje de inicio
 logger.info("✅ Aplicación inicializada correctamente")
+
+# Función para verificar rutas
+def verificar_rutas():
+    rutas_esperadas = {"/health", "/test", "/debug-rutas", "/estado-sesion", 
+                      "/iniciar-sesion", "/buscar-usuario", "/cuentas-activas"}
+    rutas_registradas = {route.path for route in app.routes if isinstance(route, APIRoute)}
+    
+    if not rutas_esperadas.issubset(rutas_registradas):
+        missing = rutas_esperadas - rutas_registradas
+        logger.error(f"❌ Rutas faltantes: {missing}")
+    else:
+        logger.info("✅ Todas las rutas registradas correctamente")
+
+# Verificar rutas al iniciar
+verificar_rutas()
