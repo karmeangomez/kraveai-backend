@@ -1,7 +1,7 @@
 import os
 import json
 import logging
-from fastapi import FastAPI, Request, Query
+from fastapi import FastAPI, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.routing import APIRoute
@@ -25,7 +25,7 @@ app.add_middleware(
 cliente_principal = None
 
 @app.on_event("startup")
-def iniciar_sesion_bot():
+def iniciar_sesion():
     global cliente_principal
     usuario = os.getenv("INSTAGRAM_USER")
     password = os.getenv("INSTAGRAM_PASS")
