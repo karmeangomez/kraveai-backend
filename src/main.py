@@ -1,8 +1,8 @@
-# main.py – KraveAI v3.4
+# main.py – KraveAI v3.4 corregido
 import os
 import json
 import logging
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from dotenv import load_dotenv
@@ -36,7 +36,7 @@ sesiones = {}  # {usuario: Client}
 # Ruta de salud
 @app.get("/health")
 def health():
-    return {"status": "ok"}
+    return {"status": "OK", "accounts": list(sesiones.keys())}
 
 # Verificar sesión
 @app.get("/estado-sesion")
@@ -94,9 +94,9 @@ async def guardar_cuenta(request: Request):
     except Exception as e:
         return {"exito": False, "mensaje": str(e)}
 
-# Buscar usuario (requiere cliente_principal)
+# 🔧 Buscar usuario corregido (GET + query param explícito)
 @app.get("/buscar-usuario")
-def buscar_usuario(username: str):
+def buscar_usuario(username: str = Query(...)):
     if not cliente_principal:
         return JSONResponse(content={"error": "No hay sesión activa"}, status_code=401)
     try:
@@ -130,10 +130,9 @@ def get_proxy(usuario: str) -> str:
         proxies = [line.strip() for line in f if line.strip()]
     if not proxies:
         return None
-    # Selección simple por hash de username
     return proxies[hash(usuario) % len(proxies)]
 
-# Al iniciar el backend
+# Iniciar sesiones al arrancar
 @app.on_event("startup")
 def cargar_sesiones():
     global cliente_principal
@@ -144,7 +143,6 @@ def cargar_sesiones():
     except Exception as e:
         logger.error(f"No se pudo restaurar la sesión principal: {e}")
 
-    # Restaurar cuentas manuales
     if os.path.exists(CUENTAS_JSON):
         with open(CUENTAS_JSON, "r") as f:
             cuentas = json.load(f)
