@@ -1,14 +1,14 @@
-# main.py – KraveAI v3.4 corregido
+# src/main.py
+
 import os
 import json
 import logging
-from fastapi import FastAPI, Request, Query
+from fastapi import FastAPI, Request, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from dotenv import load_dotenv
-from login_utils import login_instagram, cargar_sesion_guardada, guardar_sesion
-from instagrapi.exceptions import LoginRequired, ChallengeRequired
-from instagrapi import Client
+from login_utils import login_instagram, guardar_sesion, cargar_sesion
+from instagrapi.exceptions import ChallengeRequired, LoginRequired
 
 load_dotenv()
 
@@ -18,138 +18,97 @@ app.add_middleware(
     allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
-    allow_headers=["*"]
+    allow_headers=["*"],
 )
 
-# Logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
-
-API_USERNAME = os.getenv("INSTAGRAM_USER")
-API_PASSWORD = os.getenv("INSTAGRAM_PASS")
-PROXY_FILE = "src/proxies/proxies.txt"
-CUENTAS_JSON = "cuentas_creadas.json"
-
 cliente_principal = None
-sesiones = {}  # {usuario: Client}
+CUENTAS_MANUALES = "cuentas_creadas.json"
 
-# Ruta de salud
+
+def cargar_cuentas_guardadas():
+    if not os.path.exists(CUENTAS_MANUALES):
+        return []
+    with open(CUENTAS_MANUALES, "r") as f:
+        return json.load(f)
+
+
+@app.on_event("startup")
+def iniciar_sesion_principal():
+    global cliente_principal
+    usuario = os.getenv("KRAVE_USER")
+    contraseña = os.getenv("KRAVE_PASS")
+    proxy = os.getenv("KRAVE_PROXY")
+
+    cliente = cargar_sesion(usuario)
+    if cliente:
+        cliente_principal = cliente
+        return
+
+    try:
+        cliente = login_instagram(usuario, contraseña, proxy)
+        guardar_sesion(cliente, usuario)
+        cliente_principal = cliente
+    except Exception as e:
+        logging.error(f"Error al iniciar sesión principal: {e}")
+        cliente_principal = None
+
+
 @app.get("/health")
 def health():
-    return {"status": "OK", "accounts": list(sesiones.keys())}
+    estado = {"status": "OK"}
+    if cliente_principal:
+        estado["accounts"] = ["krave"]
+    return estado
 
-# Verificar sesión
+
 @app.get("/estado-sesion")
 def estado_sesion():
-    if cliente_principal and cliente_principal.user_id:
-        return {"status": "activo", "usuario": cliente_principal.username}
-    return {"status": "inactivo"}
+    return {"logueado": cliente_principal is not None}
 
-# Iniciar sesión manual
+
 @app.post("/iniciar-sesion")
 async def iniciar_sesion(request: Request):
-    data = await request.json()
-    usuario = data.get("usuario")
-    contrasena = data.get("contrasena")
+    datos = await request.json()
+    usuario = datos.get("usuario")
+    contraseña = datos.get("contraseña")
+    proxy = datos.get("proxy")
+
+    if not usuario or not contraseña:
+        raise HTTPException(status_code=400, detail="Faltan credenciales")
 
     try:
-        cl = login_instagram(usuario, contrasena, get_proxy(usuario))
-        guardar_sesion(cl, usuario)
-        sesiones[usuario] = cl
-        return {"exito": True, "usuario": usuario}
+        cliente = login_instagram(usuario, contraseña, proxy)
+        guardar_sesion(cliente, usuario)
+
+        cuentas = cargar_cuentas_guardadas()
+        if usuario not in cuentas:
+            cuentas.append(usuario)
+            with open(CUENTAS_MANUALES, "w") as f:
+                json.dump(cuentas, f)
+
+        return {"mensaje": "Sesión iniciada", "usuario": usuario}
     except ChallengeRequired:
-        return {"exito": False, "mensaje": "ChallengeRequired: Verificación necesaria"}
+        raise HTTPException(status_code=403, detail="ChallengeRequired")
+    except LoginRequired:
+        raise HTTPException(status_code=403, detail="LoginRequired")
     except Exception as e:
-        return {"exito": False, "mensaje": str(e)}
+        logging.error(f"Error al iniciar sesión: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
-# Cerrar sesión
-@app.get("/cerrar-sesion")
-def cerrar_sesion():
-    global cliente_principal
-    cliente_principal = None
-    return {"exito": True, "mensaje": "Sesión cerrada"}
 
-# Guardar cuenta manual
-@app.post("/guardar-cuenta")
-async def guardar_cuenta(request: Request):
-    data = await request.json()
-    usuario = data.get("usuario")
-    contrasena = data.get("contrasena")
-
-    try:
-        cl = login_instagram(usuario, contrasena, get_proxy(usuario))
-        guardar_sesion(cl, usuario)
-        sesiones[usuario] = cl
-
-        cuentas = []
-        if os.path.exists(CUENTAS_JSON):
-            with open(CUENTAS_JSON, "r") as f:
-                cuentas = json.load(f)
-        if usuario not in [c["usuario"] for c in cuentas]:
-            cuentas.append({"usuario": usuario, "contrasena": contrasena})
-            with open(CUENTAS_JSON, "w") as f:
-                json.dump(cuentas, f, indent=2)
-
-        return {"exito": True}
-    except Exception as e:
-        return {"exito": False, "mensaje": str(e)}
-
-# 🔧 Buscar usuario corregido (GET + query param explícito)
 @app.get("/buscar-usuario")
 def buscar_usuario(username: str = Query(...)):
     if not cliente_principal:
         return JSONResponse(content={"error": "No hay sesión activa"}, status_code=401)
     try:
         user = cliente_principal.user_info_by_username(username)
-        return {
-            "username": user.username,
-            "nombre": user.full_name,
-            "foto": user.profile_pic_url,
-            "verificado": user.is_verified,
-            "privado": user.is_private,
-            "negocio": user.is_business,
-            "seguidores": user.follower_count,
-            "seguidos": user.following_count,
-            "publicaciones": user.media_count,
-            "biografia": user.biography
-        }
+        return user.dict()
     except Exception as e:
+        logging.error(f"Error al buscar usuario {username}: {e}")
         return JSONResponse(content={"error": str(e)}, status_code=500)
 
-# Listar cuentas activas
+
 @app.get("/cuentas-activas")
 def cuentas_activas():
-    activas = [{"usuario": u} for u in sesiones]
-    return {"cuentas": activas}
-
-# Utilidades
-def get_proxy(usuario: str) -> str:
-    if not os.path.exists(PROXY_FILE):
-        return None
-    with open(PROXY_FILE, "r") as f:
-        proxies = [line.strip() for line in f if line.strip()]
-    if not proxies:
-        return None
-    return proxies[hash(usuario) % len(proxies)]
-
-# Iniciar sesiones al arrancar
-@app.on_event("startup")
-def cargar_sesiones():
-    global cliente_principal
-    try:
-        cliente_principal = cargar_sesion_guardada(API_USERNAME)
-        sesiones[API_USERNAME] = cliente_principal
-        logger.info(f"Sesión restaurada para kraveaibot: @{API_USERNAME}")
-    except Exception as e:
-        logger.error(f"No se pudo restaurar la sesión principal: {e}")
-
-    if os.path.exists(CUENTAS_JSON):
-        with open(CUENTAS_JSON, "r") as f:
-            cuentas = json.load(f)
-        for cuenta in cuentas:
-            try:
-                cl = cargar_sesion_guardada(cuenta["usuario"])
-                sesiones[cuenta["usuario"]] = cl
-                logger.info(f"Sesión restaurada: @{cuenta['usuario']}")
-            except Exception as e:
-                logger.warning(f"Fallo al cargar sesión de @{cuenta['usuario']}: {e}")
+    cuentas = cargar_cuentas_guardadas()
+    return {"cuentas": cuentas}
