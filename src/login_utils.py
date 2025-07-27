@@ -1,26 +1,35 @@
+# login_utils.py – KraveAI v3.4
 import os
-import random
-from pathlib import Path
+import json
+from instagrapi import Client
+from instagrapi.exceptions import LoginRequired
 
-PROXY_FILE = Path("src/proxies/proxies.txt")
+SESSIONS_DIR = "sessions"
+os.makedirs(SESSIONS_DIR, exist_ok=True)
 
-def load_proxies():
-    proxies = []
-    if PROXY_FILE.exists():
-        with open(PROXY_FILE, "r") as f:
-            for line in f:
-                line = line.strip()
-                if not line: continue
-                if "@" in line:
-                    proxies.append(f"http://{line}")
-                elif line.count(":") == 3:
-                    host, port, user, pwd = line.split(":")
-                    proxies.append(f"http://{user}:{pwd}@{host}:{port}")
-                elif line.count(":") == 1:
-                    proxies.append(f"http://{line}")
-    return proxies
+def session_path(usuario):
+    return os.path.join(SESSIONS_DIR, f"ig_session_{usuario}.json")
 
-def get_random_proxy(proxies):
-    if proxies:
-        return random.choice(proxies)
-    return None
+def login_instagram(usuario, contrasena, proxy=None):
+    cl = Client()
+    if proxy:
+        cl.set_proxy(proxy)
+    cl.login(usuario, contrasena)
+    guardar_sesion(cl, usuario)
+    return cl
+
+def guardar_sesion(cl: Client, usuario: str):
+    cl.dump_settings(session_path(usuario))
+
+def cargar_sesion_guardada(usuario: str):
+    cl = Client()
+    path = session_path(usuario)
+    if os.path.exists(path):
+        cl.load_settings(path)
+        try:
+            cl.get_timeline_feed()
+            return cl
+        except LoginRequired:
+            # Reintento con login completo si expiró
+            raise Exception(f"Sesión expirada para @{usuario}")
+    raise Exception(f"No hay sesión guardada para @{usuario}")
