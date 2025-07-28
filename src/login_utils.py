@@ -13,16 +13,7 @@ def obtener_proxy_aleatorio():
         return None
     with open(PROXY_FILE, "r") as f:
         proxies = [line.strip() for line in f if line.strip()]
-    if not proxies:
-        return None
-
-    proxy = random.choice(proxies)
-    try:
-        host, port, user, pwd = proxy.split(":")
-        return f"http://{user}:{pwd}@{host}:{port}"
-    except Exception as e:
-        print(f"❌ Proxy malformado: {proxy} -> {e}")
-        return None
+    return random.choice(proxies) if proxies else None
 
 def login_instagram(username, password):
     cl = Client()
@@ -30,7 +21,9 @@ def login_instagram(username, password):
     if proxy:
         cl.set_proxy(proxy)
     try:
+        print(f"🔐 Iniciando sesión para: {username}...")
         cl.login(username, password)
+        print(f"✅ Sesión iniciada correctamente para {username}")
         return cl
     except ChallengeRequired:
         print(f"❌ Desafío requerido para {username}")
@@ -42,7 +35,8 @@ def login_instagram(username, password):
 def guardar_sesion(cl, username):
     path = f"ig_session_{username}.json"
     with open(path, "w") as f:
-        f.write(cl.get_settings_json())
+        json.dump(cl.get_settings(), f)
+    print(f"💾 Sesión guardada en {path}")
 
 def restaurar_sesion(username, password):
     path = f"ig_session_{username}.json"
@@ -56,10 +50,11 @@ def restaurar_sesion(username, password):
             with open(path, "r") as f:
                 cl.set_settings(json.load(f))
             cl.login(username, password)
+            print(f"🔄 Sesión restaurada desde {path}")
             return cl
         except Exception:
-            pass
-    # Si no se puede restaurar, intenta login normal
+            print(f"⚠️ Falló restauración desde {path}, intentando login manual...")
+
     return login_instagram(username, password)
 
 def verificar_sesion(cl, username):
