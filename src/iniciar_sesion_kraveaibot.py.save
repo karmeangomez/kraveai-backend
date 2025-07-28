@@ -1,0 +1,20 @@
+import os
+from dotenv import load_dotenv
+from src.login_utils import restaurar_sesion, verificar_sesion, guardar_sesion
+
+load_dotenv()
+username = os.getenv("INSTA_USER")
+password = os.getenv("INSTA_PASS")
+
+if not username or not password:
+    print("❌ No se encontraron credenciales en el archivo .env")
+    exit(1)
+
+print(f"🔐 Iniciando sesión para: {username}...")
+cl = restaurar_sesion(username, password)
+
+if cl and verificar_sesion(cl, username):
+    guardar_sesion(cl, username)
+    print(f"✅ Sesión iniciada y guardada correctamente para {username}")
+else:
+    print(f"❌ No se pudo iniciar sesión para {username}")C

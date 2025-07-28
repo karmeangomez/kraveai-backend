@@ -252,3 +252,55 @@ commit 85ddda93ad0d37f98de3d2b1150e41442a3551c0.
 fatal: Not possible to fast-forward, aborting.
 Already up to date.
 Already up to date.
+error: cannot pull with rebase: You have unstaged changes.
+error: object file .git/objects/b1/9b8ebce262082763bdb8461181e3899dd66f8f is empty
+error: object file .git/objects/b1/9b8ebce262082763bdb8461181e3899dd66f8f is empty
+fatal: loose object b19b8ebce262082763bdb8461181e3899dd66f8f (stored in .git/objects/b1/9b8ebce262082763bdb8461181e3899dd66f8f) is corrupt
+error: object file .git/objects/b1/9b8ebce262082763bdb8461181e3899dd66f8f is empty
+error: object file .git/objects/b1/9b8ebce262082763bdb8461181e3899dd66f8f is empty
+fatal: loose object b19b8ebce262082763bdb8461181e3899dd66f8f (stored in .git/objects/b1/9b8ebce262082763bdb8461181e3899dd66f8f) is corrupt
+error: object file .git/objects/b1/9b8ebce262082763bdb8461181e3899dd66f8f is empty
+error: object file .git/objects/b1/9b8ebce262082763bdb8461181e3899dd66f8f is empty
+fatal: loose object b19b8ebce262082763bdb8461181e3899dd66f8f (stored in .git/objects/b1/9b8ebce262082763bdb8461181e3899dd66f8f) is corrupt
+error: object file .git/objects/b1/9b8ebce262082763bdb8461181e3899dd66f8f is empty
+error: object file .git/objects/b1/9b8ebce262082763bdb8461181e3899dd66f8f is empty
+fatal: loose object b19b8ebce262082763bdb8461181e3899dd66f8f (stored in .git/objects/b1/9b8ebce262082763bdb8461181e3899dd66f8f) is corrupt
+error: object file .git/objects/b1/9b8ebce262082763bdb8461181e3899dd66f8f is empty
+error: object file .git/objects/b1/9b8ebce262082763bdb8461181e3899dd66f8f is empty
+fatal: loose object b19b8ebce262082763bdb8461181e3899dd66f8f (stored in .git/objects/b1/9b8ebce262082763bdb8461181e3899dd66f8f) is corrupt
+error: object file .git/objects/b1/9b8ebce262082763bdb8461181e3899dd66f8f is empty
+error: object file .git/objects/b1/9b8ebce262082763bdb8461181e3899dd66f8f is empty
+fatal: loose object b19b8ebce262082763bdb8461181e3899dd66f8f (stored in .git/objects/b1/9b8ebce262082763bdb8461181e3899dd66f8f) is corrupt
+error: object file .git/objects/b1/9b8ebce262082763bdb8461181e3899dd66f8f is empty
+error: object file .git/objects/b1/9b8ebce262082763bdb8461181e3899dd66f8f is empty
+fatal: loose object b19b8ebce262082763bdb8461181e3899dd66f8f (stored in .git/objects/b1/9b8ebce262082763bdb8461181e3899dd66f8f) is corrupt
+error: object file .git/objects/b1/9b8ebce262082763bdb8461181e3899dd66f8f is empty
+error: object file .git/objects/b1/9b8ebce262082763bdb8461181e3899dd66f8f is empty
+fatal: loose object b19b8ebce262082763bdb8461181e3899dd66f8f (stored in .git/objects/b1/9b8ebce262082763bdb8461181e3899dd66f8f) is corrupt
+error: object file .git/objects/b1/9b8ebce262082763bdb8461181e3899dd66f8f is empty
+error: object file .git/objects/b1/9b8ebce262082763bdb8461181e3899dd66f8f is empty
+fatal: loose object b19b8ebce262082763bdb8461181e3899dd66f8f (stored in .git/objects/b1/9b8ebce262082763bdb8461181e3899dd66f8f) is corrupt
+error: object file .git/objects/b1/9b8ebce262082763bdb8461181e3899dd66f8f is empty
+error: object file .git/objects/b1/9b8ebce262082763bdb8461181e3899dd66f8f is empty
+fatal: loose object b19b8ebce262082763bdb8461181e3899dd66f8f (stored in .git/objects/b1/9b8ebce262082763bdb8461181e3899dd66f8f) is corrupt
+error: object file .git/objects/b1/9b8ebce262082763bdb8461181e3899dd66f8f is empty
+error: object file .git/objects/b1/9b8ebce262082763bdb8461181e3899dd66f8f is empty
+fatal: loose object b19b8ebce262082763bdb8461181e3899dd66f8f (stored in .git/objects/b1/9b8ebce262082763bdb8461181e3899dd66f8f) is corrupt
+error: object file .git/objects/b1/9b8ebce262082763bdb8461181e3899dd66f8f is empty
+error: object file .git/objects/b1/9b8ebce262082763bdb8461181e3899dd66f8f is empty
+fatal: loose object b19b8ebce262082763bdb8461181e3899dd66f8f (stored in .git/objects/b1/9b8ebce262082763bdb8461181e3899dd66f8f) is corrupt
+error: object file .git/objects/b1/9b8ebce262082763bdb8461181e3899dd66f8f is empty
+error: object file .git/objects/b1/9b8ebce262082763bdb8461181e3899dd66f8f is empty
+fatal: loose object b19b8ebce262082763bdb8461181e3899dd66f8f (stored in .git/objects/b1/9b8ebce262082763bdb8461181e3899dd66f8f) is corrupt
+error: object file .git/objects/b1/9b8ebce262082763bdb8461181e3899dd66f8f is empty
+error: object file .git/objects/b1/9b8ebce262082763bdb8461181e3899dd66f8f is empty
+fatal: loose object b19b8ebce262082763bdb8461181e3899dd66f8f (stored in .git/objects/b1/9b8ebce262082763bdb8461181e3899dd66f8f) is corrupt
+error: object file .git/objects/b1/9b8ebce262082763bdb8461181e3899dd66f8f is empty
+error: object file .git/objects/b1/9b8ebce262082763bdb8461181e3899dd66f8f is empty
+fatal: loose object b19b8ebce262082763bdb8461181e3899dd66f8f (stored in .git/objects/b1/9b8ebce262082763bdb8461181e3899dd66f8f) is corrupt
+error: cannot pull with rebase: Your index contains uncommitted changes.
+error: please commit or stash them.
+error: cannot pull with rebase: Your index contains uncommitted changes.
+error: please commit or stash them.
+error: cannot pull with rebase: Your index contains uncommitted changes.
+error: please commit or stash them.
