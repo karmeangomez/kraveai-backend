@@ -241,3 +241,4 @@ fast-forwarding your working tree from
 commit b940f69dee819ac07241910cca29a95687310ad4.
 error: cannot rebase: You have unstaged changes.
 error: Please commit or stash them.
+Already up to date.
