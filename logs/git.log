@@ -244,3 +244,9 @@ error: Please commit or stash them.
 Already up to date.
 Already up to date.
 Already up to date.
+From https://github.com/karmeangomez/kraveai-backend
+   85ddda93..9b851624  main       -> origin/main
+warning: fetch updated the current branch head.
+fast-forwarding your working tree from
+commit 85ddda93ad0d37f98de3d2b1150e41442a3551c0.
+fatal: Not possible to fast-forward, aborting.
