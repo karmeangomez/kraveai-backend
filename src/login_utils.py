@@ -13,7 +13,18 @@ def obtener_proxy_aleatorio():
         return None
     with open(PROXY_FILE, "r") as f:
         proxies = [line.strip() for line in f if line.strip()]
-    return random.choice(proxies) if proxies else None
+    
+    if not proxies:
+        return None
+
+    proxy_raw = random.choice(proxies)
+    try:
+        host, port, user, password = proxy_raw.split(":")
+        proxy_final = f"{user}:{password}@{host}:{port}"
+        return proxy_final
+    except Exception as e:
+        print(f"❌ Proxy mal formateado: {proxy_raw} → {e}")
+        return None
 
 def login_instagram(username, password):
     cl = Client()
@@ -48,8 +59,9 @@ def restaurar_sesion(username, password):
                 cl.set_settings(json.load(f))
             cl.login(username, password)
             return cl
-        except Exception:
-            pass
+        except Exception as e:
+            print(f"⚠️ No se pudo restaurar sesión para {username}: {e}")
+    
     # Si no se puede restaurar, intenta login normal
     return login_instagram(username, password)
 

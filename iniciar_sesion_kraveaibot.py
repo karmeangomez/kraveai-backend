@@ -1,38 +1,23 @@
 import os
-import json
-from instagrapi import Client
-from instagrapi.exceptions import ChallengeRequired, LoginRequired
+from dotenv import load_dotenv
+from src.login_utils import login_instagram, guardar_sesion, verificar_sesion
 
-# Configura aquí los datos
-USUARIO = "kraveaibot"
-CONTRASENA = "Andrick99#"
-ARCHIVO_SESION = f"ig_session_{USUARIO}.json"
-PROXY_FILE = "src/proxies/proxies.txt"
+load_dotenv()
 
-def obtener_proxy():
-    if not os.path.exists(PROXY_FILE):
-        return None
-    with open(PROXY_FILE, "r") as f:
-        proxies = [line.strip() for line in f if line.strip()]
-    return proxies[0] if proxies else None
+# Leer credenciales desde .env
+username = os.getenv("INSTA_USER")
+password = os.getenv("INSTA_PASS")
 
-def login_y_guardar_sesion(usuario, password):
-    cl = Client()
-    proxy = obtener_proxy()
-    if proxy:
-        cl.set_proxy(proxy)
+if not username or not password:
+    print("❌ No se encontraron credenciales en el archivo .env")
+    exit(1)
 
-    try:
-        cl.login(usuario, password)
-        with open(ARCHIVO_SESION, "w") as f:
-            f.write(cl.get_settings_json())
-        print(f"✅ Sesión iniciada y guardada correctamente para {usuario}")
-    except ChallengeRequired:
-        print("❌ Instagram pide verificación (ChallengeRequired)")
-    except LoginRequired:
-        print("❌ Se requiere login (LoginRequired)")
-    except Exception as e:
-        print(f"❌ Error general: {e}")
+print(f"🔐 Iniciando sesión para: {username}...")
 
-if __name__ == "__main__":
-    login_y_guardar_sesion(USUARIO, CONTRASENA)
+cl = login_instagram(username, password)
+
+if cl and verificar_sesion(cl, username):
+    guardar_sesion(cl, username)
+    print(f"✅ Sesión iniciada y guardada correctamente para {username}")
+else:
+    print(f"❌ No se pudo iniciar sesión para {username}")
