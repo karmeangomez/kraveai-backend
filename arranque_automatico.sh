@@ -1,33 +1,31 @@
 #!/bin/bash
 
 echo "========================"
-echo "🕒 $(date): Ejecutando actualización automática"
+echo "🕒 $(date): AUTO-ARRANQUE KRAVEAI"
 echo "========================"
 
 cd /home/karmean/kraveai-backend || exit 1
 source venv/bin/activate
 
-# Arreglar Git si hay corrupción
+# Eliminar archivos corruptos de git
 find .git/objects -type f -empty -delete
 
-# Actualizar desde GitHub
+# Intentar actualizar desde GitHub
 git pull origin main && echo "✅ Código actualizado" || echo "⚠️ Error al actualizar código"
 
-# Cargar PM2 desde NVM
-export NVM_DIR="$HOME/.nvm"
-source "$NVM_DIR/nvm.sh"
-nvm use default
-echo "🚀 Reiniciando backend con PM2"
+# Reiniciar backend con PM2 (sin usar nvm)
+echo "🚀 Reiniciando backend con PM2..."
 pm2 restart backend
 
-# Verificar backend
+# Verificar salud
 echo "🌐 Verificando /health..."
 curl -s http://localhost:8000/health
 
-# Restaurar sesiones
+# Restaurar sesión de kraveaibot
 echo "👤 Restaurando sesión kraveaibot..."
 python3 -m src.iniciar_sesion_kraveaibot
 
+# Restaurar cuentas manuales
 echo "👥 Restaurando cuentas manuales..."
 python3 -m src.restaurar_cuentas_guardadas
 
