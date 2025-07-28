@@ -234,3 +234,10 @@ Already up to date.
 Already up to date.
 error: cannot rebase: You have unstaged changes.
 error: Please commit or stash them.
+From https://github.com/karmeangomez/kraveai-backend
+   f2ce05c7..e2d0481d  main       -> origin/main
+warning: fetch updated the current branch head.
+fast-forwarding your working tree from
+commit b940f69dee819ac07241910cca29a95687310ad4.
+error: cannot rebase: You have unstaged changes.
+error: Please commit or stash them.
