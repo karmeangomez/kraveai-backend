@@ -12,10 +12,12 @@ load_dotenv()
 
 app = FastAPI()
 
-# CORS
+# ✅ CORS corregido para frontend en Netlify
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=[
+        "https://kraveai.netlify.app"
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -101,7 +103,7 @@ def cuentas_activas():
             activas.append(usuario)
     return {"status": "ok", "cuentas": activas}
 
-# Autocargar sesiones
+# 🧠 Restaurar sesiones al iniciar
 @app.on_event("startup")
 def cargar_sesiones_guardadas():
     cuentas = cargar_cuentas()
@@ -113,7 +115,7 @@ def cargar_sesiones_guardadas():
         except Exception:
             continue
 
-    # También carga sesión principal kraveaibot
+    # Cargar sesión principal kraveaibot
     krave_user = os.getenv("INSTA_USER")
     krave_pass = os.getenv("INSTA_PASS")
     if krave_user and krave_pass:
