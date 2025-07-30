@@ -9,7 +9,7 @@ from dotenv import load_dotenv
 load_dotenv()
 PROXY_FILE = "src/proxies/proxies.txt"
 MAX_REINTENTOS = 5
-ESPERA_VERIFICACION = 60  # segundos para ir a la app y aprobar
+TIEMPO_ESPERA_RETO = 45  # segundos para que el usuario apruebe en la app
 
 def obtener_proxies():
     if not os.path.exists(PROXY_FILE):
@@ -39,15 +39,14 @@ def login_instagram(username, password):
             print(f"✅ Login exitoso para {username}")
             return cl
         except ChallengeRequired:
-            print(f"⚠️ Desafío requerido para {username}")
-            print(f"⏳ Esperando {ESPERA_VERIFICACION} segundos para que apruebes en la app...")
-            time.sleep(ESPERA_VERIFICACION)
+            print(f"⚠️ Desafío requerido para {username}, esperando {TIEMPO_ESPERA_RETO}s para que el usuario apruebe en la app...")
+            time.sleep(TIEMPO_ESPERA_RETO)
             try:
-                cl.get_timeline_feed()  # intentamos forzar sesión válida
-                print(f"✅ Sesión validada tras desafío para {username}")
+                cl.login(username, password)
+                print(f"✅ Login exitoso tras desafío para {username}")
                 return cl
             except Exception as e:
-                print(f"❌ Aún no validado: {e}")
+                print(f"❌ Falló después del desafío: {e}")
                 return None
         except Exception as e:
             print(f"❌ Error con proxy {raw_proxy}: {e}")
