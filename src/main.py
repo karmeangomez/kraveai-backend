@@ -12,12 +12,10 @@ load_dotenv()
 
 app = FastAPI()
 
-# ✅ CORS corregido para frontend en Netlify
+# ✅ CORS para Netlify
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "https://kraveai.netlify.app"
-    ],
+    allow_origins=["https://kraveai.netlify.app"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -50,7 +48,7 @@ def guardar_cuenta_json(username, password):
     with open(CUENTAS_JSON, "w") as f:
         json.dump(cuentas, f, indent=2)
 
-# Rutas
+# Endpoints
 @app.get("/health")
 def health():
     return {"status": "ok"}
@@ -82,9 +80,9 @@ def guardar_cuenta(data: CuentaData):
             guardar_cuenta_json(data.username, data.password)
             guardar_sesion(cl, data.username)
             return {"status": "ok"}
+        return {"status": "error", "detalle": "Login fallido"}
     except Exception as e:
         return {"status": "error", "detalle": str(e)}
-    return {"status": "error", "detalle": "Login fallido"}
 
 @app.get("/buscar-usuario")
 def buscar_usuario(username: str = Query(...)):
@@ -118,7 +116,7 @@ def cargar_sesiones_guardadas():
         except Exception:
             continue
 
-    # Cargar sesión principal kraveaibot
+    # Cuenta principal kraveaibot
     krave_user = os.getenv("INSTA_USER")
     krave_pass = os.getenv("INSTA_PASS")
     if krave_user and krave_pass:
