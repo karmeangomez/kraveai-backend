@@ -7,6 +7,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 PROXY_FILE = "src/proxies/proxies.txt"
+MAX_REINTENTOS = 5  # Puedes subirlo si tienes muchos proxies
 
 def obtener_proxies():
     if not os.path.exists(PROXY_FILE):
@@ -14,62 +15,62 @@ def obtener_proxies():
     with open(PROXY_FILE, "r") as f:
         return [line.strip() for line in f if line.strip()]
 
-def guardar_sesion(cl, username):
-    path = f"ig_session_{username}.json"
-    with open(path, "w") as f:
-        json.dump(cl.get_settings(), f, default=str)
-
 def login_instagram(username, password):
-    # Primer intento SIN proxy
-    print("🌐 Intentando login sin proxy...")
-    cl = Client()
-    try:
-        cl.login(username, password)
-        print(f"✅ Login exitoso SIN proxy para {username}")
-        guardar_sesion(cl, username)
-        return cl
-    except ChallengeRequired:
-        print(f"⚠️ Desafío requerido para {username} (sin proxy), espera confirmación en la app.")
-        return None
-    except Exception as e:
-        print(f"❌ Error sin proxy: {e}")
-
-    # Si falló, intenta con proxies
     proxies = obtener_proxies()
     random.shuffle(proxies)
+    intentos = 0
+
     for raw_proxy in proxies:
+        intentos += 1
         cl = Client()
         try:
             host, port, user, password_proxy = raw_proxy.split(":")
             proxy_url = f"http://{user}:{password_proxy}@{host}:{port}"
             cl.set_proxy(proxy_url)
-            print(f"🔁 Intentando con proxy {host}:{port}")
-            cl.login(username, password)
-            print(f"✅ Login exitoso con proxy para {username}")
-            guardar_sesion(cl, username)
-            return cl
-        except ChallengeRequired:
-            print(f"⚠️ Desafío con proxy para {username}")
-            return None
-        except Exception as e:
-            print(f"❌ Falló proxy {raw_proxy}: {e}")
+        except Exception:
+            print(f"❌ Proxy malformado: {raw_proxy}")
             continue
 
-    print(f"❌ Todos los intentos fallaron para {username}")
+        print(f"🔌 Intento {intentos} con proxy {host}:{port}")
+        try:
+            cl.login(username, password)
+            print(f"✅ Login exitoso para {username}")
+            return cl
+        except ChallengeRequired:
+            print(f"⚠️ Desafío requerido para {username}, intenta aprobar en la app.")
+            return None
+        except Exception as e:
+            print(f"❌ Error con proxy {raw_proxy}: {e}")
+            continue
+
+    print(f"❌ Fallaron todos los proxies para {username}")
     return None
+
+def guardar_sesion(cl, username):
+    path = f"ig_session_{username}.json"
+    try:
+        with open(path, "w") as f:
+            json.dump(cl.get_settings(), f, default=str)  # ✅ Solución final
+        print(f"💾 Sesión guardada para {username}")
+    except Exception as e:
+        print(f"❌ Error al guardar sesión de {username}: {e}")
 
 def restaurar_sesion(username, password):
     path = f"ig_session_{username}.json"
     cl = Client()
+    proxies = obtener_proxies()
+    random.shuffle(proxies)
+
     if os.path.exists(path):
         try:
             with open(path, "r") as f:
                 cl.set_settings(json.load(f))
             cl.login(username, password)
-            print(f"♻️ Sesión restaurada para {username}")
+            print(f"♻️ Sesión restaurada desde archivo para {username}")
             return cl
-        except Exception:
-            print(f"⚠️ Falló restaurar sesión de {username}")
+        except Exception as e:
+            print(f"⚠️ Falló restauración de sesión: {e}. Reintentando login normal...")
+
     return login_instagram(username, password)
 
 def verificar_sesion(cl, username):
