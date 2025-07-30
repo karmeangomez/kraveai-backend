@@ -371,3 +371,4 @@ Fast-forward
  src/login_utils.py | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
 Already up to date.
+fatal: Cannot rebase onto multiple branches.
