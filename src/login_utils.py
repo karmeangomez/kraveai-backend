@@ -1,7 +1,6 @@
 import os
 import random
 import json
-import pickle
 from instagrapi import Client
 from instagrapi.exceptions import ChallengeRequired, LoginRequired
 from dotenv import load_dotenv
@@ -38,40 +37,42 @@ def login_instagram(username, password):
             print(f"✅ Login exitoso para {username}")
             return cl
         except ChallengeRequired:
-            print(f"⚠️ Desafío requerido para {username}, ve a aprobar en la app.")
-            return None
+            print(f"⚠️ Desafío requerido para {username}. Ve a la app de Instagram y presiona 'Fui yo'")
+            input("🕐 Presiona Enter aquí cuando hayas aceptado en la app...")
+            try:
+                cl.get_timeline_feed()
+                print(f"✅ Login exitoso tras aprobar challenge para {username}")
+                return cl
+            except Exception as e:
+                print(f"❌ Falló después del challenge: {e}")
+                continue
         except Exception as e:
-            print(f"❌ Error con proxy {raw_proxy}: {e}")
+            print(f"❌ Error al iniciar sesión con proxy {raw_proxy}: {e}")
             continue
 
     print(f"❌ Fallaron todos los proxies para {username}")
     return None
 
 def guardar_sesion(cl, username):
-    path = f"ig_session_{username}.pkl"
-    try:
-        with open(path, "wb") as f:
-            pickle.dump(cl.get_settings(), f)
-        print(f"💾 Sesión guardada para {username}")
-    except Exception as e:
-        print(f"❌ Error al guardar sesión de {username}: {e}")
+    path = f"ig_session_{username}.json"
+    with open(path, "w") as f:
+        json.dump(cl.get_settings(), f)
 
 def restaurar_sesion(username, password):
-    path = f"ig_session_{username}.pkl"
+    path = f"ig_session_{username}.json"
     cl = Client()
     proxies = obtener_proxies()
     random.shuffle(proxies)
 
     if os.path.exists(path):
         try:
-            with open(path, "rb") as f:
-                settings = pickle.load(f)
-                cl.set_settings(settings)
+            with open(path, "r") as f:
+                cl.set_settings(json.load(f))
             cl.login(username, password)
-            print(f"♻️ Sesión restaurada desde archivo para {username}")
+            print(f"🔁 Sesión restaurada para {username}")
             return cl
         except Exception as e:
-            print(f"⚠️ Falló restauración desde .pkl: {e}. Intentando login normal...")
+            print(f"⚠️ Falló restauración desde {path}, reintentando login manual...")
 
     return login_instagram(username, password)
 
