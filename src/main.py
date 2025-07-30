@@ -75,12 +75,15 @@ def iniciar_sesion(data: LoginData):
 
 @app.post("/guardar-cuenta")
 def guardar_cuenta(data: CuentaData):
-    cl = login_instagram(data.username, data.password)
-    if cl:
-        clientes_instagram[data.username] = cl
-        guardar_cuenta_json(data.username, data.password)
-        guardar_sesion(cl, data.username)
-        return {"status": "ok"}
+    try:
+        cl = restaurar_sesion(data.username, data.password)
+        if cl:
+            clientes_instagram[data.username] = cl
+            guardar_cuenta_json(data.username, data.password)
+            guardar_sesion(cl, data.username)
+            return {"status": "ok"}
+    except Exception as e:
+        return {"status": "error", "detalle": str(e)}
     return {"status": "error", "detalle": "Login fallido"}
 
 @app.get("/buscar-usuario")
