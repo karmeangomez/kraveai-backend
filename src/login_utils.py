@@ -8,8 +8,8 @@ from dotenv import load_dotenv
 
 load_dotenv()
 PROXY_FILE = "src/proxies/proxies.txt"
-MAX_REINTENTOS = 5
-TIEMPO_ESPERA_RETO = 45  # segundos para que el usuario apruebe en la app
+MAX_REINTENTOS = 5  # Máximo de proxies a probar
+ESPERA_CHALLENGE_SEGUNDOS = 75  # Tiempo para que el usuario acepte manualmente
 
 def obtener_proxies():
     if not os.path.exists(PROXY_FILE):
@@ -25,6 +25,7 @@ def login_instagram(username, password):
     for raw_proxy in proxies:
         intentos += 1
         cl = Client()
+
         try:
             host, port, user, password_proxy = raw_proxy.split(":")
             proxy_url = f"http://{user}:{password_proxy}@{host}:{port}"
@@ -39,15 +40,21 @@ def login_instagram(username, password):
             print(f"✅ Login exitoso para {username}")
             return cl
         except ChallengeRequired:
-            print(f"⚠️ Desafío requerido para {username}, esperando {TIEMPO_ESPERA_RETO}s para que el usuario apruebe en la app...")
-            time.sleep(TIEMPO_ESPERA_RETO)
-            try:
-                cl.login(username, password)
-                print(f"✅ Login exitoso tras desafío para {username}")
-                return cl
-            except Exception as e:
-                print(f"❌ Falló después del desafío: {e}")
-                return None
+            print(f"⚠️ Desafío requerido para {username}, esperando {ESPERA_CHALLENGE_SEGUNDOS}s para que lo apruebes...")
+            for i in range(ESPERA_CHALLENGE_SEGUNDOS // 5):
+                try:
+                    time.sleep(5)
+                    cl.login(username, password)
+                    print(f"✅ Login exitoso tras desafío para {username}")
+                    return cl
+                except ChallengeRequired:
+                    print(f"⏳ Esperando... {5*(i+1)}s")
+                    continue
+                except Exception as e:
+                    print(f"❌ Error al reintentar login después del desafío: {e}")
+                    break
+            print(f"❌ Tiempo agotado para {username}, login fallido tras desafío.")
+            return None
         except Exception as e:
             print(f"❌ Error con proxy {raw_proxy}: {e}")
             continue
@@ -71,9 +78,10 @@ def restaurar_sesion(username, password):
             with open(path, "r") as f:
                 cl.set_settings(json.load(f))
             cl.login(username, password)
+            print(f"✅ Sesión restaurada desde archivo para {username}")
             return cl
         except Exception as e:
-            print(f"⚠️ Falló restauración desde {path}, reintentando login manual...")
+            print(f"⚠️ Falló restauración desde {path}: {e}")
 
     return login_instagram(username, password)
 
