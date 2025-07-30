@@ -1,6 +1,7 @@
 import os
 import random
 import json
+import time
 from instagrapi import Client
 from instagrapi.exceptions import ChallengeRequired, LoginRequired
 from dotenv import load_dotenv
@@ -8,6 +9,7 @@ from dotenv import load_dotenv
 load_dotenv()
 PROXY_FILE = "src/proxies/proxies.txt"
 MAX_REINTENTOS = 5
+ESPERA_VERIFICACION = 60  # segundos para ir a la app y aprobar
 
 def obtener_proxies():
     if not os.path.exists(PROXY_FILE):
@@ -27,7 +29,7 @@ def login_instagram(username, password):
             host, port, user, password_proxy = raw_proxy.split(":")
             proxy_url = f"http://{user}:{password_proxy}@{host}:{port}"
             cl.set_proxy(proxy_url)
-        except Exception:
+        except Exception as e:
             print(f"❌ Proxy malformado: {raw_proxy}")
             continue
 
@@ -37,17 +39,18 @@ def login_instagram(username, password):
             print(f"✅ Login exitoso para {username}")
             return cl
         except ChallengeRequired:
-            print(f"⚠️ Desafío requerido para {username}. Ve a la app de Instagram y presiona 'Fui yo'")
-            input("🕐 Presiona Enter aquí cuando hayas aceptado en la app...")
+            print(f"⚠️ Desafío requerido para {username}")
+            print(f"⏳ Esperando {ESPERA_VERIFICACION} segundos para que apruebes en la app...")
+            time.sleep(ESPERA_VERIFICACION)
             try:
-                cl.get_timeline_feed()
-                print(f"✅ Login exitoso tras aprobar challenge para {username}")
+                cl.get_timeline_feed()  # intentamos forzar sesión válida
+                print(f"✅ Sesión validada tras desafío para {username}")
                 return cl
             except Exception as e:
-                print(f"❌ Falló después del challenge: {e}")
-                continue
+                print(f"❌ Aún no validado: {e}")
+                return None
         except Exception as e:
-            print(f"❌ Error al iniciar sesión con proxy {raw_proxy}: {e}")
+            print(f"❌ Error con proxy {raw_proxy}: {e}")
             continue
 
     print(f"❌ Fallaron todos los proxies para {username}")
@@ -69,7 +72,6 @@ def restaurar_sesion(username, password):
             with open(path, "r") as f:
                 cl.set_settings(json.load(f))
             cl.login(username, password)
-            print(f"🔁 Sesión restaurada para {username}")
             return cl
         except Exception as e:
             print(f"⚠️ Falló restauración desde {path}, reintentando login manual...")
