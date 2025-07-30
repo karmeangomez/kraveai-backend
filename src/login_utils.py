@@ -49,7 +49,7 @@ def login_instagram(username, password):
 def guardar_sesion(cl, username):
     path = f"ig_session_{username}.json"
     with open(path, "w") as f:
-        json.dump(cl.get_settings(), f)
+        json.dump(cl.get_settings(), f, default=str)  # ✅ CORREGIDO aquí
 
 def restaurar_sesion(username, password):
     path = f"ig_session_{username}.json"
