@@ -372,3 +372,6 @@ Fast-forward
  1 file changed, 1 insertion(+), 1 deletion(-)
 Already up to date.
 fatal: Cannot rebase onto multiple branches.
+error: cannot lock ref 'refs/remotes/origin/main': is at 6f1b43e8053dd29f2d13622661de24cf7b315ac7 but expected 4b6b47a6592d56824efefea47fadbf6e2c921f21
+From https://github.com/karmeangomez/kraveai-backend
+ ! 4b6b47a65..6f1b43e80  main       -> origin/main  (unable to update local ref)
