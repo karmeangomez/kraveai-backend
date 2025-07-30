@@ -376,3 +376,4 @@ error: cannot lock ref 'refs/remotes/origin/main': is at 6f1b43e8053dd29f2d13622
 From https://github.com/karmeangomez/kraveai-backend
  ! 4b6b47a65..6f1b43e80  main       -> origin/main  (unable to update local ref)
 fatal: Cannot rebase onto multiple branches.
+Already up to date.
