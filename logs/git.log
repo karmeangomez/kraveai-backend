@@ -406,3 +406,7 @@ fatal: Cannot rebase onto multiple branches.
 error: cannot pull with rebase: You have unstaged changes.
 error: please commit or stash them.
 Already up to date.
+warning: fetch updated the current branch head.
+fast-forwarding your working tree from
+commit dc098daea27f804cf9e7e80f09797f485ad626b0.
+fatal: Cannot rebase onto multiple branches.
