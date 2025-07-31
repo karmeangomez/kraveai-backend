@@ -7428,3 +7428,5 @@
 2025-07-31 12:02:22,258 - instagram_login - WARNING - No se encontraron proxies válidos. Usando conexión directa.
 2025-07-31 12:02:22,259 - instagram_login - INFO - 🌐 Conexión directa
 2025-07-31 12:02:23,596 - instagrapi - INFO - https://i.instagram.com/api/v1/launcher/sync/
+2025-07-31 12:02:23,888 - private_request - INFO - kraveaibot [200] POST https://i.instagram.com/api/v1/launcher/sync/ (269.0.0.18.75, Google qcom)
+2025-07-31 12:02:24,126 - instagrapi - INFO - https://i.instagram.com/api/v1/accounts/login/
