@@ -422,3 +422,4 @@ warning: fetch updated the current branch head.
 fast-forwarding your working tree from
 commit 110dfe97a6d80d7a69dd9aea2dc329dae642720b.
 fatal: Cannot rebase onto multiple branches.
+fatal: Cannot rebase onto multiple branches.
