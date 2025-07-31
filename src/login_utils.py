@@ -34,14 +34,21 @@ USER_AGENTS = [
 ]
 
 def obtener_proxies():
-    """Obtiene lista de proxies o usa conexión directa"""
-    if not os.path.exists(PROXY_FILE):
-        return ["direct"]
+    """Obtiene lista de proxies con formato corregido"""
+    proxies = []
     
-    with open(PROXY_FILE, "r") as f:
-        proxies = [line.strip() for line in f if line.strip()]
+    if os.path.exists(PROXY_FILE):
+        with open(PROXY_FILE, "r") as f:
+            for line in f:
+                proxy = line.strip()
+                if proxy:
+                    # Convertir formato si es necesario
+                    if proxy.count(':') == 3:
+                        parts = proxy.split(':')
+                        proxy = f"{parts[2]}:{parts[3]}@{parts[0]}:{parts[1]}"
+                    proxies.append(proxy)
     
-    return proxies if proxies else ["direct"]
+    return proxies
 
 def configurar_dispositivo(cl):
     """Configura un dispositivo móvil realista"""
@@ -149,53 +156,73 @@ def resolver_desafio(cl, username, password, proxy):
     return None
 
 def login_instagram(username, password, proxy=None):
-    """Intenta iniciar sesión con manejo robusto de errores"""
+    """Intenta iniciar sesión con enfoque híbrido: primero local, luego proxies"""
     logger.info(f"🚀 Iniciando sesión: @{username}")
     
-    proxies = obtener_proxies()
-    proxy = proxy or random.choice(proxies)
+    # Primero intentar sin proxy (conexión local)
+    logger.info("🌐 Intentando con conexión local...")
+    cl_local = intentar_login(username, password, "direct")
+    if cl_local:
+        return cl_local
     
-    for intento in range(MAX_RETRIES):
-        try:
-            cl = Client()
-            configurar_dispositivo(cl)
-            
-            if proxy != "direct":
-                cl.set_proxy(f"http://{proxy}")
-            
-            # Comportamiento humano: espera aleatoria
-            time.sleep(random.uniform(1, 3))
-            
-            cl.login(username, password)
-            logger.info(f"✅ Login exitoso en intento {intento+1}")
-            return cl
-        except BadPassword:
-            logger.error("🔑 Contraseña incorrecta")
-            return None
-        except TwoFactorRequired:
-            logger.warning("⚠️ Requiere autenticación en dos pasos (no implementado)")
-            return None
-        except ChallengeRequired as e:
-            logger.warning(f"⚠️ Desafío requerido: {e}")
-            return resolver_desafio(cl, username, password, proxy)
-        except PleaseWaitFewMinutes as e:
-            espera = min(60 * (intento + 1), 300)  # Máximo 5 minutos
-            logger.warning(f"⏳ Bloqueo temporal. Esperando {espera}s: {e}")
-            time.sleep(espera)
-        except ClientError as e:
-            if "csrf" in str(e).lower():
-                logger.warning("🔄 Token CSRF inválido, reintentando...")
-                time.sleep(5)
-            elif "429" in str(e):
-                espera = 30 * (intento + 1)
-                logger.warning(f"🌐 Demasiadas solicitudes. Esperando {espera}s...")
-                time.sleep(espera)
-            else:
-                logger.error(f"❌ Error de cliente: {e}")
-                return None
-        except Exception as e:
-            logger.error(f"❌ Error inesperado: {type(e).__name__} - {e}")
-            return None
+    # Si falla, intentar con proxies
+    proxies = obtener_proxies()
+    if proxies:
+        logger.info(f"🔌 Intentando con {len(proxies)} proxies disponibles...")
+        for proxy_str in proxies:
+            logger.info(f"  • Probando proxy: {proxy_str}")
+            cl_proxy = intentar_login(username, password, proxy_str)
+            if cl_proxy:
+                return cl_proxy
+    else:
+        logger.info("ℹ️ No se encontraron proxies disponibles")
     
     logger.error("❌ Todos los intentos fallaron")
     return None
+
+def intentar_login(username, password, proxy_str):
+    """Intenta un único login con una configuración específica"""
+    try:
+        cl = Client()
+        configurar_dispositivo(cl)
+        
+        if proxy_str != "direct":
+            # Formatear proxy correctamente
+            if not proxy_str.startswith("http://"):
+                proxy_str = f"http://{proxy_str}"
+            cl.set_proxy(proxy_str)
+        
+        # Comportamiento humano: espera aleatoria
+        time.sleep(random.uniform(1, 3))
+        
+        cl.login(username, password)
+        logger.info(f"✅ Login exitoso con {'proxy' if proxy_str != 'direct' else 'conexión local'}")
+        return cl
+    except BadPassword:
+        logger.error("🔑 Contraseña incorrecta")
+        return None
+    except TwoFactorRequired:
+        logger.warning("⚠️ Requiere autenticación en dos pasos (no implementado)")
+        return None
+    except ChallengeRequired as e:
+        logger.warning(f"⚠️ Desafío requerido: {e}")
+        return resolver_desafio(cl, username, password, proxy_str)
+    except PleaseWaitFewMinutes as e:
+        logger.warning(f"⏳ Bloqueo temporal: {e}. Esperando 60s...")
+        time.sleep(60)
+        return None
+    except ClientError as e:
+        if "csrf" in str(e).lower():
+            logger.warning("🔄 Token CSRF inválido, reintentando...")
+            time.sleep(5)
+            return None
+        elif "429" in str(e):
+            logger.warning("🌐 Demasiadas solicitudes. Esperando 30s...")
+            time.sleep(30)
+            return None
+        else:
+            logger.error(f"❌ Error de cliente: {e}")
+            return None
+    except Exception as e:
+        logger.error(f"❌ Error inesperado: {type(e).__name__} - {e}")
+        return None
