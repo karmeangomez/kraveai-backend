@@ -402,3 +402,4 @@ fast-forwarding your working tree from
 commit bfe0b8c7418440ce8be821d1c5888e17722860ab.
 fatal: Cannot rebase onto multiple branches.
 fatal: Cannot rebase onto multiple branches.
+fatal: Cannot rebase onto multiple branches.
