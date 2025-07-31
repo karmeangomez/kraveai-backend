@@ -3760,3 +3760,5 @@
 2025-07-31 11:25:22,726 - instagram_login - ERROR - ❌ Error: {"message":"CSRF token missing or incorrect","status":"fail"}
 2025-07-31 11:25:22,727 - instagram_login - ERROR - ❌ Todos los intentos fallaron
 2025-07-31 11:25:24,489 - instagrapi - INFO - https://i.instagram.com/api/v1/accounts/current_user/?edit=true
+2025-07-31 11:25:25,196 - private_request - INFO - None [200] GET https://i.instagram.com/api/v1/accounts/current_user/?edit=true (269.0.0.18.75, samsung exynos2100)
+2025-07-31 11:25:25,199 - instagram_login - INFO - 🔑 Sesión restaurada: kraveaibot
