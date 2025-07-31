@@ -397,3 +397,7 @@ error: cannot pull with rebase: You have unstaged changes.
 error: please commit or stash them.
 error: cannot pull with rebase: You have unstaged changes.
 error: please commit or stash them.
+warning: fetch updated the current branch head.
+fast-forwarding your working tree from
+commit bfe0b8c7418440ce8be821d1c5888e17722860ab.
+fatal: Cannot rebase onto multiple branches.
