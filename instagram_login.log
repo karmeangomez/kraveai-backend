@@ -10586,3 +10586,6 @@
 2025-07-31 13:30:42,320 - instagram_login - ERROR - ❌ Error inesperado: EOF when reading a line
 2025-07-31 13:30:42,320 - instagram_login - INFO - ⛔ Agotados reintentos por CSRF con este proxy
 2025-07-31 13:30:42,320 - instagram_login - ERROR - ❌ Todos los intentos fallaron
+2025-07-31 13:35:02,913 - instagram_login - INFO - 🚀 Iniciando login para kraveaibot
+2025-07-31 13:35:02,940 - instagram_login - WARNING - ⚠️ No se encontraron proxies válidos. Usando conexión directa.
+2025-07-31 13:35:02,941 - instagram_login - INFO - 🌐 Conexión directa
