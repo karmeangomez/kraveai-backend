@@ -10779,3 +10779,4 @@
 2025-07-31 14:35:02,390 - instagram_login - INFO - 🚀 Iniciando login para kraveaibot
 2025-07-31 14:35:02,422 - instagram_login - WARNING - ⚠️ No se encontraron proxies válidos. Usando conexión directa.
 2025-07-31 14:35:02,423 - instagram_login - INFO - 🌐 Conexión directa
+2025-07-31 14:35:05,153 - instagrapi - INFO - https://i.instagram.com/api/v1/launcher/sync/
