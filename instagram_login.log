@@ -10677,3 +10677,4 @@
 2025-07-31 13:55:37,768 - private_request - INFO - kraveaibot [200] POST https://i.instagram.com/api/v1/launcher/sync/ (269.0.0.18.75, samsung qcom)
 2025-07-31 13:55:41,048 - instagrapi - INFO - https://i.instagram.com/api/v1/accounts/login/
 2025-07-31 13:55:42,909 - private_request - INFO - kraveaibot [400] POST https://i.instagram.com/api/v1/accounts/login/ (269.0.0.18.75, samsung qcom)
+2025-07-31 13:55:43,909 - instagrapi - INFO - https://i.instagram.com/api/v1/challenge/ASig4HKR-CqFArSkPlIt4IzJy0ScG4Iu4DmhWH5YOzLQcuRTkjGp88s1ECHSJseOmAXDNW0/ASROrtrCd0Fod5PAUR4tFIr2fgFT1m5RfQDJ4dHOhsfjYkO5QTjf4Eguo-16CGEocm8TgtXCgj32vg/
