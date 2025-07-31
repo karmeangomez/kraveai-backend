@@ -10489,3 +10489,6 @@
 2025-07-31 13:06:49,056 - private_request - INFO - Leonardoperzz_ [403] POST https://i.instagram.com/api/v1/launcher/sync/ (269.0.0.18.75, samsung qcom)
 2025-07-31 13:06:49,056 - instagram_login - WARNING - 🔁 CSRF token incorrecto. Reintentando...
 2025-07-31 13:06:54,058 - instagram_login - INFO - 🌐 Conexión directa
+2025-07-31 13:06:56,244 - instagrapi - INFO - https://i.instagram.com/api/v1/launcher/sync/
+2025-07-31 13:06:56,461 - private_request - INFO - Leonardoperzz_ [403] POST https://i.instagram.com/api/v1/launcher/sync/ (269.0.0.18.75, samsung qcom)
+2025-07-31 13:06:56,462 - instagram_login - WARNING - 🔁 CSRF token incorrecto. Reintentando...
