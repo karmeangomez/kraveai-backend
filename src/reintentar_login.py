@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+import argparse
 import sys
 import logging
 from getpass import getpass
@@ -13,28 +15,39 @@ logger = logging.getLogger("instagram_login_tool")
 
 def main():
     print("🔐 Herramienta de Login Manual para Instagram")
+    print("--------------------------------------------")
+    
+    # Manejo de argumentos
+    parser = argparse.ArgumentParser()
+    parser.add_argument("username", nargs="?", help="Usuario de Instagram")
+    parser.add_argument("password", nargs="?", help="Contraseña de Instagram")
+    args = parser.parse_args()
     
     # Obtener credenciales
-    if len(sys.argv) >= 3:
-        username = sys.argv[1]
-        password = sys.argv[2]
-    else:
-        username = input("👤 Usuario de Instagram: ").strip()
-        password = getpass("🔑 Contraseña: ").strip()
+    username = args.username if args.username else input("👤 Usuario de Instagram: ").strip()
+    password = args.password if args.password else getpass("🔑 Contraseña: ").strip()
+    
+    if not username or not password:
+        logger.error("❌ Se requiere usuario y contraseña")
+        sys.exit(1)
     
     logger.info(f"🚀 Intentando login para @{username}...")
     
-    cl = login_instagram(username, password)
+    try:
+        cl = login_instagram(username, password)
+        if cl:
+            guardar_sesion(cl, username)
+            logger.info(f"✅ ¡Login exitoso! Sesión guardada para @{username}")
+            sys.exit(0)
+    except Exception as e:
+        logger.error(f"❌ Error crítico: {e}")
     
-    if cl:
-        guardar_sesion(cl, username)
-        logger.info(f"✅ ¡Login exitoso! Sesión guardada para @{username}")
-    else:
-        logger.error(f"❌ Login fallido para @{username}")
-        logger.info("💡 Posibles soluciones:")
-        logger.info("1. Verifica que hayas hecho clic en 'Fui yo' en la app móvil")
-        logger.info("2. Espera 24 horas si Instagram ha bloqueado temporalmente la cuenta")
-        logger.info("3. Prueba con otro proxy si usas varios")
+    logger.error(f"❌ Login fallido para @{username}")
+    logger.info("💡 Soluciones posibles:")
+    logger.info("1. Verifica que hayas hecho clic en 'Fui yo' en la app móvil")
+    logger.info("2. Espera 24 horas si Instagram ha bloqueado temporalmente la cuenta")
+    logger.info("3. Revisa el formato de los proxies en src/proxies/proxies.txt")
+    sys.exit(1)
 
 if __name__ == "__main__":
     main()
