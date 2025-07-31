@@ -4935,3 +4935,5 @@
 2025-07-31 11:38:27,294 - instagrapi - INFO - https://i.instagram.com/api/v1/feed/reels_tray/
 2025-07-31 11:38:27,748 - private_request - INFO - kraveaibot [200] POST https://i.instagram.com/api/v1/feed/reels_tray/ (269.0.0.18.75, Google qcom)
 2025-07-31 11:38:28,748 - instagrapi - INFO - https://i.instagram.com/api/v1/feed/timeline/
+2025-07-31 11:38:31,091 - private_request - INFO - kraveaibot [200] POST https://i.instagram.com/api/v1/feed/timeline/ (269.0.0.18.75, Google qcom)
+2025-07-31 11:38:31,091 - instagram_login - INFO - ✅ Login exitoso: kraveaibot
