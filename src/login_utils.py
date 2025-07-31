@@ -1,15 +1,16 @@
 import os
-import random
 import json
 import time
+import random
 import logging
 import requests
 from instagrapi import Client
 from instagrapi.exceptions import (
-    ChallengeRequired, LoginRequired, ClientError, PleaseWaitFewMinutes, BadPassword
+    ChallengeRequired, LoginRequired, ClientError,
+    PleaseWaitFewMinutes, BadPassword, TwoFactorRequired
 )
-from dotenv import load_dotenv
 
+# Configuración de logging
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -20,156 +21,181 @@ logging.basicConfig(
 )
 logger = logging.getLogger("instagram_login")
 
-load_dotenv()
-
+# Configuración
 PROXY_FILE = "src/proxies/proxies.txt"
-MAX_REINTENTOS = 5
-ESPERA_CHALLENGE_SEGUNDOS = 90
-REINTENTOS_CSRF = 3
+SESSIONS_DIR = "sessions"
+MAX_RETRIES = 3
+CHALLENGE_TIMEOUT = 90
 
 USER_AGENTS = [
-    "Mozilla/5.0 (Linux; Android 12; SM-S906N Build/QP1A.190711.020; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/80.0.3987.119 Mobile Safari/537.36 Instagram 269.0.0.18.75 Android",
-    "Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.0 Mobile/15E148 Safari/604.1 Instagram 269.0.0.18.75",
-    "Instagram 269.0.0.18.75 Android (33/13; 420dpi; 1080x2400; Google; Pixel 7; panther; panther; en_US; 440127232)"
+    "Mozilla/5.0 (Linux; Android 13; SM-S918B) AppleWebKit/537.36 Chrome/112.0.0.0 Mobile Safari/537.36",
+    "Mozilla/5.0 (iPhone; CPU iPhone OS 16_5 like Mac OS X) AppleWebKit/605.1.15 Version/16.4 Mobile/15E148 Safari/604.1",
+    "Instagram 289.0.0.21.109 Android (33/13; 480dpi; 1080x2400; Google; Pixel 7 Pro; cheetah; en_US; 460253680)"
 ]
 
 def obtener_proxies():
-    proxies = []
-    if os.path.exists(PROXY_FILE):
-        with open(PROXY_FILE, "r") as f:
-            for line in f:
-                proxy = line.strip()
-                if proxy and validar_proxy(proxy):
-                    proxies.append(proxy)
-    if not proxies:
-        logger.warning("⚠️ No se encontraron proxies válidos. Usando conexión directa.")
+    """Obtiene lista de proxies o usa conexión directa"""
+    if not os.path.exists(PROXY_FILE):
         return ["direct"]
-    random.shuffle(proxies)
-    return proxies[:MAX_REINTENTOS]
-
-def validar_proxy(proxy):
-    try:
-        proxies_config = {
-            "http": f"http://{proxy}",
-            "https": f"http://{proxy}"
-        }
-        test1 = requests.get("http://google.com", proxies=proxies_config, timeout=10)
-        if test1.status_code != 200:
-            return False
-        test2 = requests.get("https://www.instagram.com", proxies=proxies_config, timeout=15)
-        return test2.status_code == 200 and "instagram" in test2.text.lower()
-    except:
-        return False
+    
+    with open(PROXY_FILE, "r") as f:
+        proxies = [line.strip() for line in f if line.strip()]
+    
+    return proxies if proxies else ["direct"]
 
 def configurar_dispositivo(cl):
-    cl.set_device({
-        "app_version": "269.0.0.18.75",
-        "android_version": random.randint(28, 33),
-        "android_release": f"{random.randint(9, 13)}.0.0",
-        "dpi": random.choice(["480dpi", "420dpi"]),
-        "resolution": random.choice(["1080x2260", "1080x2400"]),
-        "manufacturer": random.choice(["samsung", "Google"]),
-        "device": random.choice(["SM-G998B", "Pixel 7"]),
-        "model": random.choice(["qcom", "exynos2100"]),
+    """Configura un dispositivo móvil realista"""
+    device = {
+        "app_version": "289.0.0.21.109",
+        "android_version": 33,
+        "android_release": "13.0.0",
+        "dpi": "480dpi",
+        "resolution": "1080x2400",
+        "manufacturer": "Google",
+        "device": "Pixel 7 Pro",
+        "model": "cheetah",
         "cpu": "arm64-v8a",
-        "version_code": "440127232"
-    })
+        "version_code": "460253680"
+    }
+    cl.set_device(device)
     cl.set_user_agent(random.choice(USER_AGENTS))
     cl.set_locale("en_US")
     cl.set_country("US")
     cl.set_country_code(1)
     cl.set_timezone_offset(-21600)  # UTC-6
-
-def login_instagram(username, password):
-    logger.info(f"🚀 Iniciando login para {username}")
-    proxies = obtener_proxies()
-
-    for i, proxy in enumerate(proxies):
-        for intento_csrftoken in range(REINTENTOS_CSRF):
-            try:
-                cl = Client()
-                configurar_dispositivo(cl)
-                if proxy != "direct":
-                    cl.set_proxy(f"http://{proxy}")
-                    logger.info(f"🔌 Proxy usado: {proxy}")
-                else:
-                    logger.info("🌐 Conexión directa")
-
-                time.sleep(random.uniform(1.5, 3.5))
-                if cl.login(username, password):
-                    logger.info(f"✅ Login exitoso: {username}")
-                    return cl
-
-            except BadPassword:
-                logger.error("🔑 Contraseña incorrecta")
-                return None
-            except ChallengeRequired:
-                logger.warning("⚠️ ChallengeRequired: esperando confirmación en app")
-                return resolver_desafio(cl, username, password, proxy)
-            except PleaseWaitFewMinutes as e:
-                logger.warning(f"⏳ Espera impuesta por Instagram: {e}")
-                time.sleep(30)
-            except ClientError as e:
-                if "CSRF token missing" in str(e):
-                    logger.warning("🔁 CSRF token incorrecto. Reintentando...")
-                    time.sleep(5)
-                    continue
-                else:
-                    logger.error(f"❌ ClientError: {e}")
-            except Exception as e:
-                logger.error(f"❌ Error inesperado: {e}")
-        logger.info("⛔ Agotados reintentos por CSRF con este proxy")
-    logger.error("❌ Todos los intentos fallaron")
-    return None
-
-def resolver_desafio(cl, username, password, proxy):
-    logger.info("📱 Esperando verificación manual desde la app...")
-    inicio = time.time()
-    while time.time() - inicio < ESPERA_CHALLENGE_SEGUNDOS:
-        try:
-            time.sleep(10)
-            cl.get_timeline_feed()
-            logger.info("✅ Challenge aprobado desde app")
-            return cl
-        except ChallengeRequired:
-            logger.info("⌛ Aún esperando confirmación...")
-        except LoginRequired:
-            try:
-                configurar_dispositivo(cl)
-                if proxy != "direct":
-                    cl.set_proxy(f"http://{proxy}")
-                cl.login(username, password)
-                return cl
-            except Exception:
-                return None
-    logger.error("⛔ Tiempo agotado para resolver challenge")
-    return None
+    return cl
 
 def guardar_sesion(cl, username):
+    """Guarda la sesión en un archivo JSON"""
+    if not os.path.exists(SESSIONS_DIR):
+        os.makedirs(SESSIONS_DIR)
+    
+    path = os.path.join(SESSIONS_DIR, f"ig_session_{username}.json")
     try:
-        with open(f"ig_session_{username}.json", "w") as f:
-            json.dump(cl.get_settings(), f, indent=2)
+        settings = cl.get_settings()
+        # Eliminar datos sensibles
+        settings.pop("password", None)
+        settings.pop("device_id", None)
+        
+        with open(path, "w") as f:
+            json.dump(settings, f, indent=2)
+        
         logger.info(f"💾 Sesión guardada: {username}")
+        return True
     except Exception as e:
-        logger.error(f"⚠️ Error al guardar sesión: {e}")
+        logger.error(f"❌ Error guardando sesión: {e}")
+        return False
+
+def cargar_sesion(username):
+    """Carga la sesión desde un archivo JSON"""
+    path = os.path.join(SESSIONS_DIR, f"ig_session_{username}.json")
+    if not os.path.exists(path):
+        return None
+    
+    try:
+        with open(path, "r") as f:
+            return json.load(f)
+    except Exception as e:
+        logger.error(f"❌ Error cargando sesión: {e}")
+        return None
 
 def restaurar_sesion(username, password):
-    path = f"ig_session_{username}.json"
-    cl = Client()
-    if os.path.exists(path):
-        try:
-            with open(path, "r") as f:
-                cl.set_settings(json.load(f))
-            cl.account_info()
-            logger.info(f"🔑 Sesión restaurada: {username}")
-            return cl
-        except Exception as e:
-            logger.warning(f"⚠️ Sesión inválida, reintentando login: {e}")
-    return login_instagram(username, password)
-
-def verificar_sesion(cl, username):
+    """Intenta restaurar la sesión guardada"""
+    settings = cargar_sesion(username)
+    if not settings:
+        return None
+    
     try:
+        cl = Client()
+        cl.set_settings(settings)
+        # Verificación rápida de sesión
         cl.get_timeline_feed()
-        return True
-    except:
-        return False
+        logger.info(f"🔑 Sesión restaurada: {username}")
+        return cl
+    except (LoginRequired, ChallengeRequired):
+        logger.info(f"⚠️ Sesión expirada, iniciando login: {username}")
+        return login_instagram(username, password)
+    except Exception as e:
+        logger.error(f"❌ Error restaurando sesión: {e}")
+        return None
+
+def resolver_desafio(cl, username, password, proxy):
+    """Maneja el proceso de verificación manual"""
+    logger.info("🔐 Por favor confirma 'Fui yo' en la app móvil...")
+    inicio = time.time()
+    
+    while time.time() - inicio < CHALLENGE_TIMEOUT:
+        time.sleep(10)
+        try:
+            # Intento de verificación silenciosa
+            cl.get_timeline_feed()
+            logger.info("✅ ¡Desafío completado!")
+            return cl
+        except ChallengeRequired:
+            tiempo_espera = int(time.time() - inicio)
+            logger.info(f"⌛ Esperando confirmación ({tiempo_espera}s)...")
+        except LoginRequired:
+            logger.info("⚠️ Sesión expirada durante desafío, reintentando login...")
+            try:
+                return login_instagram(username, password, proxy)
+            except Exception as e:
+                logger.error(f"❌ Error en relogin: {e}")
+                return None
+        except Exception as e:
+            logger.error(f"⚠️ Error durante desafío: {e}")
+            return None
+    
+    logger.error("❌ Tiempo agotado para resolver el desafío")
+    return None
+
+def login_instagram(username, password, proxy=None):
+    """Intenta iniciar sesión con manejo robusto de errores"""
+    logger.info(f"🚀 Iniciando sesión: @{username}")
+    
+    proxies = obtener_proxies()
+    proxy = proxy or random.choice(proxies)
+    
+    for intento in range(MAX_RETRIES):
+        try:
+            cl = Client()
+            configurar_dispositivo(cl)
+            
+            if proxy != "direct":
+                cl.set_proxy(f"http://{proxy}")
+            
+            # Comportamiento humano: espera aleatoria
+            time.sleep(random.uniform(1, 3))
+            
+            cl.login(username, password)
+            logger.info(f"✅ Login exitoso en intento {intento+1}")
+            return cl
+        except BadPassword:
+            logger.error("🔑 Contraseña incorrecta")
+            return None
+        except TwoFactorRequired:
+            logger.warning("⚠️ Requiere autenticación en dos pasos (no implementado)")
+            return None
+        except ChallengeRequired as e:
+            logger.warning(f"⚠️ Desafío requerido: {e}")
+            return resolver_desafio(cl, username, password, proxy)
+        except PleaseWaitFewMinutes as e:
+            espera = min(60 * (intento + 1), 300)  # Máximo 5 minutos
+            logger.warning(f"⏳ Bloqueo temporal. Esperando {espera}s: {e}")
+            time.sleep(espera)
+        except ClientError as e:
+            if "csrf" in str(e).lower():
+                logger.warning("🔄 Token CSRF inválido, reintentando...")
+                time.sleep(5)
+            elif "429" in str(e):
+                espera = 30 * (intento + 1)
+                logger.warning(f"🌐 Demasiadas solicitudes. Esperando {espera}s...")
+                time.sleep(espera)
+            else:
+                logger.error(f"❌ Error de cliente: {e}")
+                return None
+        except Exception as e:
+            logger.error(f"❌ Error inesperado: {type(e).__name__} - {e}")
+            return None
+    
+    logger.error("❌ Todos los intentos fallaron")
+    return None
