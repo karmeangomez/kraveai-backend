@@ -8442,3 +8442,4 @@
 2025-07-31 12:11:57,182 - private_request - INFO - kraveaibot [403] POST https://i.instagram.com/api/v1/launcher/sync/ (269.0.0.18.75, samsung exynos2100)
 2025-07-31 12:11:57,182 - instagram_login - ERROR - ❌ Error: {"message":"CSRF token missing or incorrect","status":"fail"}
 2025-07-31 12:11:57,182 - instagram_login - ERROR - ❌ Todos los intentos fallaron
+2025-07-31 12:11:58,824 - instagrapi - INFO - https://i.instagram.com/api/v1/accounts/current_user/?edit=true
