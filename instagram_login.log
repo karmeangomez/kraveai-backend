@@ -10385,3 +10385,6 @@
 2025-07-31 12:55:15,582 - instagrapi - INFO - https://i.instagram.com/api/v1/challenge/ASh7Rq7GLvpe38ipMgMwPzAFqTPbVhrxfhtMwn0pJ4p95EG-m5ghzonUVVhiIywR8uRz02Y/ASTRa39oye0wmyCoaanXd11u-ArqkcKQowwXvK_1F6R3QN7i8yXdl0tTsgtdTEGth4XsG3aChL-qMQ/
 2025-07-31 12:55:16,568 - private_request - INFO - kraveaibot [200] POST https://i.instagram.com/api/v1/challenge/ASh7Rq7GLvpe38ipMgMwPzAFqTPbVhrxfhtMwn0pJ4p95EG-m5ghzonUVVhiIywR8uRz02Y/ASTRa39oye0wmyCoaanXd11u-ArqkcKQowwXvK_1F6R3QN7i8yXdl0tTsgtdTEGth4XsG3aChL-qMQ/ (269.0.0.18.75, Google Pixel 7)
 2025-07-31 12:55:16,568 - instagram_login - ERROR - ❌ Error inesperado: EOF when reading a line
+2025-07-31 12:57:54,290 - instagram_login - INFO - 🚀 Iniciando login para kraveaibot
+2025-07-31 12:57:54,351 - instagram_login - WARNING - ⚠️ No se encontraron proxies válidos. Usando conexión directa.
+2025-07-31 12:57:54,352 - instagram_login - INFO - 🌐 Conexión directa
