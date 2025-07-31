@@ -10731,3 +10731,4 @@
 2025-07-31 14:10:31,045 - private_request - INFO - kraveaibot [200] POST https://i.instagram.com/api/v1/challenge/ASgCNXYL7oEYasAZEH9EyneJgn9MehxQyw-j-TLYbpcAlaCQFIb6SBrNRSpSYIQKb0v_JNc/ASRacN51o7tZk_oJmwxY7zQauknHwvclr1jmv5sYmHf1TIgO_zGLhOtjcbxP85JcdUoiwYcVw5kvsg/ (269.0.0.18.75, Google exynos2100)
 2025-07-31 14:10:31,046 - instagram_login - ERROR - ❌ Error inesperado: EOF when reading a line
 2025-07-31 14:10:31,049 - instagram_login - INFO - 🌐 Conexión directa
+2025-07-31 14:10:34,089 - instagrapi - INFO - https://i.instagram.com/api/v1/launcher/sync/
