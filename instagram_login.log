@@ -10780,3 +10780,5 @@
 2025-07-31 14:35:02,422 - instagram_login - WARNING - ⚠️ No se encontraron proxies válidos. Usando conexión directa.
 2025-07-31 14:35:02,423 - instagram_login - INFO - 🌐 Conexión directa
 2025-07-31 14:35:05,153 - instagrapi - INFO - https://i.instagram.com/api/v1/launcher/sync/
+2025-07-31 14:35:08,745 - private_request - INFO - kraveaibot [403] POST https://i.instagram.com/api/v1/launcher/sync/ (269.0.0.18.75, samsung exynos2100)
+2025-07-31 14:35:08,745 - instagram_login - WARNING - 🔁 CSRF token incorrecto. Reintentando...
