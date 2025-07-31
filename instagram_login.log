@@ -4582,3 +4582,6 @@
 2025-07-31 11:33:58,735 - private_request - INFO - kraveaibot [200] POST https://i.instagram.com/api/v1/launcher/sync/ (269.0.0.18.75, samsung qcom)
 2025-07-31 11:33:59,920 - instagrapi - INFO - https://i.instagram.com/api/v1/accounts/login/
 2025-07-31 11:34:04,561 - private_request - INFO - kraveaibot [200] POST https://i.instagram.com/api/v1/accounts/login/ (269.0.0.18.75, samsung qcom)
+2025-07-31 11:34:05,561 - instagrapi - INFO - https://i.instagram.com/api/v1/feed/reels_tray/
+2025-07-31 11:34:05,917 - private_request - INFO - kraveaibot [200] POST https://i.instagram.com/api/v1/feed/reels_tray/ (269.0.0.18.75, samsung qcom)
+2025-07-31 11:34:06,917 - instagrapi - INFO - https://i.instagram.com/api/v1/feed/timeline/
