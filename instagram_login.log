@@ -3763,3 +3763,18 @@
 2025-07-31 11:25:25,196 - private_request - INFO - None [200] GET https://i.instagram.com/api/v1/accounts/current_user/?edit=true (269.0.0.18.75, samsung exynos2100)
 2025-07-31 11:25:25,199 - instagram_login - INFO - 🔑 Sesión restaurada: kraveaibot
 2025-07-31 11:25:27,229 - instagrapi - INFO - https://i.instagram.com/api/v1/accounts/current_user/?edit=true
+2025-07-31 11:25:27,587 - private_request - INFO - None [200] GET https://i.instagram.com/api/v1/accounts/current_user/?edit=true (269.0.0.18.75, samsung exynos2100)
+2025-07-31 11:25:27,589 - instagram_login - INFO - 🔑 Sesión restaurada: kraveaibot
+2025-07-31 11:25:28,145 - instagram_login - INFO - 🚀 Iniciando login para kraveaibot
+2025-07-31 11:25:28,227 - instagram_login - WARNING - No se encontraron proxies válidos. Usando conexión directa.
+2025-07-31 11:25:28,228 - instagram_login - INFO - 🌐 Conexión directa
+2025-07-31 11:25:29,375 - instagrapi - INFO - https://i.instagram.com/api/v1/accounts/current_user/?edit=true
+2025-07-31 11:25:29,929 - private_request - INFO - None [200] GET https://i.instagram.com/api/v1/accounts/current_user/?edit=true (269.0.0.18.75, samsung exynos2100)
+2025-07-31 11:25:29,931 - instagram_login - INFO - 🔑 Sesión restaurada: kraveaibot
+2025-07-31 11:25:29,959 - instagrapi - INFO - https://i.instagram.com/api/v1/launcher/sync/
+2025-07-31 11:25:30,264 - private_request - INFO - kraveaibot [200] POST https://i.instagram.com/api/v1/launcher/sync/ (269.0.0.18.75, Google qcom)
+2025-07-31 11:25:30,514 - instagrapi - INFO - https://i.instagram.com/api/v1/accounts/login/
+2025-07-31 11:25:31,605 - instagrapi - INFO - https://i.instagram.com/api/v1/accounts/current_user/?edit=true
+2025-07-31 11:25:31,993 - private_request - INFO - None [200] GET https://i.instagram.com/api/v1/accounts/current_user/?edit=true (269.0.0.18.75, samsung exynos2100)
+2025-07-31 11:25:31,996 - instagram_login - INFO - 🔑 Sesión restaurada: kraveaibot
+2025-07-31 11:25:33,589 - instagrapi - INFO - https://i.instagram.com/api/v1/accounts/current_user/?edit=true
