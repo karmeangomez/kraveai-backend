@@ -10403,3 +10403,4 @@
 2025-07-31 12:58:26,409 - private_request - INFO - Leonardoperzz_ [200] POST https://i.instagram.com/api/v1/launcher/sync/ (269.0.0.18.75, Google qcom)
 2025-07-31 12:58:29,917 - instagrapi - INFO - https://i.instagram.com/api/v1/accounts/login/
 2025-07-31 12:58:34,769 - private_request - INFO - Leonardoperzz_ [400] POST https://i.instagram.com/api/v1/accounts/login/ (269.0.0.18.75, Google qcom)
+2025-07-31 12:58:35,769 - instagrapi - INFO - https://i.instagram.com/api/v1/challenge/ASjnVAN4MuTJyY3DNb6XLjkqVYJ2IwcRSDKUD2KXujWb5b_38YLB2mi5mL6KKk_HtvZUkCw/ASTGtbogXUuD7umBdAjumns-vKNffTF1ViJG5kIeYCw6jIr0l7SRxOFH3JsTyfH32KHAS69QWZ7nRw/
