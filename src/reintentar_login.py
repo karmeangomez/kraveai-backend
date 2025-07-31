@@ -1,43 +1,40 @@
-import os
-import json
 import sys
-import time
+import logging
+from getpass import getpass
+from login_utils import login_instagram, guardar_sesion
 
-# Permitir ejecución desde src/
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+# Configuración de logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[logging.StreamHandler()]
+)
+logger = logging.getLogger("instagram_login_tool")
 
-from src.login_utils import login_instagram, guardar_sesion, verificar_sesion
-
-CUENTAS_JSON = os.path.join(os.path.dirname(__file__), "../cuentas_creadas.json")
-
-def guardar_en_json(username, password):
-    cuentas = []
-    if os.path.exists(CUENTAS_JSON):
-        with open(CUENTAS_JSON, "r") as f:
-            cuentas = json.load(f)
-    if not any(c["username"] == username for c in cuentas):
-        cuentas.append({"username": username, "password": password})
-        with open(CUENTAS_JSON, "w") as f:
-            json.dump(cuentas, f, indent=2)
-        print(f"✅ Cuenta guardada en {CUENTAS_JSON}")
+def main():
+    print("🔐 Herramienta de Login Manual para Instagram")
+    
+    # Obtener credenciales
+    if len(sys.argv) >= 3:
+        username = sys.argv[1]
+        password = sys.argv[2]
     else:
-        print("ℹ️ La cuenta ya estaba registrada")
-
-def intentar_login(username, password):
-    print(f"\n🔐 Intentando login para @{username}...\n")
+        username = input("👤 Usuario de Instagram: ").strip()
+        password = getpass("🔑 Contraseña: ").strip()
+    
+    logger.info(f"🚀 Intentando login para @{username}...")
+    
     cl = login_instagram(username, password)
+    
     if cl:
-        if verificar_sesion(cl, username):
-            guardar_sesion(cl, username)
-            guardar_en_json(username, password)
-            print(f"\n✅ Login exitoso y sesión verificada para @{username}\n")
-        else:
-            print(f"\n⚠️ Login completado pero sesión inválida para @{username}.")
+        guardar_sesion(cl, username)
+        logger.info(f"✅ ¡Login exitoso! Sesión guardada para @{username}")
     else:
-        print(f"\n❌ Login fallido para @{username}. Revisa la app o el correo si hay un challenge.")
+        logger.error(f"❌ Login fallido para @{username}")
+        logger.info("💡 Posibles soluciones:")
+        logger.info("1. Verifica que hayas hecho clic en 'Fui yo' en la app móvil")
+        logger.info("2. Espera 24 horas si Instagram ha bloqueado temporalmente la cuenta")
+        logger.info("3. Prueba con otro proxy si usas varios")
 
 if __name__ == "__main__":
-    print("📥 Login asistido para cuentas manuales de tareas")
-    username = input("👤 Usuario de Instagram: ").strip()
-    password = input("🔑 Contraseña: ").strip()
-    intentar_login(username, password)
+    main()
