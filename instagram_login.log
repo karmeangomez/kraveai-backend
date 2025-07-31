@@ -10809,3 +10809,4 @@
 2025-07-31 14:40:32,806 - private_request - INFO - kraveaibot [200] POST https://i.instagram.com/api/v1/challenge/ASjV1NhRzfx-F3fl0wiqKe9dEy8CpU7e3K6GKjcS4mDv7xzaD4_MGtJX2bV5sesV-Al8Hyo/ASQ7DG71wpcOjdGqznlp1gwPj29H6cdZQbiEhaWJGX8D7AZPXBUz6VT4n6Kuoek8tkSOt6n6XaCDuA/ (269.0.0.18.75, samsung qcom)
 2025-07-31 14:40:32,807 - instagram_login - ERROR - ❌ Error inesperado: EOF when reading a line
 2025-07-31 14:40:32,815 - instagram_login - INFO - 🌐 Conexión directa
+2025-07-31 14:40:36,202 - instagrapi - INFO - https://i.instagram.com/api/v1/launcher/sync/
