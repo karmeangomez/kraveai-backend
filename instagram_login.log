@@ -10816,3 +10816,10 @@
 2025-07-31 14:40:44,548 - instagram_login - ERROR - ❌ Todos los intentos fallaron
 2025-07-31 14:48:15,611 - instagram_login_tool - INFO - 🚀 Intentando login para @Leonardoperzz_...
 2025-07-31 14:48:15,611 - instagram_login - INFO - 🚀 Iniciando sesión: @Leonardoperzz_
+2025-07-31 14:48:16,848 - instagrapi - INFO - https://i.instagram.com/api/v1/launcher/sync/
+2025-07-31 14:48:16,850 - instagram_login - ERROR - ❌ Error inesperado: InvalidURL - Failed to parse: http://p.webshare.io:80:pdsmombq-16:terqdq67j6mp
+2025-07-31 14:48:16,851 - instagram_login_tool - ERROR - ❌ Login fallido para @Leonardoperzz_
+2025-07-31 14:48:16,851 - instagram_login_tool - INFO - 💡 Posibles soluciones:
+2025-07-31 14:48:16,851 - instagram_login_tool - INFO - 1. Verifica que hayas hecho clic en 'Fui yo' en la app móvil
+2025-07-31 14:48:16,851 - instagram_login_tool - INFO - 2. Espera 24 horas si Instagram ha bloqueado temporalmente la cuenta
+2025-07-31 14:48:16,851 - instagram_login_tool - INFO - 3. Prueba con otro proxy si usas varios
