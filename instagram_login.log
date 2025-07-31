@@ -10481,3 +10481,6 @@
 2025-07-31 13:06:38,409 - instagram_login - INFO - 🚀 Iniciando login para Leonardoperzz_
 2025-07-31 13:06:38,454 - instagram_login - WARNING - ⚠️ No se encontraron proxies válidos. Usando conexión directa.
 2025-07-31 13:06:38,454 - instagram_login - INFO - 🌐 Conexión directa
+2025-07-31 13:06:40,337 - instagrapi - INFO - https://i.instagram.com/api/v1/launcher/sync/
+2025-07-31 13:06:40,604 - private_request - INFO - Leonardoperzz_ [403] POST https://i.instagram.com/api/v1/launcher/sync/ (269.0.0.18.75, samsung qcom)
+2025-07-31 13:06:40,604 - instagram_login - WARNING - 🔁 CSRF token incorrecto. Reintentando...
