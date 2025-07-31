@@ -8429,3 +8429,12 @@
 2025-07-31 12:11:44,994 - instagrapi - INFO - https://i.instagram.com/api/v1/launcher/sync/
 2025-07-31 12:11:45,931 - private_request - INFO - kraveaibot [200] POST https://i.instagram.com/api/v1/launcher/sync/ (269.0.0.18.75, Google qcom)
 2025-07-31 12:11:46,714 - instagrapi - INFO - https://i.instagram.com/api/v1/accounts/login/
+2025-07-31 12:11:52,470 - private_request - INFO - kraveaibot [400] POST https://i.instagram.com/api/v1/accounts/login/ (269.0.0.18.75, Google qcom)
+2025-07-31 12:11:52,470 - instagram_login - ERROR - ❌ Error: Sorry, there was a problem with your request.
+2025-07-31 12:11:52,470 - instagram_login - ERROR - ❌ Todos los intentos fallaron
+2025-07-31 12:11:54,008 - instagrapi - INFO - https://i.instagram.com/api/v1/accounts/current_user/?edit=true
+2025-07-31 12:11:54,383 - private_request - INFO - None [403] GET https://i.instagram.com/api/v1/accounts/current_user/?edit=true (269.0.0.18.75, Google exynos2100)
+2025-07-31 12:11:54,383 - instagram_login - WARNING - ⚠️ Sesión inválida, reintentando login: login_required
+2025-07-31 12:11:54,383 - instagram_login - INFO - 🚀 Iniciando login para kraveaibot
+2025-07-31 12:11:54,442 - instagram_login - WARNING - No se encontraron proxies válidos. Usando conexión directa.
+2025-07-31 12:11:54,442 - instagram_login - INFO - 🌐 Conexión directa
