@@ -9150,3 +9150,4 @@
 2025-07-31 12:18:38,083 - instagram_login - INFO - 🌐 Conexión directa
 2025-07-31 12:18:40,526 - instagrapi - INFO - https://i.instagram.com/api/v1/launcher/sync/
 2025-07-31 12:18:40,807 - private_request - INFO - kraveaibot [200] POST https://i.instagram.com/api/v1/launcher/sync/ (269.0.0.18.75, Google exynos2100)
+2025-07-31 12:18:41,039 - instagrapi - INFO - https://i.instagram.com/api/v1/accounts/login/
