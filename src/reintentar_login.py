@@ -1,7 +1,7 @@
-import time
-import json
 import os
+import json
 import sys
+import time
 
 # Permitir ejecución desde src/
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
