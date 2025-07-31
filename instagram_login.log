@@ -5631,3 +5631,4 @@
 2025-07-31 11:45:36,726 - instagram_login - WARNING - No se encontraron proxies válidos. Usando conexión directa.
 2025-07-31 11:45:36,726 - instagram_login - INFO - 🌐 Conexión directa
 2025-07-31 11:45:38,254 - instagrapi - INFO - https://i.instagram.com/api/v1/launcher/sync/
+2025-07-31 11:45:45,399 - instagrapi - INFO - https://i.instagram.com/api/v1/accounts/current_user/?edit=true
