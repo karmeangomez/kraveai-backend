@@ -5832,3 +5832,8 @@
 2025-07-31 11:47:28,843 - instagram_login - ERROR - ❌ Error: {"message":"CSRF token missing or incorrect","status":"fail"}
 2025-07-31 11:47:28,843 - instagram_login - ERROR - ❌ Todos los intentos fallaron
 2025-07-31 11:47:29,304 - private_request - INFO - Leonardoperzz_ [400] POST https://i.instagram.com/api/v1/accounts/login/ (269.0.0.18.75, samsung qcom)
+2025-07-31 11:47:30,308 - instagrapi - INFO - https://i.instagram.com/api/v1/challenge/ASjp_8JWLSXp1VQgkJPIRtt4K8skIi4OC18R0nzhPnREkm8b_fVz-8-__QyKwXU8KVV2Bvg/ASQR-ABqYEda77XtbX5W3TU_y5ufvkcqv8sJ7EadB0px5xXwMJB2DAZk1pLvrASB5fYanC5xHG1VFA/
+2025-07-31 11:47:30,379 - instagrapi - INFO - https://i.instagram.com/api/v1/accounts/current_user/?edit=true
+2025-07-31 11:47:30,813 - private_request - INFO - None [403] GET https://i.instagram.com/api/v1/accounts/current_user/?edit=true (269.0.0.18.75, Google exynos2100)
+2025-07-31 11:47:30,814 - instagram_login - WARNING - ⚠️ Sesión inválida, reintentando login: login_required
+2025-07-31 11:47:30,814 - instagram_login - INFO - 🚀 Iniciando login para kraveaibot
