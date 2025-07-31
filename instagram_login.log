@@ -10494,3 +10494,6 @@
 2025-07-31 13:06:56,462 - instagram_login - WARNING - 🔁 CSRF token incorrecto. Reintentando...
 2025-07-31 13:07:01,462 - instagram_login - INFO - ⛔ Agotados reintentos por CSRF con este proxy
 2025-07-31 13:07:01,462 - instagram_login - ERROR - ❌ Todos los intentos fallaron
+2025-07-31 13:10:02,331 - instagram_login - INFO - 🚀 Iniciando login para kraveaibot
+2025-07-31 13:10:02,359 - instagram_login - WARNING - ⚠️ No se encontraron proxies válidos. Usando conexión directa.
+2025-07-31 13:10:02,359 - instagram_login - INFO - 🌐 Conexión directa
