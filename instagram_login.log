@@ -4219,3 +4219,25 @@
 2025-07-31 11:30:08,304 - instagram_login - ERROR - ❌ Error: {"message":"CSRF token missing or incorrect","status":"fail"}
 2025-07-31 11:30:08,304 - instagram_login - ERROR - ❌ Todos los intentos fallaron
 2025-07-31 11:30:09,874 - instagrapi - INFO - https://i.instagram.com/api/v1/accounts/current_user/?edit=true
+2025-07-31 11:30:10,110 - private_request - INFO - None [400] GET https://i.instagram.com/api/v1/accounts/current_user/?edit=true (269.0.0.18.75, Google qcom)
+2025-07-31 11:30:10,110 - instagram_login - WARNING - ⚠️ Sesión inválida, reintentando login: feedback_required: We limit how often you can do certain things on Instagram to protect our community. Tell us if you think we made a mistake.
+2025-07-31 11:30:10,110 - instagram_login - INFO - 🚀 Iniciando login para kraveaibot
+2025-07-31 11:30:10,170 - instagram_login - WARNING - No se encontraron proxies válidos. Usando conexión directa.
+2025-07-31 11:30:10,170 - instagram_login - INFO - 🌐 Conexión directa
+2025-07-31 11:30:11,528 - instagrapi - INFO - https://i.instagram.com/api/v1/launcher/sync/
+2025-07-31 11:30:11,916 - private_request - INFO - kraveaibot [403] POST https://i.instagram.com/api/v1/launcher/sync/ (269.0.0.18.75, samsung qcom)
+2025-07-31 11:30:11,916 - instagram_login - ERROR - ❌ Error: {"message":"CSRF token missing or incorrect","status":"fail"}
+2025-07-31 11:30:11,916 - instagram_login - ERROR - ❌ Todos los intentos fallaron
+2025-07-31 11:30:13,516 - private_request - INFO - kraveaibot [200] POST https://i.instagram.com/api/v1/accounts/login/ (269.0.0.18.75, Google exynos2100)
+2025-07-31 11:30:13,564 - instagrapi - INFO - https://i.instagram.com/api/v1/accounts/current_user/?edit=true
+2025-07-31 11:30:13,966 - private_request - INFO - None [400] GET https://i.instagram.com/api/v1/accounts/current_user/?edit=true (269.0.0.18.75, Google qcom)
+2025-07-31 11:30:13,966 - instagram_login - WARNING - ⚠️ Sesión inválida, reintentando login: feedback_required: We limit how often you can do certain things on Instagram to protect our community. Tell us if you think we made a mistake.
+2025-07-31 11:30:13,966 - instagram_login - INFO - 🚀 Iniciando login para kraveaibot
+2025-07-31 11:30:14,026 - instagram_login - WARNING - No se encontraron proxies válidos. Usando conexión directa.
+2025-07-31 11:30:14,027 - instagram_login - INFO - 🌐 Conexión directa
+2025-07-31 11:30:14,517 - instagrapi - INFO - https://i.instagram.com/api/v1/feed/reels_tray/
+2025-07-31 11:30:14,943 - private_request - INFO - kraveaibot [200] POST https://i.instagram.com/api/v1/feed/reels_tray/ (269.0.0.18.75, Google exynos2100)
+2025-07-31 11:30:15,316 - instagrapi - INFO - https://i.instagram.com/api/v1/launcher/sync/
+2025-07-31 11:30:15,620 - private_request - INFO - kraveaibot [200] POST https://i.instagram.com/api/v1/launcher/sync/ (269.0.0.18.75, samsung qcom)
+2025-07-31 11:30:15,839 - instagrapi - INFO - https://i.instagram.com/api/v1/accounts/login/
+2025-07-31 11:30:15,944 - instagrapi - INFO - https://i.instagram.com/api/v1/feed/timeline/
