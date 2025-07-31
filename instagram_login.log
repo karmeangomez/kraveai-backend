@@ -1504,3 +1504,7 @@
 2025-07-31 11:13:28,173 - instagram_login - WARNING - No se encontraron proxies válidos. Usando conexión directa.
 2025-07-31 11:13:28,173 - instagram_login - ERROR - ❌ Error inesperado: AttributeError - 'Client' object has no attribute 'set_retry_delay'
 2025-07-31 11:13:28,174 - instagram_login - ERROR - ❌ Todos los intentos fallaron para kraveaibot
+2025-07-31 11:13:29,849 - instagrapi - INFO - https://i.instagram.com/api/v1/accounts/current_user/?edit=true
+2025-07-31 11:13:30,156 - private_request - INFO - None [403] GET https://i.instagram.com/api/v1/accounts/current_user/?edit=true (269.0.0.18.75, OnePlus 6T Dev)
+2025-07-31 11:13:30,156 - instagram_login - WARNING - ⚠️ Sesión expirada. Intentando relogin...
+2025-07-31 11:13:30,156 - instagram_login - INFO - 🚀 Iniciando login para kraveaibot
