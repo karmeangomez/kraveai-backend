@@ -4022,3 +4022,8 @@
 2025-07-31 11:27:56,260 - private_request - INFO - Leonardoperzz_ [200] POST https://i.instagram.com/api/v1/launcher/sync/ (269.0.0.18.75, Google exynos2100)
 2025-07-31 11:27:56,472 - instagrapi - INFO - https://i.instagram.com/api/v1/accounts/login/
 2025-07-31 11:27:57,263 - instagrapi - INFO - https://i.instagram.com/api/v1/accounts/current_user/?edit=true
+2025-07-31 11:27:57,544 - private_request - INFO - None [400] GET https://i.instagram.com/api/v1/accounts/current_user/?edit=true (269.0.0.18.75, Google qcom)
+2025-07-31 11:27:57,545 - instagram_login - WARNING - ⚠️ Sesión inválida, reintentando login: feedback_required: We limit how often you can do certain things on Instagram to protect our community. Tell us if you think we made a mistake.
+2025-07-31 11:27:57,545 - instagram_login - INFO - 🚀 Iniciando login para kraveaibot
+2025-07-31 11:27:57,605 - instagram_login - WARNING - No se encontraron proxies válidos. Usando conexión directa.
+2025-07-31 11:27:57,605 - instagram_login - INFO - 🌐 Conexión directa
