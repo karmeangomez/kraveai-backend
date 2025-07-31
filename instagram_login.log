@@ -4275,3 +4275,7 @@
 2025-07-31 11:30:34,430 - instagram_login - WARNING - No se encontraron proxies válidos. Usando conexión directa.
 2025-07-31 11:30:34,431 - instagram_login - INFO - 🌐 Conexión directa
 2025-07-31 11:30:36,970 - instagrapi - INFO - https://i.instagram.com/api/v1/launcher/sync/
+2025-07-31 11:30:37,489 - private_request - INFO - kraveaibot [200] POST https://i.instagram.com/api/v1/launcher/sync/ (269.0.0.18.75, Google qcom)
+2025-07-31 11:30:37,548 - private_request - INFO - Leonardoperzz_ [400] POST https://i.instagram.com/api/v1/accounts/login/ (269.0.0.18.75, samsung qcom)
+2025-07-31 11:30:37,948 - instagrapi - INFO - https://i.instagram.com/api/v1/accounts/login/
+2025-07-31 11:30:38,548 - instagrapi - INFO - https://i.instagram.com/api/v1/challenge/ASj_VQ-1n_TaM7_BmrMTF7MOFAnVsSaCzPEQ9bUORTuHw8STScdpcuQm-_mlOpy1xynipmE/ASTKcvIkuR76d8JUrYsyvWjjOw7wOmBooCY9j9jslE8Y4Y0_8Ivx7iFs1jzu2FDpKNEmGpihWI7SZw/
