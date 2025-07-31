@@ -6,18 +6,14 @@ import logging
 import requests
 from instagrapi import Client
 from instagrapi.exceptions import (
-    ChallengeRequired, LoginRequired, ClientError, PleaseWaitFewMinutes,
-    BadPassword, TwoFactorRequired
+    ChallengeRequired, LoginRequired, ClientError, PleaseWaitFewMinutes, BadPassword
 )
 from dotenv import load_dotenv
 
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.FileHandler("instagram_login.log"),
-        logging.StreamHandler()
-    ]
+    handlers=[logging.FileHandler("instagram_login.log"), logging.StreamHandler()]
 )
 logger = logging.getLogger("instagram_login")
 
@@ -26,9 +22,8 @@ PROXY_FILE = "src/proxies/proxies.txt"
 MAX_REINTENTOS = 5
 ESPERA_CHALLENGE_SEGUNDOS = 90
 USER_AGENTS = [
-    "Mozilla/5.0 (Linux; Android 12; SM-S906N Build/QP1A.190711.020; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/80.0.3987.119 Mobile Safari/537.36 Instagram 269.0.0.18.75 Android (31/12; 480dpi; 1080x2400; samsung; SM-S906N; o1q; qcom; en_US; 440127232)",
-    "Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.0 Mobile/15E148 Safari/604.1 Instagram 269.0.0.18.75 (iPhone14,3; iOS 16_0; en_US; en-US; scale=3.00; 1170x2532; 440127232)",
-    "Instagram 269.0.0.18.75 Android (33/13; 420dpi; 1080x2400; Google; Pixel 7; panther; panther; en_US; 440127232)"
+    "Instagram 269.0.0.18.75 Android (33/13; 420dpi; 1080x2400; Google; Pixel 7; panther; qcom; en_US; 440127232)",
+    "Mozilla/5.0 (Linux; Android 12; SM-S906N Build/QP1A.190711.020; wv) AppleWebKit/537.36 Mobile Safari/537.36 Instagram 269.0.0.18.75 Android",
 ]
 
 def obtener_proxies():
@@ -47,28 +42,22 @@ def obtener_proxies():
 
 def validar_proxy(proxy):
     try:
-        proxies_config = {
-            "http": f"http://{proxy}",
-            "https": f"http://{proxy}"
-        }
-        test1 = requests.get("http://google.com", proxies=proxies_config, timeout=10)
-        if test1.status_code != 200:
-            return False
-        test2 = requests.get("https://www.instagram.com", proxies=proxies_config, timeout=15)
-        return test2.status_code == 200 and "instagram" in test2.text.lower()
+        proxies_config = {"http": f"http://{proxy}", "https": f"http://{proxy}"}
+        requests.get("https://www.instagram.com", proxies=proxies_config, timeout=10)
+        return True
     except:
         return False
 
 def configurar_dispositivo(cl):
     cl.set_device({
         "app_version": "269.0.0.18.75",
-        "android_version": random.randint(28, 33),
-        "android_release": f"{random.randint(9, 13)}.0.0",
-        "dpi": random.choice(["480dpi", "420dpi"]),
-        "resolution": random.choice(["1080x2260", "1080x2400"]),
-        "manufacturer": random.choice(["samsung", "Google"]),
-        "device": random.choice(["SM-G998B", "Pixel 7"]),
-        "model": random.choice(["qcom", "exynos2100"]),
+        "android_version": 33,
+        "android_release": "13.0.0",
+        "dpi": "420dpi",
+        "resolution": "1080x2400",
+        "manufacturer": "Google",
+        "device": "panther",
+        "model": "Pixel 7",
         "cpu": "arm64-v8a",
         "version_code": "440127232"
     })
@@ -76,7 +65,7 @@ def configurar_dispositivo(cl):
     cl.set_locale("en_US")
     cl.set_country("US")
     cl.set_country_code(1)
-    cl.set_timezone_offset(-21600)  # UTC-6
+    cl.set_timezone_offset(-21600)
 
 def login_instagram(username, password):
     logger.info(f"🚀 Iniciando login para {username}")
@@ -92,36 +81,34 @@ def login_instagram(username, password):
             else:
                 logger.info("🌐 Conexión directa")
 
-            time.sleep(random.uniform(1, 3))
-            if cl.login(username, password):
-                logger.info(f"✅ Login exitoso: {username}")
-                return cl
+            time.sleep(random.uniform(1.5, 3.5))
+            cl.login(username, password)
+            logger.info(f"✅ Login exitoso: {username}")
+            return cl
         except BadPassword:
             logger.error("🔑 Contraseña incorrecta")
             return None
         except ChallengeRequired:
             logger.warning("⚠️ ChallengeRequired: esperando aprobación en app")
             return resolver_desafio(cl, username, password, proxy)
-        except PleaseWaitFewMinutes as e:
-            logger.warning(f"⏳ Espera recomendada: {e}")
+        except PleaseWaitFewMinutes:
+            logger.warning("⏳ Instagram pide esperar. Rotando...")
             time.sleep(30)
         except Exception as e:
-            logger.error(f"❌ Error: {e}")
+            logger.error(f"❌ Error inesperado: {e}")
             continue
-    logger.error("❌ Todos los intentos fallaron")
     return None
 
 def resolver_desafio(cl, username, password, proxy):
-    logger.info("📱 Esperando verificación manual desde la app")
     inicio = time.time()
-    while time.time() - inicio < 90:
+    while time.time() - inicio < ESPERA_CHALLENGE_SEGUNDOS:
         try:
             time.sleep(10)
             cl.get_timeline_feed()
             logger.info("✅ Challenge aprobado desde app")
             return cl
         except ChallengeRequired:
-            logger.info("⌛ Aún esperando confirmación...")
+            logger.info("⌛ Aún esperando aprobación manual...")
         except LoginRequired:
             try:
                 configurar_dispositivo(cl)
@@ -129,9 +116,9 @@ def resolver_desafio(cl, username, password, proxy):
                     cl.set_proxy(f"http://{proxy}")
                 cl.login(username, password)
                 return cl
-            except Exception:
+            except:
                 return None
-    logger.error("⛔ Tiempo agotado para resolver challenge")
+    logger.error("⛔ Tiempo agotado para challenge")
     return None
 
 def guardar_sesion(cl, username):
@@ -143,17 +130,18 @@ def guardar_sesion(cl, username):
         logger.error(f"⚠️ Error al guardar sesión: {e}")
 
 def restaurar_sesion(username, password):
-    path = f"ig_session_{username}.json"
     cl = Client()
+    path = f"ig_session_{username}.json"
     if os.path.exists(path):
         try:
             with open(path, "r") as f:
                 cl.set_settings(json.load(f))
+            configurar_dispositivo(cl)
             cl.account_info()
-            logger.info(f"🔑 Sesión restaurada: {username}")
+            logger.info(f"🔑 Sesión restaurada desde archivo: {username}")
             return cl
         except Exception as e:
-            logger.warning(f"⚠️ Sesión inválida, reintentando login: {e}")
+            logger.warning(f"⚠️ Error restaurando sesión: {e}")
     return login_instagram(username, password)
 
 def verificar_sesion(cl, username):
