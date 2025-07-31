@@ -10409,3 +10409,4 @@
 2025-07-31 12:58:38,468 - private_request - INFO - Leonardoperzz_ [200] POST https://i.instagram.com/api/v1/challenge/ASjnVAN4MuTJyY3DNb6XLjkqVYJ2IwcRSDKUD2KXujWb5b_38YLB2mi5mL6KKk_HtvZUkCw/ASTGtbogXUuD7umBdAjumns-vKNffTF1ViJG5kIeYCw6jIr0l7SRxOFH3JsTyfH32KHAS69QWZ7nRw/ (269.0.0.18.75, Google qcom)
 2025-07-31 12:58:38,469 - instagram_login - ERROR - ❌ Error inesperado: EOF when reading a line
 2025-07-31 12:58:38,473 - instagram_login - INFO - 🌐 Conexión directa
+2025-07-31 12:58:40,236 - instagrapi - INFO - https://i.instagram.com/api/v1/launcher/sync/
