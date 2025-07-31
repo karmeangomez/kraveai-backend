@@ -10473,3 +10473,6 @@
 2025-07-31 13:05:19,644 - private_request - INFO - kraveaibot [403] POST https://i.instagram.com/api/v1/launcher/sync/ (269.0.0.18.75, samsung qcom)
 2025-07-31 13:05:19,644 - instagram_login - WARNING - 🔁 CSRF token incorrecto. Reintentando...
 2025-07-31 13:05:24,646 - instagram_login - INFO - 🌐 Conexión directa
+2025-07-31 13:05:27,436 - instagrapi - INFO - https://i.instagram.com/api/v1/launcher/sync/
+2025-07-31 13:05:27,878 - private_request - INFO - kraveaibot [403] POST https://i.instagram.com/api/v1/launcher/sync/ (269.0.0.18.75, Google exynos2100)
+2025-07-31 13:05:27,878 - instagram_login - WARNING - 🔁 CSRF token incorrecto. Reintentando...
