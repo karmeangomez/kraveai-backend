@@ -7736,3 +7736,5 @@
 2025-07-31 12:05:05,209 - private_request - INFO - kraveaibot [403] POST https://i.instagram.com/api/v1/launcher/sync/ (269.0.0.18.75, Google exynos2100)
 2025-07-31 12:05:05,209 - instagram_login - ERROR - ❌ Error: {"message":"CSRF token missing or incorrect","status":"fail"}
 2025-07-31 12:05:05,209 - instagram_login - ERROR - ❌ Todos los intentos fallaron
+2025-07-31 12:05:08,048 - private_request - INFO - kraveaibot [400] POST https://i.instagram.com/api/v1/accounts/login/ (269.0.0.18.75, Google qcom)
+2025-07-31 12:05:08,048 - instagram_login - ERROR - 🔑 Contraseña incorrecta
