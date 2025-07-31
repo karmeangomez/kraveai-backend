@@ -10449,3 +10449,4 @@
 2025-07-31 13:03:29,640 - instagram_login - INFO - 🚀 Iniciando login para Leonardoperzz_
 2025-07-31 13:03:29,683 - instagram_login - WARNING - ⚠️ No se encontraron proxies válidos. Usando conexión directa.
 2025-07-31 13:03:29,684 - instagram_login - INFO - 🌐 Conexión directa
+2025-07-31 13:03:31,753 - instagrapi - INFO - https://i.instagram.com/api/v1/launcher/sync/
