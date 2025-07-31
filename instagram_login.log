@@ -9738,3 +9738,6 @@
 2025-07-31 12:24:23,201 - instagrapi - INFO - https://i.instagram.com/api/v1/accounts/login/
 2025-07-31 12:24:25,482 - private_request - INFO - kraveaibot [400] POST https://i.instagram.com/api/v1/accounts/login/ (269.0.0.18.75, samsung exynos2100)
 2025-07-31 12:24:25,483 - instagram_login - ERROR - 🔑 Contraseña incorrecta
+2025-07-31 12:24:26,018 - instagram_login - INFO - 🚀 Iniciando login para kraveaibot
+2025-07-31 12:24:26,077 - instagram_login - WARNING - No se encontraron proxies válidos. Usando conexión directa.
+2025-07-31 12:24:26,078 - instagram_login - INFO - 🌐 Conexión directa
