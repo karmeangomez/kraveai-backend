@@ -4247,3 +4247,5 @@
 2025-07-31 11:30:21,951 - private_request - INFO - kraveaibot [200] POST https://i.instagram.com/api/v1/feed/timeline/ (269.0.0.18.75, Google exynos2100)
 2025-07-31 11:30:21,952 - instagram_login - INFO - 💾 Sesión guardada: kraveaibot
 2025-07-31 11:30:23,140 - private_request - INFO - kraveaibot [200] POST https://i.instagram.com/api/v1/accounts/login/ (269.0.0.18.75, samsung qcom)
+2025-07-31 11:30:24,140 - instagrapi - INFO - https://i.instagram.com/api/v1/feed/reels_tray/
+2025-07-31 11:30:24,652 - private_request - INFO - kraveaibot [200] POST https://i.instagram.com/api/v1/feed/reels_tray/ (269.0.0.18.75, samsung qcom)
