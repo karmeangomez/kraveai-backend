@@ -4206,3 +4206,9 @@
 2025-07-31 11:30:04,451 - instagram_login - WARNING - No se encontraron proxies válidos. Usando conexión directa.
 2025-07-31 11:30:04,451 - instagram_login - INFO - 🌐 Conexión directa
 2025-07-31 11:30:05,237 - instagrapi - INFO - https://i.instagram.com/api/v1/accounts/current_user/?edit=true
+2025-07-31 11:30:05,617 - private_request - INFO - None [400] GET https://i.instagram.com/api/v1/accounts/current_user/?edit=true (269.0.0.18.75, Google qcom)
+2025-07-31 11:30:05,618 - instagram_login - WARNING - ⚠️ Sesión inválida, reintentando login: feedback_required: We limit how often you can do certain things on Instagram to protect our community. Tell us if you think we made a mistake.
+2025-07-31 11:30:05,618 - instagram_login - INFO - 🚀 Iniciando login para kraveaibot
+2025-07-31 11:30:05,695 - instagram_login - WARNING - No se encontraron proxies válidos. Usando conexión directa.
+2025-07-31 11:30:05,696 - instagram_login - INFO - 🌐 Conexión directa
+2025-07-31 11:30:06,919 - instagrapi - INFO - https://i.instagram.com/api/v1/launcher/sync/
