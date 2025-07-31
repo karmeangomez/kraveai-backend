@@ -1984,3 +1984,4 @@
 2025-07-31 11:15:50,286 - instagram_login - WARNING - No se encontraron proxies válidos. Usando conexión directa.
 2025-07-31 11:15:50,290 - instagram_login - ERROR - ❌ Error inesperado: AttributeError - 'Client' object has no attribute 'set_retry_delay'
 2025-07-31 11:15:50,290 - instagram_login - ERROR - ❌ Todos los intentos fallaron para kraveaibot
+2025-07-31 11:15:51,826 - instagrapi - INFO - https://i.instagram.com/api/v1/accounts/current_user/?edit=true
