@@ -10327,3 +10327,11 @@
 2025-07-31 12:29:46,904 - private_request - INFO - Leonardoperzz_ [403] POST https://i.instagram.com/api/v1/launcher/sync/ (269.0.0.18.75, Google qcom)
 2025-07-31 12:29:46,905 - instagram_login - ERROR - ❌ Error: {"message":"CSRF token missing or incorrect","status":"fail"}
 2025-07-31 12:29:46,905 - instagram_login - ERROR - ❌ Todos los intentos fallaron
+2025-07-31 12:30:02,314 - instagram_login - INFO - 🚀 Iniciando login para kraveaibot
+2025-07-31 12:30:02,356 - instagram_login - WARNING - No se encontraron proxies válidos. Usando conexión directa.
+2025-07-31 12:30:02,357 - instagram_login - INFO - 🌐 Conexión directa
+2025-07-31 12:30:04,996 - instagrapi - INFO - https://i.instagram.com/api/v1/launcher/sync/
+2025-07-31 12:30:05,370 - private_request - INFO - kraveaibot [200] POST https://i.instagram.com/api/v1/launcher/sync/ (269.0.0.18.75, Google Pixel 7)
+2025-07-31 12:30:05,591 - instagrapi - INFO - https://i.instagram.com/api/v1/accounts/login/
+2025-07-31 12:30:07,376 - private_request - INFO - kraveaibot [400] POST https://i.instagram.com/api/v1/accounts/login/ (269.0.0.18.75, Google Pixel 7)
+2025-07-31 12:30:07,376 - instagram_login - ERROR - 🔑 Contraseña incorrecta
