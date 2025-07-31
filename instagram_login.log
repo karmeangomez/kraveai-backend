@@ -9940,3 +9940,8 @@
 2025-07-31 12:26:04,680 - instagrapi - INFO - https://i.instagram.com/api/v1/launcher/sync/
 2025-07-31 12:26:04,996 - private_request - INFO - kraveaibot [200] POST https://i.instagram.com/api/v1/launcher/sync/ (269.0.0.18.75, Google qcom)
 2025-07-31 12:26:05,212 - instagrapi - INFO - https://i.instagram.com/api/v1/accounts/login/
+2025-07-31 12:26:07,546 - private_request - INFO - kraveaibot [400] POST https://i.instagram.com/api/v1/accounts/login/ (269.0.0.18.75, Google qcom)
+2025-07-31 12:26:07,546 - instagram_login - ERROR - 🔑 Contraseña incorrecta
+2025-07-31 12:26:08,076 - instagram_login - INFO - 🚀 Iniciando login para kraveaibot
+2025-07-31 12:26:08,135 - instagram_login - WARNING - No se encontraron proxies válidos. Usando conexión directa.
+2025-07-31 12:26:08,135 - instagram_login - INFO - 🌐 Conexión directa
