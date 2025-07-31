@@ -9,10 +9,8 @@ from src.login_utils import login_instagram, restaurar_sesion, guardar_sesion, v
 from instagrapi.exceptions import LoginRequired
 
 load_dotenv()
-
 app = FastAPI()
 
-# ✅ CORS para Netlify
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["https://kraveai.netlify.app"],
@@ -24,7 +22,6 @@ app.add_middleware(
 CUENTAS_JSON = "cuentas_creadas.json"
 clientes_instagram = {}
 
-# Modelos
 class LoginData(BaseModel):
     username: str
     password: str
@@ -33,7 +30,6 @@ class CuentaData(BaseModel):
     username: str
     password: str
 
-# Utils
 def cargar_cuentas():
     if not os.path.exists(CUENTAS_JSON):
         return []
@@ -48,7 +44,6 @@ def guardar_cuenta_json(username, password):
     with open(CUENTAS_JSON, "w") as f:
         json.dump(cuentas, f, indent=2)
 
-# Endpoints
 @app.get("/health")
 def health():
     return {"status": "ok"}
@@ -104,7 +99,6 @@ def cuentas_activas():
             activas.append(usuario)
     return {"status": "ok", "cuentas": activas}
 
-# 🧠 Restaurar sesiones al iniciar
 @app.on_event("startup")
 def cargar_sesiones_guardadas():
     cuentas = cargar_cuentas()
@@ -116,7 +110,6 @@ def cargar_sesiones_guardadas():
         except Exception:
             continue
 
-    # Cuenta principal kraveaibot
     krave_user = os.getenv("INSTA_USER")
     krave_pass = os.getenv("INSTA_PASS")
     if krave_user and krave_pass:
