@@ -3628,3 +3628,5 @@
 2025-07-31 11:23:58,656 - private_request - INFO - None [403] GET https://i.instagram.com/api/v1/accounts/current_user/?edit=true (269.0.0.18.75, OnePlus 6T Dev)
 2025-07-31 11:23:58,657 - instagram_login - WARNING - ⚠️ Sesión inválida, reintentando login: login_required
 2025-07-31 11:23:58,657 - instagram_login - INFO - 🚀 Iniciando login para kraveaibot
+2025-07-31 11:23:58,739 - instagram_login - WARNING - No se encontraron proxies válidos. Usando conexión directa.
+2025-07-31 11:23:58,740 - instagram_login - INFO - 🌐 Conexión directa
