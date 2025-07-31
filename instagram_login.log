@@ -10356,3 +10356,4 @@
 2025-07-31 12:45:04,969 - private_request - INFO - kraveaibot [200] POST https://i.instagram.com/api/v1/launcher/sync/ (269.0.0.18.75, Google Pixel 7)
 2025-07-31 12:45:08,257 - instagrapi - INFO - https://i.instagram.com/api/v1/accounts/login/
 2025-07-31 12:45:10,401 - private_request - INFO - kraveaibot [400] POST https://i.instagram.com/api/v1/accounts/login/ (269.0.0.18.75, Google Pixel 7)
+2025-07-31 12:45:11,401 - instagrapi - INFO - https://i.instagram.com/api/v1/challenge/ASgnZ2wn6ogPw9OmF_FqLZ4NRcqp8aaWgZUaPBmm9TxAyHmNjckZfJC7TBo1VsaIAP1bQ60/ASQ2vHgkhl3a-PwwyA9YIHA4eJ60SZzjyJdorOFS6BlhavmcBMc4wnVdVF4_v8eIXLAHq6tazdMm0w/
