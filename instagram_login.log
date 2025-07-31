@@ -4426,3 +4426,4 @@
 2025-07-31 11:31:58,969 - instagrapi - INFO - https://i.instagram.com/api/v1/accounts/current_user/?edit=true
 2025-07-31 11:32:00,068 - private_request - INFO - None [200] GET https://i.instagram.com/api/v1/accounts/current_user/?edit=true (269.0.0.18.75, Google exynos2100)
 2025-07-31 11:32:00,070 - instagram_login - INFO - 🔑 Sesión restaurada: kraveaibot
+2025-07-31 11:32:01,876 - instagrapi - INFO - https://i.instagram.com/api/v1/accounts/current_user/?edit=true
