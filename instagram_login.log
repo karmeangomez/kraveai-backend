@@ -4568,3 +4568,7 @@
 2025-07-31 11:33:51,695 - instagram_login - INFO - 🚀 Iniciando login para kraveaibot
 2025-07-31 11:33:51,753 - instagram_login - WARNING - No se encontraron proxies válidos. Usando conexión directa.
 2025-07-31 11:33:51,754 - instagram_login - INFO - 🌐 Conexión directa
+2025-07-31 11:33:54,319 - instagrapi - INFO - https://i.instagram.com/api/v1/launcher/sync/
+2025-07-31 11:33:54,765 - private_request - INFO - kraveaibot [403] POST https://i.instagram.com/api/v1/launcher/sync/ (269.0.0.18.75, Google exynos2100)
+2025-07-31 11:33:54,765 - instagram_login - ERROR - ❌ Error: {"message":"CSRF token missing or incorrect","status":"fail"}
+2025-07-31 11:33:54,765 - instagram_login - ERROR - ❌ Todos los intentos fallaron
