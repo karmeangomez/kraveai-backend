@@ -6841,3 +6841,6 @@
 2025-07-31 11:56:57,679 - instagrapi - INFO - https://i.instagram.com/api/v1/launcher/sync/
 2025-07-31 11:56:58,058 - private_request - INFO - kraveaibot [200] POST https://i.instagram.com/api/v1/launcher/sync/ (269.0.0.18.75, Google qcom)
 2025-07-31 11:56:58,277 - instagrapi - INFO - https://i.instagram.com/api/v1/accounts/login/
+2025-07-31 11:57:03,724 - private_request - INFO - kraveaibot [400] POST https://i.instagram.com/api/v1/accounts/login/ (269.0.0.18.75, Google qcom)
+2025-07-31 11:57:03,725 - instagram_login - ERROR - ❌ Error: Sorry, there was a problem with your request.
+2025-07-31 11:57:03,725 - instagram_login - ERROR - ❌ Todos los intentos fallaron
