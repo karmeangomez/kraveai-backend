@@ -6197,3 +6197,21 @@
 2025-07-31 11:50:44,415 - private_request - INFO - kraveaibot [400] POST https://i.instagram.com/api/v1/accounts/login/ (269.0.0.18.75, samsung exynos2100)
 2025-07-31 11:50:44,416 - instagram_login - ERROR - 🔑 Contraseña incorrecta
 2025-07-31 11:50:46,080 - instagrapi - INFO - https://i.instagram.com/api/v1/accounts/current_user/?edit=true
+2025-07-31 11:50:46,400 - private_request - INFO - None [403] GET https://i.instagram.com/api/v1/accounts/current_user/?edit=true (269.0.0.18.75, Google exynos2100)
+2025-07-31 11:50:46,400 - instagram_login - WARNING - ⚠️ Sesión inválida, reintentando login: login_required
+2025-07-31 11:50:46,400 - instagram_login - INFO - 🚀 Iniciando login para kraveaibot
+2025-07-31 11:50:46,482 - instagram_login - WARNING - No se encontraron proxies válidos. Usando conexión directa.
+2025-07-31 11:50:46,483 - instagram_login - INFO - 🌐 Conexión directa
+2025-07-31 11:50:47,552 - instagrapi - INFO - https://i.instagram.com/api/v1/launcher/sync/
+2025-07-31 11:50:47,935 - private_request - INFO - kraveaibot [403] POST https://i.instagram.com/api/v1/launcher/sync/ (269.0.0.18.75, Google qcom)
+2025-07-31 11:50:47,935 - instagram_login - ERROR - ❌ Error: {"message":"CSRF token missing or incorrect","status":"fail"}
+2025-07-31 11:50:47,936 - instagram_login - ERROR - ❌ Todos los intentos fallaron
+2025-07-31 11:50:49,660 - instagrapi - INFO - https://i.instagram.com/api/v1/accounts/current_user/?edit=true
+2025-07-31 11:50:49,938 - private_request - INFO - None [403] GET https://i.instagram.com/api/v1/accounts/current_user/?edit=true (269.0.0.18.75, Google exynos2100)
+2025-07-31 11:50:49,939 - instagram_login - WARNING - ⚠️ Sesión inválida, reintentando login: login_required
+2025-07-31 11:50:49,939 - instagram_login - INFO - 🚀 Iniciando login para kraveaibot
+2025-07-31 11:50:50,005 - instagram_login - WARNING - No se encontraron proxies válidos. Usando conexión directa.
+2025-07-31 11:50:50,006 - instagram_login - INFO - 🌐 Conexión directa
+2025-07-31 11:50:51,929 - instagrapi - INFO - https://i.instagram.com/api/v1/launcher/sync/
+2025-07-31 11:50:52,212 - private_request - INFO - kraveaibot [200] POST https://i.instagram.com/api/v1/launcher/sync/ (269.0.0.18.75, Google exynos2100)
+2025-07-31 11:50:52,445 - instagrapi - INFO - https://i.instagram.com/api/v1/accounts/login/
