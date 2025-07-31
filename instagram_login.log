@@ -5397,3 +5397,7 @@
 2025-07-31 11:43:15,840 - instagrapi - INFO - https://i.instagram.com/api/v1/accounts/login/
 2025-07-31 11:43:18,661 - private_request - INFO - kraveaibot [400] POST https://i.instagram.com/api/v1/accounts/login/ (269.0.0.18.75, samsung qcom)
 2025-07-31 11:43:18,662 - instagram_login - ERROR - 🔑 Contraseña incorrecta
+2025-07-31 11:43:20,426 - instagrapi - INFO - https://i.instagram.com/api/v1/accounts/current_user/?edit=true
+2025-07-31 11:43:20,993 - private_request - INFO - None [403] GET https://i.instagram.com/api/v1/accounts/current_user/?edit=true (269.0.0.18.75, Google exynos2100)
+2025-07-31 11:43:20,997 - instagram_login - WARNING - ⚠️ Sesión inválida, reintentando login: login_required
+2025-07-31 11:43:20,997 - instagram_login - INFO - 🚀 Iniciando login para kraveaibot
