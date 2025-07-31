@@ -3661,3 +3661,7 @@
 2025-07-31 11:24:25,100 - private_request - INFO - kraveaibot [200] POST https://i.instagram.com/api/v1/accounts/login/ (269.0.0.18.75, samsung qcom)
 2025-07-31 11:24:26,101 - instagrapi - INFO - https://i.instagram.com/api/v1/feed/reels_tray/
 2025-07-31 11:24:26,503 - private_request - INFO - kraveaibot [200] POST https://i.instagram.com/api/v1/feed/reels_tray/ (269.0.0.18.75, samsung qcom)
+2025-07-31 11:24:28,876 - instagrapi - INFO - https://i.instagram.com/api/v1/accounts/current_user/?edit=true
+2025-07-31 11:24:29,179 - private_request - INFO - None [403] GET https://i.instagram.com/api/v1/accounts/current_user/?edit=true (269.0.0.18.75, OnePlus 6T Dev)
+2025-07-31 11:24:29,179 - instagram_login - WARNING - ⚠️ Sesión inválida, reintentando login: login_required
+2025-07-31 11:24:29,179 - instagram_login - INFO - 🚀 Iniciando login para kraveaibot
