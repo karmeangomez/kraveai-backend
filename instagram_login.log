@@ -10446,3 +10446,6 @@
 2025-07-31 13:00:37,151 - instagram_login - WARNING - 🔁 CSRF token incorrecto. Reintentando...
 2025-07-31 13:00:42,152 - instagram_login - INFO - ⛔ Agotados reintentos por CSRF con este proxy
 2025-07-31 13:00:42,152 - instagram_login - ERROR - ❌ Todos los intentos fallaron
+2025-07-31 13:03:29,640 - instagram_login - INFO - 🚀 Iniciando login para Leonardoperzz_
+2025-07-31 13:03:29,683 - instagram_login - WARNING - ⚠️ No se encontraron proxies válidos. Usando conexión directa.
+2025-07-31 13:03:29,684 - instagram_login - INFO - 🌐 Conexión directa
