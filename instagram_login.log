@@ -4597,3 +4597,5 @@
 2025-07-31 11:34:15,258 - private_request - INFO - kraveaibot [200] POST https://i.instagram.com/api/v1/launcher/sync/ (269.0.0.18.75, samsung exynos2100)
 2025-07-31 11:34:15,508 - instagrapi - INFO - https://i.instagram.com/api/v1/accounts/login/
 2025-07-31 11:34:20,095 - private_request - INFO - kraveaibot [200] POST https://i.instagram.com/api/v1/accounts/login/ (269.0.0.18.75, samsung exynos2100)
+2025-07-31 11:34:21,095 - instagrapi - INFO - https://i.instagram.com/api/v1/feed/reels_tray/
+2025-07-31 11:34:21,510 - private_request - INFO - kraveaibot [200] POST https://i.instagram.com/api/v1/feed/reels_tray/ (269.0.0.18.75, samsung exynos2100)
