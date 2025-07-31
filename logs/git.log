@@ -412,3 +412,4 @@ commit dc098daea27f804cf9e7e80f09797f485ad626b0.
 fatal: Cannot rebase onto multiple branches.
 fatal: Cannot rebase onto multiple branches.
 Already up to date.
+fatal: Cannot rebase onto multiple branches.
