@@ -10619,3 +10619,6 @@
 2025-07-31 13:45:03,885 - instagram_login - INFO - 🚀 Iniciando login para kraveaibot
 2025-07-31 13:45:03,916 - instagram_login - WARNING - ⚠️ No se encontraron proxies válidos. Usando conexión directa.
 2025-07-31 13:45:03,917 - instagram_login - INFO - 🌐 Conexión directa
+2025-07-31 13:45:06,007 - instagrapi - INFO - https://i.instagram.com/api/v1/launcher/sync/
+2025-07-31 13:45:06,220 - private_request - INFO - kraveaibot [403] POST https://i.instagram.com/api/v1/launcher/sync/ (269.0.0.18.75, samsung qcom)
+2025-07-31 13:45:06,220 - instagram_login - WARNING - 🔁 CSRF token incorrecto. Reintentando...
