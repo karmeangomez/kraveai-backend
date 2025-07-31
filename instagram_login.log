@@ -10662,3 +10662,4 @@
 2025-07-31 13:55:06,274 - instagrapi - INFO - https://i.instagram.com/api/v1/launcher/sync/
 2025-07-31 13:55:09,977 - private_request - INFO - kraveaibot [403] POST https://i.instagram.com/api/v1/launcher/sync/ (269.0.0.18.75, Google exynos2100)
 2025-07-31 13:55:09,977 - instagram_login - WARNING - 🔁 CSRF token incorrecto. Reintentando...
+2025-07-31 13:55:14,979 - instagram_login - INFO - 🌐 Conexión directa
