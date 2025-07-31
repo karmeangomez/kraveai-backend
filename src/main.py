@@ -3,10 +3,9 @@ import json
 import logging
 from fastapi import FastAPI, Request, Query
 from fastapi.middleware.cors import CORSMiddleware
-from dotenv import load_dotenv
 from pydantic import BaseModel
+from dotenv import load_dotenv
 from src.login_utils import login_instagram, restaurar_sesion, guardar_sesion, verificar_sesion
-from instagrapi.exceptions import LoginRequired
 
 load_dotenv()
 app = FastAPI()
@@ -38,11 +37,10 @@ def cargar_cuentas():
 
 def guardar_cuenta_json(username, password):
     cuentas = cargar_cuentas()
-    if any(c['username'] == username for c in cuentas):
-        return
-    cuentas.append({'username': username, 'password': password})
-    with open(CUENTAS_JSON, "w") as f:
-        json.dump(cuentas, f, indent=2)
+    if not any(c["username"] == username for c in cuentas):
+        cuentas.append({"username": username, "password": password})
+        with open(CUENTAS_JSON, "w") as f:
+            json.dump(cuentas, f, indent=2)
 
 @app.get("/health")
 def health():
@@ -68,16 +66,13 @@ def iniciar_sesion(data: LoginData):
 
 @app.post("/guardar-cuenta")
 def guardar_cuenta(data: CuentaData):
-    try:
-        cl = restaurar_sesion(data.username, data.password)
-        if cl:
-            clientes_instagram[data.username] = cl
-            guardar_cuenta_json(data.username, data.password)
-            guardar_sesion(cl, data.username)
-            return {"status": "ok"}
-        return {"status": "error", "detalle": "Login fallido"}
-    except Exception as e:
-        return {"status": "error", "detalle": str(e)}
+    cl = restaurar_sesion(data.username, data.password)
+    if cl:
+        clientes_instagram[data.username] = cl
+        guardar_cuenta_json(data.username, data.password)
+        guardar_sesion(cl, data.username)
+        return {"status": "ok"}
+    return {"status": "error", "detalle": "Login fallido"}
 
 @app.get("/buscar-usuario")
 def buscar_usuario(username: str = Query(...)):
@@ -117,5 +112,5 @@ def cargar_sesiones_guardadas():
             cl = restaurar_sesion(krave_user, krave_pass)
             if cl:
                 clientes_instagram[krave_user] = cl
-        except Exception:
-            pass
+        except Exception as e:
+            logging.error(f"No se pudo restaurar sesión de kraveaibot: {e}")
