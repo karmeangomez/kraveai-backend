@@ -10416,3 +10416,4 @@
 2025-07-31 12:58:51,698 - instagrapi - INFO - https://i.instagram.com/api/v1/launcher/sync/
 2025-07-31 12:58:55,094 - private_request - INFO - Leonardoperzz_ [200] POST https://i.instagram.com/api/v1/launcher/sync/ (269.0.0.18.75, samsung exynos2100)
 2025-07-31 12:58:58,742 - instagrapi - INFO - https://i.instagram.com/api/v1/accounts/login/
+2025-07-31 12:59:03,197 - private_request - INFO - Leonardoperzz_ [400] POST https://i.instagram.com/api/v1/accounts/login/ (269.0.0.18.75, samsung exynos2100)
