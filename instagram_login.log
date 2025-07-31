@@ -3787,3 +3787,4 @@
 2025-07-31 11:25:35,983 - private_request - INFO - None [200] GET https://i.instagram.com/api/v1/accounts/current_user/?edit=true (269.0.0.18.75, samsung exynos2100)
 2025-07-31 11:25:35,985 - instagram_login - INFO - 🔑 Sesión restaurada: kraveaibot
 2025-07-31 11:25:36,901 - instagrapi - INFO - https://i.instagram.com/api/v1/feed/timeline/
+2025-07-31 11:25:37,613 - instagrapi - INFO - https://i.instagram.com/api/v1/accounts/current_user/?edit=true
