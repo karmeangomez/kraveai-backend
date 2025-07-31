@@ -10402,3 +10402,4 @@
 2025-07-31 12:58:22,849 - instagrapi - INFO - https://i.instagram.com/api/v1/launcher/sync/
 2025-07-31 12:58:26,409 - private_request - INFO - Leonardoperzz_ [200] POST https://i.instagram.com/api/v1/launcher/sync/ (269.0.0.18.75, Google qcom)
 2025-07-31 12:58:29,917 - instagrapi - INFO - https://i.instagram.com/api/v1/accounts/login/
+2025-07-31 12:58:34,769 - private_request - INFO - Leonardoperzz_ [400] POST https://i.instagram.com/api/v1/accounts/login/ (269.0.0.18.75, Google qcom)
