@@ -10801,3 +10801,4 @@
 2025-07-31 14:40:13,678 - instagram_login - INFO - 🌐 Conexión directa
 2025-07-31 14:40:17,126 - instagrapi - INFO - https://i.instagram.com/api/v1/launcher/sync/
 2025-07-31 14:40:22,546 - private_request - INFO - kraveaibot [200] POST https://i.instagram.com/api/v1/launcher/sync/ (269.0.0.18.75, samsung qcom)
+2025-07-31 14:40:25,961 - instagrapi - INFO - https://i.instagram.com/api/v1/accounts/login/
