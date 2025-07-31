@@ -6677,3 +6677,4 @@
 2025-07-31 11:55:25,787 - private_request - INFO - kraveaibot [403] POST https://i.instagram.com/api/v1/launcher/sync/ (269.0.0.18.75, Google qcom)
 2025-07-31 11:55:25,787 - instagram_login - ERROR - ❌ Error: {"message":"CSRF token missing or incorrect","status":"fail"}
 2025-07-31 11:55:25,787 - instagram_login - ERROR - ❌ Todos los intentos fallaron
+2025-07-31 11:55:27,359 - instagrapi - INFO - https://i.instagram.com/api/v1/accounts/current_user/?edit=true
