@@ -10260,3 +10260,5 @@
 2025-07-31 12:28:57,058 - instagram_login - ERROR - ❌ Error: {"message":"CSRF token missing or incorrect","status":"fail"}
 2025-07-31 12:28:57,058 - instagram_login - ERROR - ❌ Todos los intentos fallaron
 2025-07-31 12:28:57,781 - instagram_login - INFO - 🚀 Iniciando login para kraveaibot
+2025-07-31 12:28:57,861 - instagram_login - WARNING - No se encontraron proxies válidos. Usando conexión directa.
+2025-07-31 12:28:57,862 - instagram_login - INFO - 🌐 Conexión directa
