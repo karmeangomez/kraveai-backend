@@ -6819,3 +6819,6 @@
 2025-07-31 11:56:46,701 - instagram_login - WARNING - No se encontraron proxies válidos. Usando conexión directa.
 2025-07-31 11:56:46,702 - instagram_login - INFO - 🌐 Conexión directa
 2025-07-31 11:56:48,834 - instagrapi - INFO - https://i.instagram.com/api/v1/launcher/sync/
+2025-07-31 11:56:49,101 - private_request - INFO - kraveaibot [403] POST https://i.instagram.com/api/v1/launcher/sync/ (269.0.0.18.75, samsung qcom)
+2025-07-31 11:56:49,102 - instagram_login - ERROR - ❌ Error: {"message":"CSRF token missing or incorrect","status":"fail"}
+2025-07-31 11:56:49,102 - instagram_login - ERROR - ❌ Todos los intentos fallaron
