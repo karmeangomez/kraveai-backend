@@ -4588,3 +4588,8 @@
 2025-07-31 11:34:09,940 - private_request - INFO - kraveaibot [200] POST https://i.instagram.com/api/v1/feed/timeline/ (269.0.0.18.75, samsung qcom)
 2025-07-31 11:34:09,940 - instagram_login - INFO - ✅ Login exitoso: kraveaibot
 2025-07-31 11:34:11,658 - instagrapi - INFO - https://i.instagram.com/api/v1/accounts/current_user/?edit=true
+2025-07-31 11:34:12,607 - private_request - INFO - None [403] GET https://i.instagram.com/api/v1/accounts/current_user/?edit=true (269.0.0.18.75, Google exynos2100)
+2025-07-31 11:34:12,607 - instagram_login - WARNING - ⚠️ Sesión inválida, reintentando login: login_required
+2025-07-31 11:34:12,607 - instagram_login - INFO - 🚀 Iniciando login para kraveaibot
+2025-07-31 11:34:12,665 - instagram_login - WARNING - No se encontraron proxies válidos. Usando conexión directa.
+2025-07-31 11:34:12,666 - instagram_login - INFO - 🌐 Conexión directa
