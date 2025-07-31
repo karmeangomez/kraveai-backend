@@ -9075,3 +9075,4 @@
 2025-07-31 12:17:55,832 - instagram_login - INFO - 🌐 Conexión directa
 2025-07-31 12:17:57,012 - instagrapi - INFO - https://i.instagram.com/api/v1/launcher/sync/
 2025-07-31 12:17:57,480 - private_request - INFO - kraveaibot [200] POST https://i.instagram.com/api/v1/launcher/sync/ (269.0.0.18.75, samsung exynos2100)
+2025-07-31 12:17:57,696 - instagrapi - INFO - https://i.instagram.com/api/v1/accounts/login/
