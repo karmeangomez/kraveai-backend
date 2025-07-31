@@ -7532,3 +7532,4 @@
 2025-07-31 12:03:18,293 - instagrapi - INFO - https://i.instagram.com/api/v1/accounts/login/
 2025-07-31 12:03:20,951 - private_request - INFO - kraveaibot [400] POST https://i.instagram.com/api/v1/accounts/login/ (269.0.0.18.75, samsung qcom)
 2025-07-31 12:03:20,951 - instagram_login - ERROR - 🔑 Contraseña incorrecta
+2025-07-31 12:03:22,688 - instagrapi - INFO - https://i.instagram.com/api/v1/accounts/current_user/?edit=true
