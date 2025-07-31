@@ -405,3 +405,4 @@ fatal: Cannot rebase onto multiple branches.
 fatal: Cannot rebase onto multiple branches.
 error: cannot pull with rebase: You have unstaged changes.
 error: please commit or stash them.
+Already up to date.
