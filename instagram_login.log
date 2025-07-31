@@ -4533,3 +4533,4 @@
 2025-07-31 11:33:20,303 - instagrapi - INFO - https://i.instagram.com/api/v1/challenge/
 2025-07-31 11:33:21,819 - private_request - INFO - kraveaibot [200] POST https://i.instagram.com/api/v1/challenge/ (269.0.0.18.75, samsung qcom)
 2025-07-31 11:33:22,820 - instagrapi - INFO - https://i.instagram.com/api/v1/feed/reels_tray/
+2025-07-31 11:33:23,217 - private_request - INFO - kraveaibot [200] POST https://i.instagram.com/api/v1/feed/reels_tray/ (269.0.0.18.75, samsung qcom)
