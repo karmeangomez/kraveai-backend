@@ -6123,3 +6123,8 @@
 2025-07-31 11:50:04,385 - private_request - INFO - kraveaibot [403] POST https://i.instagram.com/api/v1/launcher/sync/ (269.0.0.18.75, Google qcom)
 2025-07-31 11:50:04,385 - instagram_login - ERROR - ❌ Error: {"message":"CSRF token missing or incorrect","status":"fail"}
 2025-07-31 11:50:04,385 - instagram_login - ERROR - ❌ Todos los intentos fallaron
+2025-07-31 11:50:05,469 - instagrapi - INFO - https://i.instagram.com/api/v1/launcher/sync/
+2025-07-31 11:50:05,924 - private_request - INFO - kraveaibot [403] POST https://i.instagram.com/api/v1/launcher/sync/ (269.0.0.18.75, Google exynos2100)
+2025-07-31 11:50:05,924 - instagram_login - ERROR - ❌ Error: {"message":"CSRF token missing or incorrect","status":"fail"}
+2025-07-31 11:50:05,924 - instagram_login - ERROR - ❌ Todos los intentos fallaron
+2025-07-31 11:50:05,934 - instagrapi - INFO - https://i.instagram.com/api/v1/accounts/current_user/?edit=true
