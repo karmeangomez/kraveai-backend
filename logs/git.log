@@ -403,3 +403,5 @@ commit bfe0b8c7418440ce8be821d1c5888e17722860ab.
 fatal: Cannot rebase onto multiple branches.
 fatal: Cannot rebase onto multiple branches.
 fatal: Cannot rebase onto multiple branches.
+error: cannot pull with rebase: You have unstaged changes.
+error: please commit or stash them.
