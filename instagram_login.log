@@ -9480,3 +9480,6 @@
 2025-07-31 12:21:50,190 - private_request - INFO - kraveaibot [403] POST https://i.instagram.com/api/v1/launcher/sync/ (269.0.0.18.75, samsung exynos2100)
 2025-07-31 12:21:50,190 - instagram_login - ERROR - ❌ Error: {"message":"CSRF token missing or incorrect","status":"fail"}
 2025-07-31 12:21:50,190 - instagram_login - ERROR - ❌ Todos los intentos fallaron
+2025-07-31 12:21:50,801 - instagram_login - INFO - 🚀 Iniciando login para kraveaibot
+2025-07-31 12:21:50,861 - instagram_login - WARNING - No se encontraron proxies válidos. Usando conexión directa.
+2025-07-31 12:21:50,861 - instagram_login - INFO - 🌐 Conexión directa
