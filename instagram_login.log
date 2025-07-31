@@ -10642,3 +10642,4 @@
 2025-07-31 13:50:16,511 - instagram_login - ERROR - ❌ Error inesperado: EOF when reading a line
 2025-07-31 13:50:16,515 - instagram_login - INFO - 🌐 Conexión directa
 2025-07-31 13:50:18,111 - instagrapi - INFO - https://i.instagram.com/api/v1/launcher/sync/
+2025-07-31 13:50:22,347 - private_request - INFO - kraveaibot [200] POST https://i.instagram.com/api/v1/launcher/sync/ (269.0.0.18.75, samsung exynos2100)
