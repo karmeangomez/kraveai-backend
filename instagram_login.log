@@ -3923,3 +3923,15 @@
 2025-07-31 11:27:13,178 - private_request - INFO - None [200] GET https://i.instagram.com/api/v1/accounts/current_user/?edit=true (269.0.0.18.75, Google qcom)
 2025-07-31 11:27:13,181 - instagram_login - INFO - 🔑 Sesión restaurada: kraveaibot
 2025-07-31 11:27:14,879 - instagrapi - INFO - https://i.instagram.com/api/v1/accounts/current_user/?edit=true
+2025-07-31 11:27:15,843 - private_request - INFO - None [200] GET https://i.instagram.com/api/v1/accounts/current_user/?edit=true (269.0.0.18.75, Google qcom)
+2025-07-31 11:27:15,846 - instagram_login - INFO - 🔑 Sesión restaurada: kraveaibot
+2025-07-31 11:27:17,415 - instagrapi - INFO - https://i.instagram.com/api/v1/accounts/current_user/?edit=true
+2025-07-31 11:27:17,757 - private_request - INFO - None [400] GET https://i.instagram.com/api/v1/accounts/current_user/?edit=true (269.0.0.18.75, Google qcom)
+2025-07-31 11:27:17,757 - instagram_login - WARNING - ⚠️ Sesión inválida, reintentando login: feedback_required: We limit how often you can do certain things on Instagram to protect our community. Tell us if you think we made a mistake.
+2025-07-31 11:27:17,757 - instagram_login - INFO - 🚀 Iniciando login para kraveaibot
+2025-07-31 11:27:17,818 - instagram_login - WARNING - No se encontraron proxies válidos. Usando conexión directa.
+2025-07-31 11:27:17,818 - instagram_login - INFO - 🌐 Conexión directa
+2025-07-31 11:27:19,390 - instagrapi - INFO - https://i.instagram.com/api/v1/launcher/sync/
+2025-07-31 11:27:19,612 - private_request - INFO - kraveaibot [403] POST https://i.instagram.com/api/v1/launcher/sync/ (269.0.0.18.75, samsung exynos2100)
+2025-07-31 11:27:19,612 - instagram_login - ERROR - ❌ Error: {"message":"CSRF token missing or incorrect","status":"fail"}
+2025-07-31 11:27:19,612 - instagram_login - ERROR - ❌ Todos los intentos fallaron
