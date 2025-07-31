@@ -3835,3 +3835,6 @@
 2025-07-31 11:26:06,869 - instagrapi - INFO - https://i.instagram.com/api/v1/accounts/current_user/?edit=true
 2025-07-31 11:26:07,293 - private_request - INFO - None [200] GET https://i.instagram.com/api/v1/accounts/current_user/?edit=true (269.0.0.18.75, Google qcom)
 2025-07-31 11:26:07,296 - instagram_login - INFO - 🔑 Sesión restaurada: kraveaibot
+2025-07-31 11:26:08,871 - instagrapi - INFO - https://i.instagram.com/api/v1/accounts/current_user/?edit=true
+2025-07-31 11:26:09,316 - private_request - INFO - None [200] GET https://i.instagram.com/api/v1/accounts/current_user/?edit=true (269.0.0.18.75, Google qcom)
+2025-07-31 11:26:09,318 - instagram_login - INFO - 🔑 Sesión restaurada: kraveaibot
