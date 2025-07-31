@@ -10457,3 +10457,4 @@
 2025-07-31 13:03:46,828 - private_request - INFO - Leonardoperzz_ [403] POST https://i.instagram.com/api/v1/launcher/sync/ (269.0.0.18.75, Google exynos2100)
 2025-07-31 13:03:46,828 - instagram_login - WARNING - 🔁 CSRF token incorrecto. Reintentando...
 2025-07-31 13:03:51,830 - instagram_login - INFO - 🌐 Conexión directa
+2025-07-31 13:03:53,711 - instagrapi - INFO - https://i.instagram.com/api/v1/launcher/sync/
