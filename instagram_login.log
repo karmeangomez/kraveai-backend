@@ -4092,3 +4092,6 @@
 2025-07-31 11:28:47,073 - instagram_login - ERROR - ❌ Error: Please check the code we sent you and try again.
 2025-07-31 11:28:47,073 - instagram_login - ERROR - ❌ Todos los intentos fallaron
 2025-07-31 11:28:48,110 - instagrapi - INFO - https://i.instagram.com/api/v1/launcher/sync/
+2025-07-31 11:28:48,325 - private_request - INFO - kraveaibot [403] POST https://i.instagram.com/api/v1/launcher/sync/ (269.0.0.18.75, Google exynos2100)
+2025-07-31 11:28:48,325 - instagram_login - ERROR - ❌ Error: {"message":"CSRF token missing or incorrect","status":"fail"}
+2025-07-31 11:28:48,325 - instagram_login - ERROR - ❌ Todos los intentos fallaron
