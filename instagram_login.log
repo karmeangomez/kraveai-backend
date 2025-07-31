@@ -4039,3 +4039,5 @@
 2025-07-31 11:28:07,919 - private_request - INFO - kraveaibot [200] POST https://i.instagram.com/api/v1/feed/reels_tray/ (269.0.0.18.75, Google exynos2100)
 2025-07-31 11:28:08,745 - private_request - INFO - Leonardoperzz_ [200] POST https://i.instagram.com/api/v1/challenge/ASiUujGNFuUbXuKzTQU3luyVe1cc6d6N8xGaq3pPGhkHJQcWQohofRYaA93jmMdP3AOCT0M/ASTw18k342XSCBesHna5XPcXjgXQ8JpNN4Rart0S4OBqMPU1t100WFD1KKYnlrBomHK5F1D1pABtqA/ (269.0.0.18.75, Google exynos2100)
 2025-07-31 11:28:08,919 - instagrapi - INFO - https://i.instagram.com/api/v1/feed/timeline/
+2025-07-31 11:28:11,153 - private_request - INFO - kraveaibot [200] POST https://i.instagram.com/api/v1/feed/timeline/ (269.0.0.18.75, Google exynos2100)
+2025-07-31 11:28:11,154 - instagram_login - INFO - ✅ Login exitoso: kraveaibot
