@@ -9275,3 +9275,5 @@
 2025-07-31 12:19:51,576 - instagrapi - INFO - https://i.instagram.com/api/v1/launcher/sync/
 2025-07-31 12:19:52,034 - private_request - INFO - kraveaibot [200] POST https://i.instagram.com/api/v1/launcher/sync/ (269.0.0.18.75, Google exynos2100)
 2025-07-31 12:19:52,313 - instagrapi - INFO - https://i.instagram.com/api/v1/accounts/login/
+2025-07-31 12:19:56,016 - private_request - INFO - kraveaibot [400] POST https://i.instagram.com/api/v1/accounts/login/ (269.0.0.18.75, Google exynos2100)
+2025-07-31 12:19:56,016 - instagram_login - ERROR - 🔑 Contraseña incorrecta
