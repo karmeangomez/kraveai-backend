@@ -6957,3 +6957,4 @@
 2025-07-31 11:58:06,158 - instagram_login - INFO - 🌐 Conexión directa
 2025-07-31 11:58:08,980 - instagrapi - INFO - https://i.instagram.com/api/v1/launcher/sync/
 2025-07-31 11:58:09,575 - private_request - INFO - kraveaibot [200] POST https://i.instagram.com/api/v1/launcher/sync/ (269.0.0.18.75, Google qcom)
+2025-07-31 11:58:10,185 - instagrapi - INFO - https://i.instagram.com/api/v1/accounts/login/
