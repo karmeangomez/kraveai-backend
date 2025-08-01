@@ -11,10 +11,9 @@
     },
     {
       "name": "cloudflared",
-      "script": "cloudflared",
+      "script": "/usr/local/bin/cloudflared",
       "args": "tunnel run kraveai",
       "autorestart": true
     }
   ]
 }
-
