@@ -1,97 +1,165 @@
+# src/login_utils.py
+
 import os
-import json
 import time
+import json
 import random
 import logging
 import requests
 from instagrapi import Client
-from instagrapi.exceptions import ChallengeRequired, PleaseWaitFewMinutes, LoginRequired
+from instagrapi.exceptions import (
+    ChallengeRequired, PleaseWaitFewMinutes, LoginRequired, ClientError
+)
+from dotenv import load_dotenv
 
-SESSIONS_DIR = "sessions"
-os.makedirs(SESSIONS_DIR, exist_ok=True)
+load_dotenv()
+logger = logging.getLogger(__name__)
+
+SESSIONS_DIR = "src/sessions"
+PROXIES_FILE = "src/proxies/proxies.txt"
+CUENTAS_FILE = "cuentas_creadas.json"
+
+if not os.path.exists(SESSIONS_DIR):
+    os.makedirs(SESSIONS_DIR)
+
+usuarios_activos = {}
+
+def generar_config_dispositivo(username):
+    return Client(
+        settings={},
+        user_agent=f"Instagram 155.0.0.37.107 Android (28/9; 420dpi; 1080x1920; Xiaomi; Redmi Note; lavender; qcom; es_MX)"
+    )
 
 def cargar_proxies():
-    path = os.path.join("src", "proxies", "proxies.txt")
-    if not os.path.exists(path):
+    if not os.path.exists(PROXIES_FILE):
         return []
-    with open(path, "r") as f:
-        return [line.strip() for line in f if line.strip()]
+    with open(PROXIES_FILE, "r") as f:
+        proxies = [line.strip() for line in f if line.strip()]
+    return proxies
 
-def configurar_proxy(cl, proxy_str):
-    proxy = {}
+def convertir_proxy(proxy_str):
+    if "@" in proxy_str:
+        auth, ip_port = proxy_str.split("@")
+        user, pwd = auth.split(":")
+        ip, port = ip_port.split(":")
+        return f"http://{user}:{pwd}@{ip}:{port}"
+    return f"http://{proxy_str}"
+
+def probar_proxy(proxy_str):
     try:
-        if "@" in proxy_str:
-            ip_port, auth = proxy_str.split("@")
-            ip, port = ip_port.split(":")
-            user, pwd = auth.split(":")
-        else:
-            ip, port, user, pwd = proxy_str.split(":")
-        proxy_url = f"http://{user}:{pwd}@{ip}:{port}"
-        proxy = {
-            "http": proxy_url,
-            "https": proxy_url,
-        }
-        cl.set_proxy(proxy)
-        return True
-    except Exception as e:
-        logging.warning(f"Proxy inválido: {proxy_str} -> {e}")
+        proxy = {"http": proxy_str, "https": proxy_str}
+        r = requests.get("https://www.instagram.com", proxies=proxy, timeout=5)
+        return r.status_code == 200
+    except:
         return False
 
-def guardar_sesion(cl, username):
+def guardar_sesion(cl: Client, username):
     path = os.path.join(SESSIONS_DIR, f"ig_session_{username}.json")
-    cl.dump_settings(path)
+    with open(path, "w") as f:
+        json.dump(cl.get_settings(), f)
+    usuarios_activos[username] = cl
 
 def restaurar_sesion(username):
     path = os.path.join(SESSIONS_DIR, f"ig_session_{username}.json")
     if not os.path.exists(path):
         return None
-
-    cl = Client()
-    cl.load_settings(path)
+    cl = generar_config_dispositivo(username)
+    with open(path, "r") as f:
+        cl.set_settings(json.load(f))
     try:
         cl.get_timeline_feed()
+        usuarios_activos[username] = cl
         return cl
-    except LoginRequired:
+    except Exception:
         return None
 
 def login_instagram(username, password):
-    cl = Client()
+    cl = generar_config_dispositivo(username)
     proxies = cargar_proxies()
-    proxies.insert(0, None)  # primero sin proxy
 
-    for proxy in proxies:
+    def intentar_login(proxy=None):
         if proxy:
-            success = configurar_proxy(cl, proxy)
-            if not success:
-                continue
+            proxy_url = convertir_proxy(proxy)
+            if not probar_proxy(proxy_url):
+                return None
+            cl.set_proxy(proxy_url)
+
         try:
             cl.login(username, password)
             guardar_sesion(cl, username)
             return cl
         except ChallengeRequired:
-            print("🔐 Desafío requerido, esperando aprobación...")
-            for i in range(9):
+            logger.warning(f"Desafío requerido para {username}, esperando verificación...")
+            for _ in range(9):
                 time.sleep(10)
                 try:
                     cl.get_timeline_feed()
-                    print("✅ Verificado manualmente")
                     guardar_sesion(cl, username)
                     return cl
-                except ChallengeRequired:
-                    print(f"⌛ Esperando verificación... {10*(i+1)}s")
+                except Exception:
+                    continue
+            raise Exception("Verificación requerida, no completada a tiempo.")
         except PleaseWaitFewMinutes:
-            print("⏳ Espera requerida por Instagram")
-            time.sleep(random.randint(60, 90))
+            logger.warning("Instagram pidió esperar unos minutos. Reintentando...")
+            time.sleep(60)
+            return None
+        except ClientError as e:
+            raise Exception(f"Error al iniciar sesión: {e}")
         except Exception as e:
-            print(f"❌ Login fallido con proxy {proxy}: {e}")
-    raise Exception("Fallaron todos los intentos")
+            raise Exception(f"Fallo general: {e}")
+
+    # 1. Primer intento sin proxy
+    cl.set_proxy(None)
+    try:
+        cl.login(username, password)
+        guardar_sesion(cl, username)
+        return cl
+    except:
+        pass
+
+    # 2. Reintento con proxy
+    for proxy in proxies:
+        cl = generar_config_dispositivo(username)
+        resultado = intentar_login(proxy)
+        if resultado:
+            return resultado
+
+    raise Exception("No se pudo iniciar sesión ni con proxy.")
+
+def guardar_cuenta_api(username, password):
+    cuentas = []
+    if os.path.exists(CUENTAS_FILE):
+        with open(CUENTAS_FILE, "r") as f:
+            cuentas = json.load(f)
+
+    cuentas = [c for c in cuentas if c["username"] != username]
+    cuentas.append({"username": username, "password": password})
+
+    with open(CUENTAS_FILE, "w") as f:
+        json.dump(cuentas, f, indent=2)
+
+def cerrar_sesion(username):
+    if username in usuarios_activos:
+        usuarios_activos.pop(username)
+    path = os.path.join(SESSIONS_DIR, f"ig_session_{username}.json")
+    if os.path.exists(path):
+        os.remove(path)
 
 def cuentas_activas():
-    activas = []
-    for file in os.listdir(SESSIONS_DIR):
-        if file.startswith("ig_session_") and file.endswith(".json"):
-            username = file.replace("ig_session_", "").replace(".json", "")
-            cl = restaurar_sesion(username)
-            if cl:
-                activas.append(username)
-    return activas
+    return list(usuarios_activos.keys())
+
+def cliente_por_usuario(username):
+    return usuarios_activos.get(username)
+
+def buscar_usuario(username):
+    bot = usuarios_activos.get("kraveaibot")
+    if not bot:
+        raise Exception("kraveaibot no está activo")
+    user = bot.user_info_by_username(username)
+    return {
+        "username": user.username,
+        "full_name": user.full_name,
+        "profile_pic_url": user.profile_pic_url,
+        "is_verified": user.is_verified,
+        "follower_count": user.follower_count
+    }
