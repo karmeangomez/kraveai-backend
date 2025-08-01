@@ -1,0 +1,20 @@
+{
+  "apps": [
+    {
+      "name": "backend",
+      "script": "uvicorn",
+      "args": "src.main:app --host 0.0.0.0 --port 8000",
+      "interpreter": "/home/karmean/kraveai-backend/venv/bin/python3",
+      "cwd": "/home/karmean/kraveai-backend",
+      "watch": false,
+      "autorestart": true
+    },
+    {
+      "name": "cloudflared",
+      "script": "cloudflared",
+      "args": "tunnel run kraveai",
+      "autorestart": true
+    }
+  ]
+}
+
