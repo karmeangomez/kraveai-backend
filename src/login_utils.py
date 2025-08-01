@@ -1,118 +1,97 @@
 import os
 import json
-import random
 import time
+import random
 import logging
 import requests
 from instagrapi import Client
-from instagrapi.exceptions import (
-    ChallengeRequired, LoginRequired, PleaseWaitFewMinutes, ClientError
-)
+from instagrapi.exceptions import ChallengeRequired, PleaseWaitFewMinutes, LoginRequired
 
-# Configuración de logs
-logger = logging.getLogger("instagram_login")
-logger.setLevel(logging.INFO)
-handler = logging.StreamHandler()
-handler.setFormatter(logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s"))
-logger.addHandler(handler)
-
-SESSION_DIR = "sessions"
-PROXY_FILE = "src/proxies/proxies.txt"
-
-def formatear_proxy(proxy_raw):
-    proxy_raw = proxy_raw.strip().replace(" ", "")
-    if not proxy_raw:
-        return None
-    if proxy_raw.startswith("http://") or proxy_raw.startswith("socks5://"):
-        return proxy_raw
-    parts = proxy_raw.split(":")
-    if len(parts) == 2:
-        return f"http://{parts[0]}:{parts[1]}"
-    elif len(parts) == 4:
-        return f"http://{parts[2]}:{parts[3]}@{parts[0]}:{parts[1]}"
-    else:
-        return None
+SESSIONS_DIR = "sessions"
+os.makedirs(SESSIONS_DIR, exist_ok=True)
 
 def cargar_proxies():
-    if not os.path.exists(PROXY_FILE):
+    path = os.path.join("src", "proxies", "proxies.txt")
+    if not os.path.exists(path):
         return []
-    with open(PROXY_FILE, "r") as f:
-        lines = f.readlines()
-    proxies = [formatear_proxy(line) for line in lines]
-    return [p for p in proxies if p]
+    with open(path, "r") as f:
+        return [line.strip() for line in f if line.strip()]
 
-def seleccionar_proxy_aleatorio():
-    proxies = cargar_proxies()
-    if proxies:
-        return random.choice(proxies)
-    return None
-
-def generar_client(proxy=None):
-    cl = Client()
-    cl.delay_range = [2, 5]
-    cl.set_user_agent(Client().user_agent)
-    if proxy:
+def configurar_proxy(cl, proxy_str):
+    proxy = {}
+    try:
+        if "@" in proxy_str:
+            ip_port, auth = proxy_str.split("@")
+            ip, port = ip_port.split(":")
+            user, pwd = auth.split(":")
+        else:
+            ip, port, user, pwd = proxy_str.split(":")
+        proxy_url = f"http://{user}:{pwd}@{ip}:{port}"
+        proxy = {
+            "http": proxy_url,
+            "https": proxy_url,
+        }
         cl.set_proxy(proxy)
-    return cl
-
-def restaurar_sesion(username):
-    path = os.path.join(SESSION_DIR, f"ig_session_{username}.json")
-    if os.path.exists(path):
-        cl = generar_client()
-        try:
-            cl.load_settings(path)
-            cl.login(username, "")
-            cl.get_timeline_feed()
-            logger.info(f"✅ Sesión restaurada para @{username}")
-            return cl
-        except Exception as e:
-            logger.warning(f"⚠️ No se pudo restaurar sesión para @{username}: {e}")
-    return None
+        return True
+    except Exception as e:
+        logging.warning(f"Proxy inválido: {proxy_str} -> {e}")
+        return False
 
 def guardar_sesion(cl, username):
-    os.makedirs(SESSION_DIR, exist_ok=True)
-    path = os.path.join(SESSION_DIR, f"ig_session_{username}.json")
+    path = os.path.join(SESSIONS_DIR, f"ig_session_{username}.json")
     cl.dump_settings(path)
-    logger.info(f"💾 Sesión guardada para @{username} en {path}")
 
-def login_instagram(username, password, max_reintentos=3):
-    cl = restaurar_sesion(username)
-    if cl:
+def restaurar_sesion(username):
+    path = os.path.join(SESSIONS_DIR, f"ig_session_{username}.json")
+    if not os.path.exists(path):
+        return None
+
+    cl = Client()
+    cl.load_settings(path)
+    try:
+        cl.get_timeline_feed()
         return cl
+    except LoginRequired:
+        return None
 
-    for intento in range(max_reintentos):
-        proxy = seleccionar_proxy_aleatorio()
-        logger.info(f"🌐 Usando proxy: {proxy if proxy else 'sin proxy'}")
-        cl = generar_client(proxy)
+def login_instagram(username, password):
+    cl = Client()
+    proxies = cargar_proxies()
+    proxies.insert(0, None)  # primero sin proxy
 
+    for proxy in proxies:
+        if proxy:
+            success = configurar_proxy(cl, proxy)
+            if not success:
+                continue
         try:
             cl.login(username, password)
             guardar_sesion(cl, username)
-            logger.info(f"✅ Login exitoso para @{username}")
             return cl
-
         except ChallengeRequired:
-            logger.warning("⚠️ Desafío requerido. Esperando aprobación manual...")
+            print("🔐 Desafío requerido, esperando aprobación...")
             for i in range(9):
                 time.sleep(10)
                 try:
                     cl.get_timeline_feed()
+                    print("✅ Verificado manualmente")
                     guardar_sesion(cl, username)
-                    logger.info("✅ Desafío completado tras aprobación")
                     return cl
                 except ChallengeRequired:
-                    logger.info(f"⌛ Esperando... {10*(i+1)}s")
-
+                    print(f"⌛ Esperando verificación... {10*(i+1)}s")
         except PleaseWaitFewMinutes:
-            logger.warning("⏳ Instagram pidió esperar. Reintentando con otro proxy...")
-
-        except ClientError as e:
-            logger.error(f"❌ ClientError: {e}")
-
+            print("⏳ Espera requerida por Instagram")
+            time.sleep(random.randint(60, 90))
         except Exception as e:
-            logger.error(f"❌ Error general: {e}")
+            print(f"❌ Login fallido con proxy {proxy}: {e}")
+    raise Exception("Fallaron todos los intentos")
 
-        logger.info(f"🔁 Reintentando login... ({intento + 1}/{max_reintentos})")
-
-    logger.error(f"❌ Todos los intentos fallaron para @{username}")
-    return None
+def cuentas_activas():
+    activas = []
+    for file in os.listdir(SESSIONS_DIR):
+        if file.startswith("ig_session_") and file.endswith(".json"):
+            username = file.replace("ig_session_", "").replace(".json", "")
+            cl = restaurar_sesion(username)
+            if cl:
+                activas.append(username)
+    return activas
