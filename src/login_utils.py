@@ -15,11 +15,14 @@ load_dotenv()
 logger = logging.getLogger(__name__)
 
 SESSIONS_DIR = "src/sessions"
+KRAVEAIBOT_DIR = os.path.join(SESSIONS_DIR, "kraveaibot")
+USUARIOS_DIR = os.path.join(SESSIONS_DIR, "usuarios")
 PROXIES_FILE = "src/proxies/proxies.txt"
 CUENTAS_FILE = "cuentas_creadas.json"
 
-if not os.path.exists(SESSIONS_DIR):
-    os.makedirs(SESSIONS_DIR)
+# Crear directorios si no existen
+for path in [SESSIONS_DIR, KRAVEAIBOT_DIR, USUARIOS_DIR]:
+    os.makedirs(path, exist_ok=True)
 
 usuarios_activos = {}
 
@@ -42,8 +45,7 @@ def cargar_proxies():
     if not os.path.exists(PROXIES_FILE):
         return []
     with open(PROXIES_FILE, "r") as f:
-        proxies = [line.strip() for line in f if line.strip()]
-    return proxies
+        return [line.strip() for line in f if line.strip()]
 
 def convertir_proxy(proxy_str):
     if "@" in proxy_str:
@@ -61,14 +63,19 @@ def probar_proxy(proxy_str):
     except:
         return False
 
+def path_sesion(username):
+    if username == "kraveaibot":
+        return os.path.join(KRAVEAIBOT_DIR, f"ig_session_{username}.json")
+    return os.path.join(USUARIOS_DIR, f"ig_session_{username}.json")
+
 def guardar_sesion(cl: Client, username):
-    path = os.path.join(SESSIONS_DIR, f"ig_session_{username}.json")
+    path = path_sesion(username)
     with open(path, "w") as f:
         json.dump(cl.get_settings(), f)
     usuarios_activos[username] = cl
 
 def restaurar_sesion(username):
-    path = os.path.join(SESSIONS_DIR, f"ig_session_{username}.json")
+    path = path_sesion(username)
     if not os.path.exists(path):
         return None
     cl = generar_config_dispositivo(username)
@@ -104,7 +111,7 @@ def login_instagram(username, password):
                     cl.get_timeline_feed()
                     guardar_sesion(cl, username)
                     return cl
-                except Exception:
+                except:
                     continue
             raise Exception("⚠️ Verificación manual no completada a tiempo.")
         except PleaseWaitFewMinutes:
@@ -134,6 +141,9 @@ def login_instagram(username, password):
     raise Exception("❌ No se pudo iniciar sesión ni con ni sin proxy.")
 
 def guardar_cuenta_api(username, password):
+    if username == "kraveaibot":
+        return  # No guardar kraveaibot en cuentas_creadas.json
+
     cuentas = []
     if os.path.exists(CUENTAS_FILE):
         with open(CUENTAS_FILE, "r") as f:
@@ -144,9 +154,8 @@ def guardar_cuenta_api(username, password):
         json.dump(cuentas, f, indent=2)
 
 def cerrar_sesion(username):
-    if username in usuarios_activos:
-        usuarios_activos.pop(username)
-    path = os.path.join(SESSIONS_DIR, f"ig_session_{username}.json")
+    usuarios_activos.pop(username, None)
+    path = path_sesion(username)
     if os.path.exists(path):
         os.remove(path)
 
