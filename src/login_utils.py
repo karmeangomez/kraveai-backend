@@ -1,14 +1,13 @@
-# src/login_utils.py
-
 import os
-import time
 import json
+import time
 import random
 import logging
 import requests
 from instagrapi import Client
 from instagrapi.exceptions import (
-    ChallengeRequired, PleaseWaitFewMinutes, LoginRequired, ClientError
+    ChallengeRequired, PleaseWaitFewMinutes,
+    LoginRequired, ClientError
 )
 from dotenv import load_dotenv
 
@@ -25,10 +24,19 @@ if not os.path.exists(SESSIONS_DIR):
 usuarios_activos = {}
 
 def generar_config_dispositivo(username):
-    return Client(
-        settings={},
-        user_agent=f"Instagram 155.0.0.37.107 Android (28/9; 420dpi; 1080x1920; Xiaomi; Redmi Note; lavender; qcom; es_MX)"
+    cl = Client()
+    cl.set_locale("es_MX")
+    cl.set_device(
+        app_version="155.0.0.37.107",
+        android_version=28,
+        android_release="9.0",
+        dpi=420,
+        resolution="1080x1920",
+        manufacturer="Xiaomi",
+        model="Redmi Note",
+        device="lavender"
     )
+    return cl
 
 def cargar_proxies():
     if not os.path.exists(PROXIES_FILE):
@@ -89,7 +97,7 @@ def login_instagram(username, password):
             guardar_sesion(cl, username)
             return cl
         except ChallengeRequired:
-            logger.warning(f"Desafío requerido para {username}, esperando verificación...")
+            logger.warning(f"🔐 Desafío requerido para {username}. Esperando verificación manual...")
             for _ in range(9):
                 time.sleep(10)
                 try:
@@ -98,18 +106,17 @@ def login_instagram(username, password):
                     return cl
                 except Exception:
                     continue
-            raise Exception("Verificación requerida, no completada a tiempo.")
+            raise Exception("⚠️ Verificación manual no completada a tiempo.")
         except PleaseWaitFewMinutes:
-            logger.warning("Instagram pidió esperar unos minutos. Reintentando...")
+            logger.warning("⏳ Instagram pidió esperar. Reintentando después de un minuto...")
             time.sleep(60)
             return None
         except ClientError as e:
-            raise Exception(f"Error al iniciar sesión: {e}")
+            raise Exception(f"❌ Error de cliente: {e}")
         except Exception as e:
-            raise Exception(f"Fallo general: {e}")
+            raise Exception(f"❌ Error inesperado: {e}")
 
-    # 1. Primer intento sin proxy
-    cl.set_proxy(None)
+    # Intento sin proxy
     try:
         cl.login(username, password)
         guardar_sesion(cl, username)
@@ -117,24 +124,22 @@ def login_instagram(username, password):
     except:
         pass
 
-    # 2. Reintento con proxy
+    # Reintento con proxies
     for proxy in proxies:
         cl = generar_config_dispositivo(username)
         resultado = intentar_login(proxy)
         if resultado:
             return resultado
 
-    raise Exception("No se pudo iniciar sesión ni con proxy.")
+    raise Exception("❌ No se pudo iniciar sesión ni con ni sin proxy.")
 
 def guardar_cuenta_api(username, password):
     cuentas = []
     if os.path.exists(CUENTAS_FILE):
         with open(CUENTAS_FILE, "r") as f:
             cuentas = json.load(f)
-
     cuentas = [c for c in cuentas if c["username"] != username]
     cuentas.append({"username": username, "password": password})
-
     with open(CUENTAS_FILE, "w") as f:
         json.dump(cuentas, f, indent=2)
 
@@ -154,7 +159,7 @@ def cliente_por_usuario(username):
 def buscar_usuario(username):
     bot = usuarios_activos.get("kraveaibot")
     if not bot:
-        raise Exception("kraveaibot no está activo")
+        raise Exception("❌ kraveaibot no está activo.")
     user = bot.user_info_by_username(username)
     return {
         "username": user.username,
