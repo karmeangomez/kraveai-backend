@@ -1,15 +1,19 @@
 module.exports = {
-  apps: [{
-    name: "kraveai-backend",
-    script: "src/main.py",
-    interpreter: "venv/bin/python",
-    cwd: "/home/karmean/kraveai-backend",
-    env: {
-      NODE_ENV: "production"
+  apps: [
+    {
+      name: "backend",
+      script: "uvicorn",
+      args: "src.main:app --host 0.0.0.0 --port 8000",
+      interpreter: "/home/karmean/kraveai-backend/venv/bin/python3",
+      cwd: "/home/karmean/kraveai-backend",
+      watch: false,
+      autorestart: true,
     },
-    error_file: "logs/err.log",
-    out_file: "logs/out.log",
-    log_file: "logs/combined.log",
-    time: true
-  }]
+    {
+      name: "cloudflared",
+      script: "cloudflared",
+      args: "tunnel run kraveai",
+      autorestart: true
+    }
+  ]
 }
