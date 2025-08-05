@@ -1,5 +1,3 @@
-# src/main.py
-
 import os
 import json
 from fastapi import FastAPI, Request, Query
@@ -19,10 +17,9 @@ from src.login_utils import (
 load_dotenv()
 app = FastAPI()
 
-# Permitir acceso desde el frontend (por ejemplo Netlify)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Cambia esto si necesitas restringir dominios
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
