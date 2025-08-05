@@ -469,3 +469,4 @@ $ git reset --hard
 to recover.
 fatal: Cannot rebase onto multiple branches.
 fatal: Cannot rebase onto multiple branches.
+fatal: unable to access 'https://github.com/karmeangomez/kraveai-backend.git/': Could not resolve host: github.com
