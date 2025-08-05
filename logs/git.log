@@ -467,3 +467,4 @@ $ git diff dcf1970838408264e08ea516cad44d896a6bebfb
 output, run
 $ git reset --hard
 to recover.
+fatal: Cannot rebase onto multiple branches.
