@@ -20,7 +20,7 @@ USUARIOS_DIR = os.path.join(SESSIONS_DIR, "usuarios")
 PROXIES_FILE = "src/proxies/proxies.txt"
 CUENTAS_FILE = "cuentas_creadas.json"
 
-# Crear directorios si no existen
+# Crear directorios
 for path in [SESSIONS_DIR, KRAVEAIBOT_DIR, USUARIOS_DIR]:
     os.makedirs(path, exist_ok=True)
 
@@ -123,7 +123,6 @@ def login_instagram(username, password):
         except Exception as e:
             raise Exception(f"❌ Error inesperado: {e}")
 
-    # Intento sin proxy
     try:
         cl.login(username, password)
         guardar_sesion(cl, username)
@@ -131,7 +130,6 @@ def login_instagram(username, password):
     except:
         pass
 
-    # Reintento con proxies
     for proxy in proxies:
         cl = generar_config_dispositivo(username)
         resultado = intentar_login(proxy)
@@ -142,8 +140,7 @@ def login_instagram(username, password):
 
 def guardar_cuenta_api(username, password):
     if username == "kraveaibot":
-        return  # No guardar kraveaibot en cuentas_creadas.json
-
+        return
     cuentas = []
     if os.path.exists(CUENTAS_FILE):
         with open(CUENTAS_FILE, "r") as f:
