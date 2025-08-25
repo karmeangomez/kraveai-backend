@@ -502,3 +502,4 @@ fast-forwarding your working tree from
 commit 442ba8deff4f575940163811e788955a6bd74271.
 fatal: Cannot rebase onto multiple branches.
 fatal: Cannot rebase onto multiple branches.
+Already up to date.
