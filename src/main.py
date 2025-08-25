@@ -1,7 +1,9 @@
 import os
 import json
+import requests
 from fastapi import FastAPI, Request, Query
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import Response
 from dotenv import load_dotenv
 from src.login_utils import (
     login_instagram,
@@ -85,3 +87,58 @@ def buscar(username: str = Query(...)):
         return {"usuario": resultado}
     except Exception as e:
         return {"error": str(e)}
+
+# ======================
+# NUEVO ENDPOINT: Avatar
+# ======================
+@app.get("/avatar")
+def avatar(username: str = Query(...)):
+    """
+    Devuelve la foto de perfil pública de Instagram como bytes (image/jpeg/png).
+    - Intenta primero con el endpoint web de Instagram
+    - Si falla, usa Unavatar
+    - Si ambos fallan, responde 204
+    """
+    ig_api = f"https://i.instagram.com/api/v1/users/web_profile_info/?username={username}"
+
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Mobile Safari/537.36",
+        "x-ig-app-id": "936619743392459",
+        "Accept": "application/json, text/plain, */*",
+        "Referer": "https://www.instagram.com/"
+    }
+
+    try:
+        r = requests.get(ig_api, headers=headers, timeout=6)
+        if r.status_code == 200:
+            data = r.json()
+            user = data.get("data", {}).get("user", {})
+            pic = user.get("profile_pic_url_hd") or user.get("profile_pic_url")
+
+            if pic:
+                ir = requests.get(pic, headers=headers, timeout=8)
+                if ir.status_code == 200 and ir.content:
+                    ctype = ir.headers.get("Content-Type", "image/jpeg")
+                    return Response(
+                        content=ir.content,
+                        media_type=ctype,
+                        headers={"Cache-Control": "public, max-age=21600"}  # cache 6h
+                    )
+    except Exception:
+        pass
+
+    # Fallback: Unavatar
+    try:
+        ua = f"https://unavatar.io/instagram/{username}"
+        ur = requests.get(ua, timeout=6)
+        if ur.status_code == 200 and ur.content:
+            ctype = ur.headers.get("Content-Type", "image/png")
+            return Response(
+                content=ur.content,
+                media_type=ctype,
+                headers={"Cache-Control": "public, max-age=21600"}
+            )
+    except Exception:
+        pass
+
+    return Response(status_code=204)
