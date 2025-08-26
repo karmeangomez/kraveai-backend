@@ -626,3 +626,7 @@ Already up to date.
 fatal: Cannot rebase onto multiple branches.
 fatal: Cannot rebase onto multiple branches.
 fatal: Cannot rebase onto multiple branches.
+warning: fetch updated the current branch head.
+fast-forwarding your working tree from
+commit 322cec0fc665e8f3894194fee953a6a720f73a34.
+fatal: Cannot rebase onto multiple branches.
