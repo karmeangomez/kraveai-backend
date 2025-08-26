@@ -548,3 +548,4 @@ fatal: Cannot rebase onto multiple branches.
 fatal: unable to access 'https://github.com/karmeangomez/kraveai-backend.git/': Could not resolve host: github.com
 fatal: Cannot rebase onto multiple branches.
 Already up to date.
+fatal: Cannot rebase onto multiple branches.
