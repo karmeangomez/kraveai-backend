@@ -608,3 +608,7 @@ warning: fetch updated the current branch head.
 fast-forwarding your working tree from
 commit fc7d407aa0d91c2a487dbbdbc7724dc0fdc227ac.
 fatal: Cannot rebase onto multiple branches.
+warning: fetch updated the current branch head.
+fast-forwarding your working tree from
+commit a810685aa18230811784fba5be6b9df6883d58cb.
+fatal: Cannot rebase onto multiple branches.
