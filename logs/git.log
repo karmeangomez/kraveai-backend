@@ -734,3 +734,7 @@ commit c9757760ead847b3c4f431dacf4e94b9b2d4f85b.
 fatal: Cannot rebase onto multiple branches.
 fatal: Cannot rebase onto multiple branches.
 fatal: Cannot rebase onto multiple branches.
+warning: fetch updated the current branch head.
+fast-forwarding your working tree from
+commit 480f8c253f469200bfa1a8d4cd61f01de9726ad8.
+Already up to date.
