@@ -1,5 +1,6 @@
 import os
 import json
+import time
 import requests
 from fastapi import FastAPI, Request, Query
 from fastapi.middleware.cors import CORSMiddleware
@@ -13,7 +14,7 @@ from src.login_utils import (
     cerrar_sesion,
     cuentas_activas,
     cliente_por_usuario,
-    buscar_usuario
+    buscar_usuario as _legacy_buscar_usuario  # (no usado, se deja por compatibilidad)
 )
 
 load_dotenv()
@@ -26,6 +27,35 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# ==========================
+# Cache simple en memoria
+# ==========================
+_PROFILE_CACHE = {}  # { username_lower: (expires_epoch, payload_dict) }
+_PROFILE_TTL = 60 * 15  # 15 minutos
+
+def _cache_get(username: str):
+    key = (username or "").lower()
+    hit = _PROFILE_CACHE.get(key)
+    if not hit:
+        return None
+    exp, data = hit
+    if time.time() < exp:
+        return data
+    _PROFILE_CACHE.pop(key, None)
+    return None
+
+def _cache_set(username: str, data: dict):
+    key = (username or "").lower()
+    _PROFILE_CACHE[key] = (time.time() + _PROFILE_TTL, data)
+
+def _ig_headers():
+    return {
+        "User-Agent": "Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Mobile Safari/537.36",
+        "x-ig-app-id": "936619743392459",
+        "Accept": "application/json, text/plain, */*",
+        "Referer": "https://www.instagram.com/",
+    }
 
 @app.get("/health")
 def health():
@@ -80,13 +110,84 @@ async def cerrar(request: Request):
     cerrar_sesion(username)
     return {"status": "sesión cerrada"}
 
+# ============================================
+# /buscar-usuario → datos REALES sin sesión
+# ============================================
 @app.get("/buscar-usuario")
 def buscar(username: str = Query(...)):
+    """
+    Devuelve datos REALES sin iniciar sesión:
+    {
+      username, full_name, biography, is_verified,
+      follower_count, following_count, media_count,
+      profile_pic_url, profile_pic_url_hd
+    }
+    Cacheado 15 min para evitar rate-limits.
+    """
     try:
-        resultado = buscar_usuario(username)
-        return {"usuario": resultado}
+        if not username:
+            return {"error": "username requerido"}
+
+        # corrige handle mal tipeado que mencionaste
+        if username.lower() == "cadillaccf1":
+            username = "cadillacf1"
+
+        # Cache
+        cached = _cache_get(username)
+        if cached:
+            return {"usuario": cached, "cached": True}
+
+        ig_api = f"https://i.instagram.com/api/v1/users/web_profile_info/?username={username}"
+        r = requests.get(ig_api, headers=_ig_headers(), timeout=10)
+        r.raise_for_status()
+        data = r.json()
+        u = (data.get("data") or {}).get("user") or {}
+
+        # contadores
+        follower_count = (u.get("edge_followed_by") or {}).get("count")
+        following_count = (u.get("edge_follow") or {}).get("count")
+        media_count = (u.get("edge_owner_to_timeline_media") or {}).get("count")
+
+        payload = {
+            "username": u.get("username") or username,
+            "full_name": u.get("full_name") or username,
+            "biography": u.get("biography") or "",
+            "is_verified": bool(u.get("is_verified")),
+            "follower_count": int(follower_count) if isinstance(follower_count, (int, float)) or (isinstance(follower_count, str) and follower_count.isdigit()) else follower_count,
+            "following_count": int(following_count) if isinstance(following_count, (int, float)) or (isinstance(following_count, str) and following_count.isdigit()) else following_count,
+            "media_count": int(media_count) if isinstance(media_count, (int, float)) or (isinstance(media_count, str) and media_count.isdigit()) else media_count,
+            "profile_pic_url": u.get("profile_pic_url") or u.get("profile_pic_url_hd"),
+            "profile_pic_url_hd": u.get("profile_pic_url_hd"),
+        }
+
+        _cache_set(username, payload)
+        return {"usuario": payload, "cached": False}
+
     except Exception as e:
-        return {"error": str(e)}
+        # Fallback: intenta al menos una foto (sin números)
+        pic = None
+        try:
+            ua = f"https://unavatar.io/instagram/{username}"
+            ur = requests.get(ua, timeout=6)
+            if ur.status_code == 200:
+                pic = ua
+        except Exception:
+            pass
+
+        payload = {
+            "username": username,
+            "full_name": username,
+            "biography": "",
+            "is_verified": None,
+            "follower_count": None,
+            "following_count": None,
+            "media_count": None,
+            "profile_pic_url": pic,
+            "profile_pic_url_hd": None,
+            "error": str(e),
+        }
+        _cache_set(username, payload)
+        return {"usuario": payload, "cached": True}
 
 # ======================
 # NUEVO ENDPOINT: Avatar
@@ -101,12 +202,7 @@ def avatar(username: str = Query(...)):
     """
     ig_api = f"https://i.instagram.com/api/v1/users/web_profile_info/?username={username}"
 
-    headers = {
-        "User-Agent": "Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Mobile Safari/537.36",
-        "x-ig-app-id": "936619743392459",
-        "Accept": "application/json, text/plain, */*",
-        "Referer": "https://www.instagram.com/"
-    }
+    headers = _ig_headers()
 
     try:
         r = requests.get(ig_api, headers=headers, timeout=6)
