@@ -1,9 +1,10 @@
 import os
+import json
 import time
 import requests
 from fastapi import FastAPI, Request, Query
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import Response
+from fastapi.responses import Response, JSONResponse
 from dotenv import load_dotenv
 from src.login_utils import (
     login_instagram,
@@ -13,7 +14,7 @@ from src.login_utils import (
     cerrar_sesion,
     cuentas_activas,
     cliente_por_usuario,
-    buscar_usuario as _legacy_buscar_usuario,  # compat
+    buscar_usuario as _legacy_buscar_usuario  # compatibilidad
 )
 
 load_dotenv()
@@ -50,16 +51,96 @@ def _cache_set(username: str, data: dict):
 
 def _ig_headers():
     return {
-        "User-Agent": (
-            "Mozilla/5.0 (Linux; Android 13; Pixel 7) "
-            "AppleWebKit/537.36 (KHTML, like Gecko) "
-            "Chrome/124.0.0.0 Mobile Safari/537.36"
-        ),
+        "User-Agent": "Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Mobile Safari/537.36",
         "x-ig-app-id": "936619743392459",
         "Accept": "application/json, text/plain, */*",
-        "Accept-Language": "es-ES,es;q=0.9,en;q=0.8",
         "Referer": "https://www.instagram.com/",
     }
+
+def _normalize_username(username: str) -> str:
+    u = (username or "").strip().lstrip("@")
+    if u.lower() == "cadillaccf1":
+        u = "cadillacf1"
+    return u
+
+def _to_int(x):
+    if isinstance(x, bool):
+        return int(x)
+    if isinstance(x, (int, float)):
+        return int(x)
+    if isinstance(x, str):
+        s = x.strip().replace(",", "")
+        return int(s) if s.isdigit() else None
+    return None
+
+def _payload_from_public_user(u: dict, fallback_username: str) -> dict:
+    follower_count = _to_int((u.get("edge_followed_by") or {}).get("count"))
+    following_count = _to_int((u.get("edge_follow") or {}).get("count"))
+    media_count = _to_int((u.get("edge_owner_to_timeline_media") or {}).get("count"))
+
+    return {
+        "username": u.get("username") or fallback_username,
+        "full_name": u.get("full_name") or fallback_username,
+        "biography": u.get("biography") or "",
+        "is_verified": bool(u.get("is_verified")),
+        "follower_count": follower_count,
+        "following_count": following_count,
+        "media_count": media_count,
+        "profile_pic_url": u.get("profile_pic_url_hd") or u.get("profile_pic_url"),
+        "profile_pic_url_hd": u.get("profile_pic_url_hd"),
+    }
+
+def _try_session_user(username: str):
+    """
+    Intenta obtener datos usando una sesión iniciada (si existe).
+    Usa la primera cuenta activa disponible.
+    """
+    try:
+        active = cuentas_activas() or []
+    except Exception:
+        active = []
+
+    candidate = None
+    if active:
+        candidate = active[0]
+    # si tienes un bot dedicado, cámbialo aquí:
+    # candidate = "kraveaibot"
+
+    if not candidate:
+        return None
+
+    try:
+        cl = cliente_por_usuario(candidate)
+    except Exception:
+        cl = None
+
+    if not cl:
+        try:
+            # intenta restaurar
+            cl = restaurar_sesion(candidate)
+        except Exception:
+            cl = None
+
+    if not cl:
+        return None
+
+    # Algunos clientes devuelven objetos con atributos
+    try:
+        u = cl.user_info_by_username(username)
+        payload = {
+            "username": getattr(u, "username", username) or username,
+            "full_name": getattr(u, "full_name", "") or username,
+            "biography": getattr(u, "biography", "") or "",
+            "is_verified": bool(getattr(u, "is_verified", False)),
+            "follower_count": _to_int(getattr(u, "follower_count", None)),
+            "following_count": _to_int(getattr(u, "following_count", None)),
+            "media_count": _to_int(getattr(u, "media_count", None)),
+            "profile_pic_url": getattr(u, "profile_pic_url", None),
+            "profile_pic_url_hd": getattr(u, "profile_pic_url", None),
+        }
+        return payload
+    except Exception:
+        return None
 
 @app.get("/health")
 def health():
@@ -114,105 +195,48 @@ async def cerrar(request: Request):
     cerrar_sesion(username)
     return {"status": "sesión cerrada"}
 
-# --------------------------------------------
-# Helpers
-# --------------------------------------------
-def _normalize_username(raw: str) -> str:
-    if not raw:
-        return ""
-    u = raw.strip().lstrip("@")
-    if u.lower() == "cadillaccf1":  # corrección que mencionaste
-        u = "cadillacf1"
-    return u
-
-def _to_int(val):
-    # El endpoint web ya devuelve ints, pero por si acaso:
-    try:
-        if val is None:
-            return None
-        if isinstance(val, (int, float)):
-            return int(val)
-        s = str(val).replace(",", "").strip()
-        return int(s)
-    except Exception:
-        return None
-
 # ============================================
-# /buscar-usuario → datos REALES sin sesión
+# /buscar-usuario → datos REALES con opción fresh=1
 # ============================================
 @app.get("/buscar-usuario")
-def buscar(username: str = Query(...)):
+def buscar(username: str = Query(...), fresh: bool = Query(False)):
     """
-    Devuelve datos REALES sin iniciar sesión:
+    Devuelve datos REALES:
     {
       username, full_name, biography, is_verified,
       follower_count, following_count, media_count,
       profile_pic_url, profile_pic_url_hd
     }
-    Cacheado 15 min para evitar rate-limits.
+    Por defecto usa cache 15 min. Si fresh=1, ignora cache y refetch.
     """
     try:
         if not username:
-            return {"error": "username requerido"}
+            return JSONResponse({"error": "username requerido"}, headers={"Cache-Control": "no-store"})
 
         username = _normalize_username(username)
 
-        # Cache
-        cached = _cache_get(username)
-        if cached:
-            return {"usuario": cached, "cached": True}
+        # Cache (a menos que pidan fresco)
+        if not fresh:
+            cached = _cache_get(username)
+            if cached:
+                return JSONResponse({"usuario": cached, "cached": True}, headers={"Cache-Control": "no-store"})
 
-        # 1) Si hay cliente logueado disponible, úsalo (más estable)
-        try:
-            bot = cliente_por_usuario("kraveaibot")
-        except Exception:
-            bot = None
+        # 1) Intento por sesión (si existe)
+        payload = _try_session_user(username)
+        if payload:
+            _cache_set(username, payload)
+            return JSONResponse({"usuario": payload, "cached": False}, headers={"Cache-Control": "no-store"})
 
-        if bot:
-            try:
-                u = bot.user_info_by_username(username)
-                payload = {
-                    "username": u.username or username,
-                    "full_name": u.full_name or username,
-                    "biography": u.biography or "",
-                    "is_verified": bool(getattr(u, "is_verified", False)),
-                    "follower_count": _to_int(getattr(u, "follower_count", None)),
-                    "following_count": _to_int(getattr(u, "following_count", None)),
-                    "media_count": _to_int(getattr(u, "media_count", None)),
-                    "profile_pic_url": getattr(u, "profile_pic_url", None),
-                    "profile_pic_url_hd": getattr(u, "profile_pic_url", None),
-                }
-                _cache_set(username, payload)
-                return {"usuario": payload, "cached": False}
-            except Exception:
-                # cae a web pública
-                pass
-
-        # 2) Fallback web pública
+        # 2) Fallback: web pública
         ig_api = f"https://i.instagram.com/api/v1/users/web_profile_info/?username={username}"
         r = requests.get(ig_api, headers=_ig_headers(), timeout=10)
         r.raise_for_status()
         data = r.json()
         u = (data.get("data") or {}).get("user") or {}
 
-        follower_count = _to_int((u.get("edge_followed_by") or {}).get("count"))
-        following_count = _to_int((u.get("edge_follow") or {}).get("count"))
-        media_count = _to_int((u.get("edge_owner_to_timeline_media") or {}).get("count"))
-
-        payload = {
-            "username": u.get("username") or username,
-            "full_name": u.get("full_name") or username,
-            "biography": u.get("biography") or "",
-            "is_verified": bool(u.get("is_verified")),
-            "follower_count": follower_count,
-            "following_count": following_count,
-            "media_count": media_count,
-            "profile_pic_url": u.get("profile_pic_url_hd") or u.get("profile_pic_url"),
-            "profile_pic_url_hd": u.get("profile_pic_url_hd"),
-        }
-
+        payload = _payload_from_public_user(u, username)
         _cache_set(username, payload)
-        return {"usuario": payload, "cached": False}
+        return JSONResponse({"usuario": payload, "cached": False}, headers={"Cache-Control": "no-store"})
 
     except Exception as e:
         # Fallback: intenta al menos una foto (sin números)
@@ -238,7 +262,7 @@ def buscar(username: str = Query(...)):
             "error": str(e),
         }
         _cache_set(username, payload)
-        return {"usuario": payload, "cached": True}
+        return JSONResponse({"usuario": payload, "cached": True}, headers={"Cache-Control": "no-store"})
 
 # ======================
 # NUEVO ENDPOINT: Avatar
@@ -269,7 +293,7 @@ def avatar(username: str = Query(...)):
                     return Response(
                         content=ir.content,
                         media_type=ctype,
-                        headers={"Cache-Control": "public, max-age=21600"}  # 6h
+                        headers={"Cache-Control": "public, max-age=21600"}  # cache 6h
                     )
     except Exception:
         pass
