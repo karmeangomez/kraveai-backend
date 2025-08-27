@@ -1,5 +1,4 @@
 import os
-import json
 import time
 import requests
 from fastapi import FastAPI, Request, Query
@@ -14,7 +13,7 @@ from src.login_utils import (
     cerrar_sesion,
     cuentas_activas,
     cliente_por_usuario,
-    buscar_usuario as _legacy_buscar_usuario  # (no usado, se deja por compatibilidad)
+    buscar_usuario as _legacy_buscar_usuario,  # compat
 )
 
 load_dotenv()
@@ -51,9 +50,14 @@ def _cache_set(username: str, data: dict):
 
 def _ig_headers():
     return {
-        "User-Agent": "Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Mobile Safari/537.36",
+        "User-Agent": (
+            "Mozilla/5.0 (Linux; Android 13; Pixel 7) "
+            "AppleWebKit/537.36 (KHTML, like Gecko) "
+            "Chrome/124.0.0.0 Mobile Safari/537.36"
+        ),
         "x-ig-app-id": "936619743392459",
         "Accept": "application/json, text/plain, */*",
+        "Accept-Language": "es-ES,es;q=0.9,en;q=0.8",
         "Referer": "https://www.instagram.com/",
     }
 
@@ -110,6 +114,29 @@ async def cerrar(request: Request):
     cerrar_sesion(username)
     return {"status": "sesión cerrada"}
 
+# --------------------------------------------
+# Helpers
+# --------------------------------------------
+def _normalize_username(raw: str) -> str:
+    if not raw:
+        return ""
+    u = raw.strip().lstrip("@")
+    if u.lower() == "cadillaccf1":  # corrección que mencionaste
+        u = "cadillacf1"
+    return u
+
+def _to_int(val):
+    # El endpoint web ya devuelve ints, pero por si acaso:
+    try:
+        if val is None:
+            return None
+        if isinstance(val, (int, float)):
+            return int(val)
+        s = str(val).replace(",", "").strip()
+        return int(s)
+    except Exception:
+        return None
+
 # ============================================
 # /buscar-usuario → datos REALES sin sesión
 # ============================================
@@ -128,35 +155,59 @@ def buscar(username: str = Query(...)):
         if not username:
             return {"error": "username requerido"}
 
-        # corrige handle mal tipeado que mencionaste
-        if username.lower() == "cadillaccf1":
-            username = "cadillacf1"
+        username = _normalize_username(username)
 
         # Cache
         cached = _cache_get(username)
         if cached:
             return {"usuario": cached, "cached": True}
 
+        # 1) Si hay cliente logueado disponible, úsalo (más estable)
+        try:
+            bot = cliente_por_usuario("kraveaibot")
+        except Exception:
+            bot = None
+
+        if bot:
+            try:
+                u = bot.user_info_by_username(username)
+                payload = {
+                    "username": u.username or username,
+                    "full_name": u.full_name or username,
+                    "biography": u.biography or "",
+                    "is_verified": bool(getattr(u, "is_verified", False)),
+                    "follower_count": _to_int(getattr(u, "follower_count", None)),
+                    "following_count": _to_int(getattr(u, "following_count", None)),
+                    "media_count": _to_int(getattr(u, "media_count", None)),
+                    "profile_pic_url": getattr(u, "profile_pic_url", None),
+                    "profile_pic_url_hd": getattr(u, "profile_pic_url", None),
+                }
+                _cache_set(username, payload)
+                return {"usuario": payload, "cached": False}
+            except Exception:
+                # cae a web pública
+                pass
+
+        # 2) Fallback web pública
         ig_api = f"https://i.instagram.com/api/v1/users/web_profile_info/?username={username}"
         r = requests.get(ig_api, headers=_ig_headers(), timeout=10)
         r.raise_for_status()
         data = r.json()
         u = (data.get("data") or {}).get("user") or {}
 
-        # contadores
-        follower_count = (u.get("edge_followed_by") or {}).get("count")
-        following_count = (u.get("edge_follow") or {}).get("count")
-        media_count = (u.get("edge_owner_to_timeline_media") or {}).get("count")
+        follower_count = _to_int((u.get("edge_followed_by") or {}).get("count"))
+        following_count = _to_int((u.get("edge_follow") or {}).get("count"))
+        media_count = _to_int((u.get("edge_owner_to_timeline_media") or {}).get("count"))
 
         payload = {
             "username": u.get("username") or username,
             "full_name": u.get("full_name") or username,
             "biography": u.get("biography") or "",
             "is_verified": bool(u.get("is_verified")),
-            "follower_count": int(follower_count) if isinstance(follower_count, (int, float)) or (isinstance(follower_count, str) and follower_count.isdigit()) else follower_count,
-            "following_count": int(following_count) if isinstance(following_count, (int, float)) or (isinstance(following_count, str) and following_count.isdigit()) else following_count,
-            "media_count": int(media_count) if isinstance(media_count, (int, float)) or (isinstance(media_count, str) and media_count.isdigit()) else media_count,
-            "profile_pic_url": u.get("profile_pic_url") or u.get("profile_pic_url_hd"),
+            "follower_count": follower_count,
+            "following_count": following_count,
+            "media_count": media_count,
+            "profile_pic_url": u.get("profile_pic_url_hd") or u.get("profile_pic_url"),
             "profile_pic_url_hd": u.get("profile_pic_url_hd"),
         }
 
@@ -200,8 +251,8 @@ def avatar(username: str = Query(...)):
     - Si falla, usa Unavatar
     - Si ambos fallan, responde 204
     """
+    username = _normalize_username(username)
     ig_api = f"https://i.instagram.com/api/v1/users/web_profile_info/?username={username}"
-
     headers = _ig_headers()
 
     try:
@@ -218,7 +269,7 @@ def avatar(username: str = Query(...)):
                     return Response(
                         content=ir.content,
                         media_type=ctype,
-                        headers={"Cache-Control": "public, max-age=21600"}  # cache 6h
+                        headers={"Cache-Control": "public, max-age=21600"}  # 6h
                     )
     except Exception:
         pass
