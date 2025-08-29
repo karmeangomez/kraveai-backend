@@ -1,6 +1,5 @@
-# main.py
 import re, time, requests
-from typing import Optional, Dict, Any
+from typing import Dict, Any
 from fastapi import FastAPI, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response, JSONResponse
@@ -9,43 +8,39 @@ from urllib3.util.retry import Retry
 
 app = FastAPI(title="Krave API", version="2025.02")
 
-# CORS (puedes restringir a tu dominio Netlify si quieres)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # ej.: ["https://kraveai.netlify.app"]
+    allow_origins=["*"],  # puedes restringir: ["https://kraveai.netlify.app"]
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-def _build_session() -> requests.Session:
-    s = requests.Session()
-    retries = Retry(
-        total=3, backoff_factor=0.6,
-        status_forcelist=[429,500,502,503,504],
-        allowed_methods=["GET","HEAD","OPTIONS"],
-        raise_on_status=False
-    )
+def _build_session()->requests.Session:
+    s=requests.Session()
+    retries=Retry(total=3, backoff_factor=0.6,
+                  status_forcelist=[429,500,502,503,504],
+                  allowed_methods=["GET","HEAD","OPTIONS"],
+                  raise_on_status=False)
     s.mount("https://", HTTPAdapter(max_retries=retries))
     s.mount("http://",  HTTPAdapter(max_retries=retries))
     return s
 
-HTTP = _build_session()
+HTTP=_build_session()
 
-def _ig_headers() -> Dict[str,str]:
+def _ig_headers()->Dict[str,str]:
     return {
-        "User-Agent": ("Mozilla/5.0 (Linux; Android 13; Pixel 7) "
-                       "AppleWebKit/537.36 (KHTML, like Gecko) "
-                       "Chrome/124.0.0.0 Mobile Safari/537.36"),
-        "x-ig-app-id": "936619743392459",
-        "Accept": "application/json, text/plain, */*",
-        "Referer": "https://www.instagram.com/",
+        "User-Agent":("Mozilla/5.0 (Linux; Android 13; Pixel 7) "
+                      "AppleWebKit/537.36 (KHTML, like Gecko) "
+                      "Chrome/124.0.0.0 Mobile Safari/537.36"),
+        "x-ig-app-id":"936619743392459",
+        "Accept":"application/json, text/plain, */*",
+        "Referer":"https://www.instagram.com/",
     }
 
-# Cache simple 15 min
 _PROFILE_CACHE: Dict[str, Any] = {}
 _PROFILE_TTL = 60*15
-_now = time.time
+_now=time.time
 def _cache_get(u:str):
     key=u.lower(); v=_PROFILE_CACHE.get(key)
     if not v: return None
@@ -53,21 +48,20 @@ def _cache_get(u:str):
     if _now()<exp: return data
     _PROFILE_CACHE.pop(key,None); return None
 def _cache_set(u:str,data:Dict[str,Any]):
-    _PROFILE_CACHE[u.lower()] = (_now()+_PROFILE_TTL, data)
+    _PROFILE_CACHE[u.lower()]=(_now()+_PROFILE_TTL,data)
 
-# Regex fallback scraping
-_RE_FOLLOWERS = re.compile(r'"edge_followed_by"\s*:\s*{\s*"count"\s*:\s*(\d+)')
-_RE_FOLLOWING = re.compile(r'"edge_follow"\s*:\s*{\s*"count"\s*:\s*(\d+)')
-_RE_MEDIA     = re.compile(r'"edge_owner_to_timeline_media"\s*:\s*{\s*"count"\s*:\s*(\d+)')
-_RE_BIO       = re.compile(r'"biography"\s*:\s*"((?:\\.|[^"\\])*)"')
-_RE_VERIFIED  = re.compile(r'"is_verified"\s*:\s*(true|false)')
-_RE_FULLNAME  = re.compile(r'"full_name"\s*:\s*"((?:\\.|[^"\\])*)"')
-_RE_PIC_HD    = re.compile(r'"profile_pic_url_hd"\s*:\s*"([^"]+)"')
-_RE_PIC       = re.compile(r'"profile_pic_url"\s*:\s*"([^"]+)"')
+_RE_FOLLOWERS=re.compile(r'"edge_followed_by"\s*:\s*{\s*"count"\s*:\s*(\d+)')
+_RE_FOLLOWING=re.compile(r'"edge_follow"\s*:\s*{\s*"count"\s*:\s*(\d+)')
+_RE_MEDIA    =re.compile(r'"edge_owner_to_timeline_media"\s*:\s*{\s*"count"\s*:\s*(\d+)')
+_RE_BIO      =re.compile(r'"biography"\s*:\s*"((?:\\.|[^"\\])*)"')
+_RE_VERIFIED =re.compile(r'"is_verified"\s*:\s*(true|false)')
+_RE_FULLNAME =re.compile(r'"full_name"\s*:\s*"((?:\\.|[^"\\])*)"')
+_RE_PIC_HD   =re.compile(r'"profile_pic_url_hd"\s*:\s*"([^"]+)"')
+_RE_PIC      =re.compile(r'"profile_pic_url"\s*:\s*"([^"]+)"')
 
 def _num(x):
     try: return int(x)
-    except: 
+    except:
         try: return int(float(x))
         except: return None
 
@@ -124,12 +118,10 @@ def health():
 def buscar_usuario(username: str = Query(...)):
     if not username:
         return JSONResponse({"error":"username requerido"}, status_code=400)
-    if username.lower()=="cadillaccf1":  # typo común
+    if username.lower()=="cadillaccf1":
         username="cadillacf1"
-
     cached=_cache_get(username)
     if cached: return {"usuario": cached}
-
     data=_api(username) or _scrape(username)
     if not data:
         data={
@@ -151,8 +143,7 @@ def avatar(username: str = Query(...)):
     if not username: return Response(status_code=400)
     if username.lower()=="cadillaccf1":
         username="cadillacf1"
-
-    for getter in (_api, _scrape):
+    for getter in (_api,_scrape):
         try:
             info=getter(username)
             pic=(info or {}).get("profile_pic_url_hd") or (info or {}).get("profile_pic_url")
@@ -161,16 +152,12 @@ def avatar(username: str = Query(...)):
                 if ir.status_code==200 and ir.content:
                     ctype=ir.headers.get("Content-Type","image/jpeg")
                     return Response(ir.content, media_type=ctype, headers={"Cache-Control":"public, max-age=21600"})
-        except:
-            pass
-
-    # último recurso
+        except: pass
     try:
         ua=f"https://unavatar.io/instagram/{username}"
         ur=HTTP.get(ua, timeout=8)
         if ur.status_code==200 and ur.content:
             ctype=ur.headers.get("Content-Type","image/png")
             return Response(ur.content, media_type=ctype, headers={"Cache-Control":"public, max-age=21600"})
-    except:
-        pass
+    except: pass
     return Response(status_code=204)
