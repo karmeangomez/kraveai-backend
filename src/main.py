@@ -14,7 +14,7 @@ from src.login_utils import (
     cerrar_sesion,
     cuentas_activas,
     cliente_por_usuario,
-    buscar_usuario as _legacy_buscar_usuario  # compatibilidad
+    buscar_usuario as _legacy_buscar_usuario  # compat
 )
 
 load_dotenv()
@@ -57,95 +57,19 @@ def _ig_headers():
         "Referer": "https://www.instagram.com/",
     }
 
-def _normalize_username(username: str) -> str:
-    u = (username or "").strip().lstrip("@")
-    if u.lower() == "cadillaccf1":
-        u = "cadillacf1"
-    return u
-
-def _to_int(x):
-    if isinstance(x, bool):
-        return int(x)
-    if isinstance(x, (int, float)):
-        return int(x)
-    if isinstance(x, str):
-        s = x.strip().replace(",", "")
-        return int(s) if s.isdigit() else None
-    return None
-
-def _payload_from_public_user(u: dict, fallback_username: str) -> dict:
-    follower_count = _to_int((u.get("edge_followed_by") or {}).get("count"))
-    following_count = _to_int((u.get("edge_follow") or {}).get("count"))
-    media_count = _to_int((u.get("edge_owner_to_timeline_media") or {}).get("count"))
-
-    return {
-        "username": u.get("username") or fallback_username,
-        "full_name": u.get("full_name") or fallback_username,
-        "biography": u.get("biography") or "",
-        "is_verified": bool(u.get("is_verified")),
-        "follower_count": follower_count,
-        "following_count": following_count,
-        "media_count": media_count,
-        "profile_pic_url": u.get("profile_pic_url_hd") or u.get("profile_pic_url"),
-        "profile_pic_url_hd": u.get("profile_pic_url_hd"),
-    }
-
-def _try_session_user(username: str):
-    """
-    Intenta obtener datos usando una sesión iniciada (si existe).
-    Usa la primera cuenta activa disponible.
-    """
-    try:
-        active = cuentas_activas() or []
-    except Exception:
-        active = []
-
-    candidate = None
-    if active:
-        candidate = active[0]
-    # si tienes un bot dedicado, cámbialo aquí:
-    # candidate = "kraveaibot"
-
-    if not candidate:
-        return None
-
-    try:
-        cl = cliente_por_usuario(candidate)
-    except Exception:
-        cl = None
-
-    if not cl:
-        try:
-            # intenta restaurar
-            cl = restaurar_sesion(candidate)
-        except Exception:
-            cl = None
-
-    if not cl:
-        return None
-
-    # Algunos clientes devuelven objetos con atributos
-    try:
-        u = cl.user_info_by_username(username)
-        payload = {
-            "username": getattr(u, "username", username) or username,
-            "full_name": getattr(u, "full_name", "") or username,
-            "biography": getattr(u, "biography", "") or "",
-            "is_verified": bool(getattr(u, "is_verified", False)),
-            "follower_count": _to_int(getattr(u, "follower_count", None)),
-            "following_count": _to_int(getattr(u, "following_count", None)),
-            "media_count": _to_int(getattr(u, "media_count", None)),
-            "profile_pic_url": getattr(u, "profile_pic_url", None),
-            "profile_pic_url_hd": getattr(u, "profile_pic_url", None),
-        }
-        return payload
-    except Exception:
-        return None
-
+# ==========================
+# Health (no-cache de verdad)
+# ==========================
 @app.get("/health")
 def health():
-    return {"status": "ok"}
+    return JSONResponse(
+        {"status": "ok", "ts": int(time.time())},
+        headers={"Cache-Control": "no-store, no-cache, must-revalidate, max-age=0"}
+    )
 
+# ==========================
+# Sesiones
+# ==========================
 @app.get("/estado-sesion")
 def estado_sesion():
     cuentas = cuentas_activas()
@@ -196,47 +120,73 @@ async def cerrar(request: Request):
     return {"status": "sesión cerrada"}
 
 # ============================================
-# /buscar-usuario → datos REALES con opción fresh=1
+# /buscar-usuario → datos REALES sin sesión
 # ============================================
 @app.get("/buscar-usuario")
-def buscar(username: str = Query(...), fresh: bool = Query(False)):
+def buscar(username: str = Query(...)):
     """
-    Devuelve datos REALES:
+    Devuelve datos REALES sin iniciar sesión:
     {
       username, full_name, biography, is_verified,
       follower_count, following_count, media_count,
       profile_pic_url, profile_pic_url_hd
     }
-    Por defecto usa cache 15 min. Si fresh=1, ignora cache y refetch.
+    Cacheado 15 min para evitar rate-limits.
     """
     try:
         if not username:
-            return JSONResponse({"error": "username requerido"}, headers={"Cache-Control": "no-store"})
+            return {"error": "username requerido"}
 
-        username = _normalize_username(username)
+        # Corrige handle mal tipeado reportado
+        if username.lower() == "cadillaccf1":
+            username = "cadillacf1"
 
-        # Cache (a menos que pidan fresco)
-        if not fresh:
-            cached = _cache_get(username)
-            if cached:
-                return JSONResponse({"usuario": cached, "cached": True}, headers={"Cache-Control": "no-store"})
+        # Cache
+        cached = _cache_get(username)
+        if cached:
+            return JSONResponse(
+                {"usuario": cached, "cached": True},
+                headers={"Cache-Control": "no-store"}
+            )
 
-        # 1) Intento por sesión (si existe)
-        payload = _try_session_user(username)
-        if payload:
-            _cache_set(username, payload)
-            return JSONResponse({"usuario": payload, "cached": False}, headers={"Cache-Control": "no-store"})
-
-        # 2) Fallback: web pública
         ig_api = f"https://i.instagram.com/api/v1/users/web_profile_info/?username={username}"
         r = requests.get(ig_api, headers=_ig_headers(), timeout=10)
         r.raise_for_status()
         data = r.json()
         u = (data.get("data") or {}).get("user") or {}
 
-        payload = _payload_from_public_user(u, username)
+        # contadores
+        follower_count = (u.get("edge_followed_by") or {}).get("count")
+        following_count = (u.get("edge_follow") or {}).get("count")
+        media_count = (u.get("edge_owner_to_timeline_media") or {}).get("count")
+
+        def to_int(val):
+            try:
+                if isinstance(val, (int, float)):
+                    return int(val)
+                if isinstance(val, str) and val.isdigit():
+                    return int(val)
+            except Exception:
+                pass
+            return None
+
+        payload = {
+            "username": u.get("username") or username,
+            "full_name": u.get("full_name") or username,
+            "biography": u.get("biography") or "",
+            "is_verified": bool(u.get("is_verified")),
+            "follower_count": to_int(follower_count),
+            "following_count": to_int(following_count),
+            "media_count": to_int(media_count),
+            "profile_pic_url": u.get("profile_pic_url_hd") or u.get("profile_pic_url"),
+            "profile_pic_url_hd": u.get("profile_pic_url_hd"),
+        }
+
         _cache_set(username, payload)
-        return JSONResponse({"usuario": payload, "cached": False}, headers={"Cache-Control": "no-store"})
+        return JSONResponse(
+            {"usuario": payload, "cached": False},
+            headers={"Cache-Control": "no-store"}
+        )
 
     except Exception as e:
         # Fallback: intenta al menos una foto (sin números)
@@ -262,10 +212,13 @@ def buscar(username: str = Query(...), fresh: bool = Query(False)):
             "error": str(e),
         }
         _cache_set(username, payload)
-        return JSONResponse({"usuario": payload, "cached": True}, headers={"Cache-Control": "no-store"})
+        return JSONResponse(
+            {"usuario": payload, "cached": True},
+            headers={"Cache-Control": "no-store"}
+        )
 
 # ======================
-# NUEVO ENDPOINT: Avatar
+# /avatar: imagen binaria
 # ======================
 @app.get("/avatar")
 def avatar(username: str = Query(...)):
@@ -275,9 +228,8 @@ def avatar(username: str = Query(...)):
     - Si falla, usa Unavatar
     - Si ambos fallan, responde 204
     """
-    username = _normalize_username(username)
-    ig_api = f"https://i.instagram.com/api/v1/users/web_profile_info/?username={username}"
     headers = _ig_headers()
+    ig_api = f"https://i.instagram.com/api/v1/users/web_profile_info/?username={username}"
 
     try:
         r = requests.get(ig_api, headers=headers, timeout=6)
@@ -285,7 +237,6 @@ def avatar(username: str = Query(...)):
             data = r.json()
             user = data.get("data", {}).get("user", {})
             pic = user.get("profile_pic_url_hd") or user.get("profile_pic_url")
-
             if pic:
                 ir = requests.get(pic, headers=headers, timeout=8)
                 if ir.status_code == 200 and ir.content:
@@ -293,7 +244,7 @@ def avatar(username: str = Query(...)):
                     return Response(
                         content=ir.content,
                         media_type=ctype,
-                        headers={"Cache-Control": "public, max-age=21600"}  # cache 6h
+                        headers={"Cache-Control": "public, max-age=21600"}
                     )
     except Exception:
         pass
