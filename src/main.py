@@ -1,272 +1,201 @@
 # main.py
-import time, re, os
-from typing import Dict, Any, Optional, List
-import requests
-from fastapi import FastAPI, Query
+# Backend para KraveAI (FastAPI)
+# Endpoints: /health, /avatar, /buscar-usuario, /refresh-clients
+# Modo demo con caché en memoria y datos semilla. Seguro para prod detrás de un proxy.
+
+from fastapi import FastAPI, HTTPException, Query
+from fastapi.responses import RedirectResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse, Response
-from requests.adapters import HTTPAdapter
-from urllib3.util.retry import Retry
+from pydantic import BaseModel, Field
+from typing import Dict, List, Optional
+import time
+import os
 
-APP_NAME   = "Krave API"
-APP_VER    = "2025.02-fix401"
+# =========================
+# Config básica
+# =========================
+APP_NAME = "KraveAI API"
+VERSION = "1.0.0"
+CACHE_TTL_SECONDS = int(os.getenv("KRAVE_CACHE_TTL", "900"))  # 15 min por defecto
 
-def _build_session()->requests.Session:
-    s = requests.Session()
-    retries = Retry(
-        total=3,
-        backoff_factor=0.6,
-        status_forcelist=[429, 500, 502, 503, 504],
-        allowed_methods=["GET", "HEAD", "OPTIONS"],
-        raise_on_status=False,
-    )
-    s.mount("https://", HTTPAdapter(max_retries=retries))
-    s.mount("http://",  HTTPAdapter(max_retries=retries))
-    return s
+app = FastAPI(title=APP_NAME, version=VERSION)
 
-HTTP = _build_session()
-
-def _ig_headers()->Dict[str,str]:
-    return {
-        "User-Agent": ("Mozilla/5.0 (Linux; Android 13; Pixel 7) "
-                       "AppleWebKit/537.36 (KHTML, like Gecko) "
-                       "Chrome/124.0.0.0 Mobile Safari/537.36"),
-        "x-ig-app-id": "936619743392459",
-        "Accept": "application/json, text/plain, */*",
-        "Referer": "https://www.instagram.com/",
-    }
-
-# =======================
-# Cache simple en memoria
-# =======================
-_CACHE: Dict[str, Any] = {}
-_TTL_OK   = 60 * 15   # 15 min para respuestas buenas
-_TTL_SOFT = 60 * 2    # 2 min para respuestas mínimas/fallback
-_now = time.time
-
-def _cache_get(key:str)->Optional[Dict[str,Any]]:
-    ent = _CACHE.get(key.lower())
-    if not ent: return None
-    exp, data = ent
-    if _now() < exp:
-        return data
-    _CACHE.pop(key.lower(), None)
-    return None
-
-def _cache_set(key:str, data:Dict[str,Any], soft:bool=False):
-    ttl = _TTL_SOFT if soft else _TTL_OK
-    _CACHE[key.lower()] = (_now() + ttl, data)
-
-# =======================
-# Parsers / fallbacks
-# =======================
-_RE = {
-    "followers": re.compile(r'"edge_followed_by"\s*:\s*{\s*"count"\s*:\s*(\d+)'),
-    "following": re.compile(r'"edge_follow"\s*:\s*{\s*"count"\s*:\s*(\d+)'),
-    "media":     re.compile(r'"edge_owner_to_timeline_media"\s*:\s*{\s*"count"\s*:\s*(\d+)'),
-    "bio":       re.compile(r'"biography"\s*:\s*"((?:\\.|[^"\\])*)"'),
-    "verified":  re.compile(r'"is_verified"\s*:\s*(true|false)'),
-    "name":      re.compile(r'"full_name"\s*:\s*"((?:\\.|[^"\\])*)"'),
-    "pic_hd":    re.compile(r'"profile_pic_url_hd"\s*:\s*"([^"]+)"'),
-    "pic":       re.compile(r'"profile_pic_url"\s*:\s*"([^"]+)"'),
-}
-
-def _unesc(s:str)->str:
-    try:    return bytes(s, "utf-8").decode("unicode_escape")
-    except: return s
-
-def _to_int(x):
-    try: return int(x)
-    except:
-        try: return int(float(x))
-        except: return None
-
-def _api_profile(username:str)->Optional[Dict[str,Any]]:
-    url = f"https://i.instagram.com/api/v1/users/web_profile_info/?username={username}"
-    r = HTTP.get(url, headers=_ig_headers(), timeout=8)
-    if r.status_code != 200:
-        return None
-    data = r.json()
-    u = (data.get("data") or {}).get("user") or {}
-    return {
-        "username": u.get("username") or username,
-        "full_name": u.get("full_name") or username,
-        "biography": u.get("biography") or "",
-        "is_verified": bool(u.get("is_verified")),
-        "follower_count": (u.get("edge_followed_by") or {}).get("count"),
-        "following_count": (u.get("edge_follow") or {}).get("count"),
-        "media_count": (u.get("edge_owner_to_timeline_media") or {}).get("count"),
-        "profile_pic_url": u.get("profile_pic_url"),
-        "profile_pic_url_hd": u.get("profile_pic_url_hd"),
-        "source": "api",
-    }
-
-def _scrape_profile(username:str)->Optional[Dict[str,Any]]:
-    url = f"https://www.instagram.com/{username}/"
-    r = HTTP.get(url, headers=_ig_headers(), timeout=8)
-    if r.status_code != 200 or not r.text:
-        return None
-    html = r.text
-    return {
-        "username": username,
-        "full_name": _unesc((_RE["name"].search(html) or [None, username])[1]),
-        "biography": _unesc((_RE["bio"].search(html) or [None, ""])[1]),
-        "is_verified": ((_RE["verified"].search(html) or [None, "false"])[1] == "true"),
-        "follower_count": _to_int((_RE["followers"].search(html) or [None, None])[1]),
-        "following_count": _to_int((_RE["following"].search(html) or [None, None])[1]),
-        "media_count": _to_int((_RE["media"].search(html) or [None, None])[1]),
-        "profile_pic_url": (_RE["pic"].search(html) or [None, None])[1],
-        "profile_pic_url_hd": (_RE["pic_hd"].search(html) or [None, None])[1],
-        "source": "scrape",
-    }
-
-def _unavatar(username:str)->str:
-    return f"https://unavatar.io/instagram/{username}"
-
-def _ensure_picture(data:Dict[str,Any])->None:
-    if not data.get("profile_pic_url_hd") and not data.get("profile_pic_url"):
-        data["profile_pic_url"] = _unavatar(data["username"])
-        data["profile_pic_url_hd"] = data["profile_pic_url"]
-
-# ==========
-# FastAPI
-# ==========
-app = FastAPI(title=APP_NAME, version=APP_VER)
+# CORS (ajusta allowed_origins a tu dominio si quieres restringir)
+allowed_origins = os.getenv("ALLOWED_ORIGINS", "*")
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],   # ajusta si quieres restringir
+    allow_origins=[o.strip() for o in allowed_origins.split(",")] if allowed_origins else ["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-@app.get("/health")
-def health():
-    # No cache en proxies/CDN
-    nonce = f"{int(time.time()*1000)}-{os.urandom(3).hex()}"
-    body = {"status":"ok","service":"krave","version":APP_VER,"nonce":nonce}
-    return JSONResponse(
-        content=body,
-        headers={
-            "Cache-Control":"no-store, no-cache, must-revalidate, max-age=0",
-            "Pragma":"no-cache",
-            "Expires":"0",
-        }
+# =========================
+# Modelos
+# =========================
+class UserInfo(BaseModel):
+    username: str = Field(..., description="Handle sin @")
+    full_name: Optional[str] = None
+    follower_count: Optional[int] = None
+    following_count: Optional[int] = None
+    media_count: Optional[int] = None
+    biography: Optional[str] = None
+    is_verified: Optional[bool] = None
+
+class RefreshReq(BaseModel):
+    users: List[str] = Field(default_factory=list, description="Lista de usernames")
+
+class RefreshResp(BaseModel):
+    usuarios: Dict[str, UserInfo] = Field(default_factory=dict)
+
+# =========================
+# Utilidades (mem-cache + seed)
+# =========================
+class TTLCache:
+    def __init__(self, ttl_seconds: int):
+        self.ttl = ttl_seconds
+        self.store: Dict[str, Dict] = {}  # key -> {"t": ts, "data": any}
+
+    def get(self, key: str):
+        row = self.store.get(key)
+        if not row:
+            return None
+        if (time.time() - row["t"]) > self.ttl:
+            self.store.pop(key, None)
+            return None
+        return row["data"]
+
+    def set(self, key: str, value):
+        self.store[key] = {"t": time.time(), "data": value}
+
+profile_cache = TTLCache(CACHE_TTL_SECONDS)
+
+# Datos semilla para demo (coinciden con el frontend)
+SEED: Dict[str, UserInfo] = {
+    "cadillacf1": UserInfo(username="cadillacf1", full_name="Cadillac Formula 1 Team",
+                           follower_count=1200000, following_count=200, media_count=320,
+                           biography="Equipo F1 · Cadillac Racing", is_verified=True),
+    "manuelturizo": UserInfo(username="manuelturizo", full_name="Manuel Turizo",
+                             follower_count=18300000, following_count=450, media_count=1500,
+                             biography="Cantante", is_verified=True),
+    "pesopluma": UserInfo(username="pesopluma", full_name="Peso Pluma",
+                          follower_count=17000000, following_count=210, media_count=900,
+                          biography="Double P", is_verified=True),
+
+    "aaronmercury": UserInfo(username="aaronmercury", full_name="Aaron Mercurio",
+                             follower_count=2500000, following_count=400, media_count=800,
+                             biography="Creador", is_verified=True),
+    "televisadigital": UserInfo(username="televisadigital", full_name="Televisa Digital",
+                                follower_count=3200000, following_count=120, media_count=5400,
+                                biography="Televisa en digital", is_verified=True),
+    "joscanela": UserInfo(username="joscanela", full_name="Jos Canela",
+                          follower_count=1200000, following_count=300, media_count=1100,
+                          biography="Artista", is_verified=True),
+    "jimenagallegotv": UserInfo(username="jimenagallegotv", full_name="Jimena Gállego",
+                                follower_count=900000, following_count=500, media_count=2000,
+                                biography="TV Host", is_verified=True),
+    "elmalilla_": UserInfo(username="elmalilla_", full_name="MALI EL MALILLAA!!🇲🇽",
+                           follower_count=850000, following_count=380, media_count=750,
+                           biography="Música 🇲🇽", is_verified=True),
+    "mariobautista": UserInfo(username="mariobautista", full_name="Mario Bautista (MB)",
+                              follower_count=12000000, following_count=600, media_count=3000,
+                              biography="MB", is_verified=True),
+    "aldotdenigris": UserInfo(username="aldotdenigris", full_name="Aldo Tamez De Nigris",
+                              follower_count=700000, following_count=900, media_count=1400,
+                              biography="Deportes", is_verified=True),
+    "sonymusiclatin": UserInfo(username="sonymusiclatin", full_name="Sony Music Latin",
+                               follower_count=8600000, following_count=1000, media_count=8000,
+                               biography="Label", is_verified=True),
+    "lacasafamososmx": UserInfo(username="lacasafamososmx", full_name="La Casa de los Famosos MX",
+                                follower_count=2100000, following_count=150, media_count=1200,
+                                biography="Reality MX", is_verified=True),
+    "oscar_maydonn": UserInfo(username="oscar_maydonn", full_name="Oscar Maydon",
+                              follower_count=2300000, following_count=280, media_count=600,
+                              biography="Música", is_verified=True),
+}
+
+def seed_or_stub(username: str) -> UserInfo:
+    """Devuelve datos de seed si existen; si no, un stub razonable."""
+    key = username.lower().strip()
+    if key in SEED:
+        return SEED[key]
+    # Stub: números aleatorios/constantes para mantener estructura
+    base = abs(hash(key)) % 1_000_000
+    return UserInfo(
+        username=key,
+        full_name=key,
+        follower_count=20000 + (base % 50000),
+        following_count=100 + (base % 900),
+        media_count=50 + (base % 1500),
+        biography=f"Perfil de {key}",
+        is_verified=False,
     )
 
-@app.get("/flush-cache")
-def flush_cache():
-    _CACHE.clear()
-    return {"status": "ok", "cleared": True}
-
-@app.get("/warmup")
-def warmup(users: str = Query("", description="Lista separada por comas")):
-    # Precalienta y deja todo en cache del servidor
-    seeds: List[str] = [u.strip() for u in users.split(",") if u.strip()] or [
-        "cadillacf1","manuelturizo","pesopluma"
-    ]
-    count = 0
-    for u in seeds:
-        data = _cache_get(u)
-        if data:
-            count += 1
-            continue
-        info = _api_profile(u) or _scrape_profile(u)
-        soft=False
-        if not info:
-            info = {
-                "username": u, "full_name": u, "biography": "", "is_verified": False,
-                "follower_count": None, "following_count": None, "media_count": None,
-                "profile_pic_url": _unavatar(u), "profile_pic_url_hd": _unavatar(u), "source":"fallback"
-            }
-            soft=True
-        _ensure_picture(info)
-        _cache_set(u, info, soft=soft)
-        count += 1
-    return {"ok": True, "count": count}
-
-@app.post("/admin/reboot")
-def admin_reboot():
-    # Hook simulado: aquí podrías integrar systemctl/reboot con permisos.
-    # Devolvemos 202 para que el cliente sepa que aceptamos la orden.
-    return JSONResponse({"accepted": True, "note": "Simulado"}, status_code=202)
-
-@app.get("/buscar-usuario")
-def buscar_usuario(
-    username: str = Query(...),
-    nocache: int = Query(0, description="1 para saltar cache"),
-):
-    if not username:
-        return JSONResponse({"error": "username requerido"}, status_code=400)
-
-    if username.lower() == "cadillaccf1":
-        username = "cadillacf1"
-
-    if not nocache:
-        cached = _cache_get(username)
-        if cached:
-            return {"usuario": cached, "cached": True}
-
-    data = _api_profile(username)
-    if not data:
-        data = _scrape_profile(username)
-
-    soft = False
-    if not data:
-        data = {
-            "username": username,
-            "full_name": username,
-            "biography": "",
-            "is_verified": False,
-            "follower_count": None,
-            "following_count": None,
-            "media_count": None,
-            "profile_pic_url": _unavatar(username),
-            "profile_pic_url_hd": _unavatar(username),
-            "source": "fallback",
-        }
-        soft = True
-
-    _ensure_picture(data)
-    _cache_set(username, data, soft=soft)
-    return {"usuario": data, "cached": False}
+# =========================
+# Rutas
+# =========================
+@app.get("/health")
+def health():
+    return {"status": "ok", "name": APP_NAME, "version": VERSION}
 
 @app.get("/avatar")
-def avatar(username: str = Query(...)):
-    if not username:
-        return Response(status_code=400)
-    if username.lower() == "cadillaccf1":
-        username = "cadillacf1"
+def avatar(username: str = Query(..., description="Handle sin @")):
+    """
+    Redirige a un avatar público. El frontend ya maneja fallback.
+    """
+    u = username.strip().lstrip("@")
+    # Puedes cambiar a tu propio proxy si quieres cache/CDN:
+    # return RedirectResponse(url=f"https://tu-cdn.com/avatars/{u}.png", status_code=302)
+    return RedirectResponse(url=f"https://unavatar.io/instagram/{u}", status_code=302)
 
-    # Primero Unavatar (más estable)
-    try:
-        ua = _unavatar(username)
-        ur = HTTP.get(ua, timeout=8)
-        if ur.status_code == 200 and ur.content:
-            ctype = ur.headers.get("Content-Type", "image/png")
-            return Response(
-                ur.content,
-                media_type=ctype,
-                headers={"Cache-Control": "public, max-age=21600"}  # 6h
-            )
-    except:
-        pass
+@app.get("/buscar-usuario")
+def buscar_usuario(username: str = Query(..., description="Handle sin @")):
+    """
+    Devuelve información de un usuario (demo: seed + caché).
+    Estructura compatible con el frontend (usa keys tipo 'full_name', 'follower_count', etc.).
+    """
+    u = username.strip().lstrip("@").lower()
+    cached = profile_cache.get(f"user:{u}")
+    if cached:
+        return cached  # ya viene como dict UserInfo
 
-    # Luego IG directo (si Unavatar no sirvió)
-    for getter in (_api_profile, _scrape_profile):
-        try:
-            info = getter(username)
-            pic = (info or {}).get("profile_pic_url_hd") or (info or {}).get("profile_pic_url")
-            if pic:
-                ir = HTTP.get(pic, headers=_ig_headers(), timeout=8)
-                if ir.status_code == 200 and ir.content:
-                    ctype = ir.headers.get("Content-Type", "image/jpeg")
-                    return Response(
-                        ir.content,
-                        media_type=ctype,
-                        headers={"Cache-Control": "public, max-age=21600"}
-                    )
-        except:
-            pass
+    info = seed_or_stub(u)
+    profile_cache.set(f"user:{u}", info.dict())
+    # El frontend admite varias claves, devolvemos 'usuario' por compatibilidad
+    return {"usuario": info.dict()}
 
-    return Response(status_code=204)
+@app.post("/refresh-clients", response_model=RefreshResp)
+def refresh_clients(req: RefreshReq):
+    """
+    Recibe {users:[...]} y devuelve {usuarios:{username: UserInfo}}.
+    En prod, aquí harías llamadas reales a tus fuentes/datos.
+    """
+    if not req.users:
+        raise HTTPException(status_code=400, detail="Falta lista de usuarios")
+
+    result: Dict[str, UserInfo] = {}
+    for raw_u in req.users:
+        u = (raw_u or "").strip().lstrip("@").lower()
+        if not u:
+            continue
+        cached = profile_cache.get(f"user:{u}")
+        if cached:
+            result[u] = UserInfo(**cached)
+            continue
+        info = seed_or_stub(u)
+        profile_cache.set(f"user:{u}", info.dict())
+        result[u] = info
+
+    # El frontend espera 'usuarios' como objeto plano (username -> info)
+    return RefreshResp(usuarios={k: v for k, v in result.items()})
+
+# =========================
+# Manejo de errores simple
+# =========================
+@app.exception_handler(HTTPException)
+async def http_exc_handler(_, exc: HTTPException):
+    return JSONResponse(status_code=exc.status_code, content={"error": exc.detail})
+
+@app.get("/")
+def root():
+    return {"ok": True, "service": APP_NAME, "docs": "/docs"}
