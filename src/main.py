@@ -6,6 +6,7 @@
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.responses import RedirectResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
 from pydantic import BaseModel, Field
 from typing import Dict, List, Optional
 import time
@@ -15,8 +16,10 @@ import os
 # Config básica
 # =========================
 APP_NAME = "KraveAI API"
-VERSION = "1.0.0"
+VERSION = "1.0.1"
 CACHE_TTL_SECONDS = int(os.getenv("KRAVE_CACHE_TTL", "900"))  # 15 min por defecto
+PROFILE_MAX_AGE = int(os.getenv("KRAVE_PROFILE_MAX_AGE", "60"))  # seg. cache CDN para /buscar-usuario
+AVATAR_MAX_AGE = int(os.getenv("KRAVE_AVATAR_MAX_AGE", "86400"))  # 1 día para /avatar
 
 app = FastAPI(title=APP_NAME, version=VERSION)
 
@@ -29,6 +32,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# GZip para respuestas ligeras
+app.add_middleware(GZipMiddleware, minimum_size=512)
 
 # =========================
 # Modelos
@@ -69,6 +75,15 @@ class TTLCache:
         self.store[key] = {"t": time.time(), "data": value}
 
 profile_cache = TTLCache(CACHE_TTL_SECONDS)
+
+# Helper para JSON con Cache-Control
+def json_cached(payload: dict, max_age: int = 0) -> JSONResponse:
+    resp = JSONResponse(payload)
+    if max_age > 0:
+        resp.headers["Cache-Control"] = f"public, max-age={max_age}"
+    else:
+        resp.headers["Cache-Control"] = "no-store"
+    return resp
 
 # Datos semilla para demo (coinciden con el frontend)
 SEED: Dict[str, UserInfo] = {
@@ -119,7 +134,7 @@ def seed_or_stub(username: str) -> UserInfo:
     key = username.lower().strip()
     if key in SEED:
         return SEED[key]
-    # Stub: números aleatorios/constantes para mantener estructura
+    # Stub: números pseudoaleatorios/constantes para mantener estructura
     base = abs(hash(key)) % 1_000_000
     return UserInfo(
         username=key,
@@ -142,27 +157,28 @@ def health():
 def avatar(username: str = Query(..., description="Handle sin @")):
     """
     Redirige a un avatar público. El frontend ya maneja fallback.
+    Añadimos Cache-Control para que el navegador/CDN no martillee.
     """
     u = username.strip().lstrip("@")
-    # Puedes cambiar a tu propio proxy si quieres cache/CDN:
-    # return RedirectResponse(url=f"https://tu-cdn.com/avatars/{u}.png", status_code=302)
-    return RedirectResponse(url=f"https://unavatar.io/instagram/{u}", status_code=302)
+    resp = RedirectResponse(url=f"https://unavatar.io/instagram/{u}", status_code=302)
+    resp.headers["Cache-Control"] = f"public, max-age={AVATAR_MAX_AGE}"
+    return resp
 
 @app.get("/buscar-usuario")
 def buscar_usuario(username: str = Query(..., description="Handle sin @")):
     """
-    Devuelve información de un usuario (demo: seed + caché).
-    Estructura compatible con el frontend (usa keys tipo 'full_name', 'follower_count', etc.).
+    Devuelve información de un usuario (seed + caché memoria).
+    IMPORTANTE: siempre respondemos con { "usuario": { ... } } para frontend.
     """
     u = username.strip().lstrip("@").lower()
     cached = profile_cache.get(f"user:{u}")
     if cached:
-        return cached  # ya viene como dict UserInfo
+        # cached ya es un dict serializable
+        return json_cached({"usuario": cached}, max_age=PROFILE_MAX_AGE)
 
     info = seed_or_stub(u)
     profile_cache.set(f"user:{u}", info.dict())
-    # El frontend admite varias claves, devolvemos 'usuario' por compatibilidad
-    return {"usuario": info.dict()}
+    return json_cached({"usuario": info.dict()}, max_age=PROFILE_MAX_AGE)
 
 @app.post("/refresh-clients", response_model=RefreshResp)
 def refresh_clients(req: RefreshReq):
@@ -187,7 +203,11 @@ def refresh_clients(req: RefreshReq):
         result[u] = info
 
     # El frontend espera 'usuarios' como objeto plano (username -> info)
-    return RefreshResp(usuarios={k: v for k, v in result.items()})
+    # Añadimos Cache-Control corto por si pasa por CDN.
+    payload = RefreshResp(usuarios={k: v for k, v in result.items()})
+    resp = JSONResponse(payload.dict())
+    resp.headers["Cache-Control"] = f"public, max-age={PROFILE_MAX_AGE}"
+    return resp
 
 # =========================
 # Manejo de errores simple
