@@ -1,9 +1,9 @@
 # main.py
 # Backend para KraveAI (FastAPI)
-# Endpoints: /health, /avatar, /buscar-usuario, /refresh-clients
+# Endpoints: /health, /avatar, /buscar-usuario, /refresh-clients, /purge-cache
 # Modo demo con caché en memoria y datos semilla. Seguro para prod detrás de un proxy.
 
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException, Query, Header
 from fastapi.responses import RedirectResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
@@ -16,10 +16,11 @@ import os
 # Config básica
 # =========================
 APP_NAME = "KraveAI API"
-VERSION = "1.0.1"
+VERSION = "1.0.2"
 CACHE_TTL_SECONDS = int(os.getenv("KRAVE_CACHE_TTL", "900"))  # 15 min por defecto
-PROFILE_MAX_AGE = int(os.getenv("KRAVE_PROFILE_MAX_AGE", "60"))  # seg. cache CDN para /buscar-usuario
+PROFILE_MAX_AGE = int(os.getenv("KRAVE_PROFILE_MAX_AGE", "60"))  # seg. cache CDN para /buscar-usuario y /refresh-clients
 AVATAR_MAX_AGE = int(os.getenv("KRAVE_AVATAR_MAX_AGE", "86400"))  # 1 día para /avatar
+ADMIN_TOKEN = os.getenv("ADMIN_TOKEN")  # opcional: si lo defines, /purge-cache requerirá este token
 
 app = FastAPI(title=APP_NAME, version=VERSION)
 
@@ -74,9 +75,11 @@ class TTLCache:
     def set(self, key: str, value):
         self.store[key] = {"t": time.time(), "data": value}
 
+    def clear(self):
+        self.store.clear()
+
 profile_cache = TTLCache(CACHE_TTL_SECONDS)
 
-# Helper para JSON con Cache-Control
 def json_cached(payload: dict, max_age: int = 0) -> JSONResponse:
     resp = JSONResponse(payload)
     if max_age > 0:
@@ -130,11 +133,9 @@ SEED: Dict[str, UserInfo] = {
 }
 
 def seed_or_stub(username: str) -> UserInfo:
-    """Devuelve datos de seed si existen; si no, un stub razonable."""
     key = username.lower().strip()
     if key in SEED:
         return SEED[key]
-    # Stub: números pseudoaleatorios/constantes para mantener estructura
     base = abs(hash(key)) % 1_000_000
     return UserInfo(
         username=key,
@@ -155,10 +156,6 @@ def health():
 
 @app.get("/avatar")
 def avatar(username: str = Query(..., description="Handle sin @")):
-    """
-    Redirige a un avatar público. El frontend ya maneja fallback.
-    Añadimos Cache-Control para que el navegador/CDN no martillee.
-    """
     u = username.strip().lstrip("@")
     resp = RedirectResponse(url=f"https://unavatar.io/instagram/{u}", status_code=302)
     resp.headers["Cache-Control"] = f"public, max-age={AVATAR_MAX_AGE}"
@@ -166,29 +163,18 @@ def avatar(username: str = Query(..., description="Handle sin @")):
 
 @app.get("/buscar-usuario")
 def buscar_usuario(username: str = Query(..., description="Handle sin @")):
-    """
-    Devuelve información de un usuario (seed + caché memoria).
-    IMPORTANTE: siempre respondemos con { "usuario": { ... } } para frontend.
-    """
     u = username.strip().lstrip("@").lower()
     cached = profile_cache.get(f"user:{u}")
     if cached:
-        # cached ya es un dict serializable
         return json_cached({"usuario": cached}, max_age=PROFILE_MAX_AGE)
-
     info = seed_or_stub(u)
     profile_cache.set(f"user:{u}", info.dict())
     return json_cached({"usuario": info.dict()}, max_age=PROFILE_MAX_AGE)
 
 @app.post("/refresh-clients", response_model=RefreshResp)
 def refresh_clients(req: RefreshReq):
-    """
-    Recibe {users:[...]} y devuelve {usuarios:{username: UserInfo}}.
-    En prod, aquí harías llamadas reales a tus fuentes/datos.
-    """
     if not req.users:
         raise HTTPException(status_code=400, detail="Falta lista de usuarios")
-
     result: Dict[str, UserInfo] = {}
     for raw_u in req.users:
         u = (raw_u or "").strip().lstrip("@").lower()
@@ -201,13 +187,18 @@ def refresh_clients(req: RefreshReq):
         info = seed_or_stub(u)
         profile_cache.set(f"user:{u}", info.dict())
         result[u] = info
-
-    # El frontend espera 'usuarios' como objeto plano (username -> info)
-    # Añadimos Cache-Control corto por si pasa por CDN.
     payload = RefreshResp(usuarios={k: v for k, v in result.items()})
     resp = JSONResponse(payload.dict())
     resp.headers["Cache-Control"] = f"public, max-age={PROFILE_MAX_AGE}"
     return resp
+
+@app.post("/purge-cache")
+def purge_cache(x_admin_token: Optional[str] = Header(default=None)):
+    # Si defines ADMIN_TOKEN en el entorno, exige encabezado X-Admin-Token
+    if ADMIN_TOKEN and x_admin_token != ADMIN_TOKEN:
+        raise HTTPException(status_code=403, detail="Forbidden")
+    profile_cache.clear()
+    return {"ok": True, "purged": True}
 
 # =========================
 # Manejo de errores simple
