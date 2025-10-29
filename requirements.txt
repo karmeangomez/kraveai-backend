@@ -1,6 +1,12 @@
+# requirements.txt - ACTUALIZADO
 fastapi
 uvicorn
 instagrapi
 pydantic
 python-dotenv
 requests
+
+# Agregar estas líneas para YouTube Bot
+selenium
+webdriver-manager
+fake-useragent
