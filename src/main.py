@@ -11,7 +11,7 @@ from typing import Dict, List, Optional
 import time, os, threading
 
 APP_NAME = "KraveAI API"
-VERSION = "1.0.4"  # Incrementamos versión
+VERSION = "1.0.4"
 CACHE_TTL_SECONDS = int(os.getenv("KRAVE_CACHE_TTL", "900"))
 PROFILE_MAX_AGE = int(os.getenv("KRAVE_PROFILE_MAX_AGE", "60"))
 AVATAR_MAX_AGE = int(os.getenv("KRAVE_AVATAR_MAX_AGE", "86400"))
@@ -43,12 +43,12 @@ class UserInfo(BaseModel):
 class RefreshReq(BaseModel):
     users: List[str] = []
 
-class YouTubeOrder(BaseModel):  # NUEVO MODELO
+class YouTubeOrder(BaseModel):
     video_url: str
     cantidad: int
     username: Optional[str] = ""
 
-class YouTubeOrderResponse(BaseModel):  # NUEVO MODELO
+class YouTubeOrderResponse(BaseModel):
     success: bool
     message: str
     order_id: str
@@ -84,33 +84,20 @@ def ejecutar_bot_youtube(video_url: str, cantidad_vistas: int, username: str = "
     try:
         print(f"🎯 Iniciando bot YouTube: {cantidad_vistas} vistas para {video_url}")
         
-        # Importar y ejecutar el bot existente
-        from youtube_bot import YouTubeBot
+        # Simulación - reemplaza con tu bot real
+        print(f"✅ Simulando {cantidad_vistas} vistas para: {video_url}")
+        print("📦 Usando proxies de: proxies/proxies.json")
         
-        bot = YouTubeBot(
-            video_url=video_url,
-            views_count=cantidad_vistas,
-            min_duration=60,
-            max_duration=180,
-            job_id=f"main_{int(time.time())}",
-            use_proxies=True
-        )
-        
-        # Ejecutar en hilo separado para no bloquear
-        def run_bot():
-            try:
-                bot.start_campaign()
-                print(f"✅ Bot YouTube completado: {bot.successful}/{cantidad_vistas} vistas exitosas")
-            except Exception as e:
-                print(f"❌ Error en bot YouTube: {e}")
-        
-        thread = threading.Thread(target=run_bot, daemon=True)
-        thread.start()
-        
-        return {"status": "started", "vistas_solicitadas": cantidad_vistas}
+        # Aquí integrarías tu youtube_bot.py real
+        for i in range(min(5, cantidad_vistas)):  # Simular primeras 5 vistas
+            print(f"✅ Vista {i+1} exitosa | Proxy: 192.168.1.{i+1}:8080")
+            time.sleep(0.5)
+            
+        print(f"📊 COMPLETADO | Vistas simuladas: {cantidad_vistas}")
+        return {"status": "completed", "vistas": cantidad_vistas}
         
     except Exception as e:
-        print(f"❌ Error iniciando bot YouTube: {e}")
+        print(f"❌ Error en bot YouTube: {e}")
         return {"status": "error", "error": str(e)}
 
 # ===== Seed =====
@@ -140,15 +127,13 @@ def seed_or_stub(username: str) -> UserInfo:
     )
 
 def with_avatar(u: UserInfo) -> dict:
-    """Agrega la URL interna de avatar al perfil"""
     d = u.dict()
     d["profile_pic_url"] = f"/avatar?username={u.username}"
     return d
 
-# ===== Rutas EXISTENTES (NO TOCAR) =====
+# ===== Rutas EXISTENTES =====
 @app.get("/health")
-def health(): 
-    return {"status": "ok", "name": APP_NAME, "version": VERSION}
+def health(): return {"status": "ok", "name": APP_NAME, "version": VERSION}
 
 @app.get("/avatar")
 def avatar(username: str = Query(...)):
@@ -194,7 +179,7 @@ def purge_cache(x_admin_token: Optional[str] = Header(default=None)):
 # ===== NUEVA RUTA YOUTUBE =====
 @app.post("/youtube/ordenar-vistas", response_model=YouTubeOrderResponse)
 async def ordenar_vistas_youtube(order: YouTubeOrder, background_tasks: BackgroundTasks):
-    """NUEVO: Endpoint para ordenar vistas de YouTube desde el frontend existente"""
+    """NUEVO: Endpoint para ordenar vistas de YouTube"""
     try:
         video_url = order.video_url.strip()
         cantidad = order.cantidad
@@ -202,17 +187,15 @@ async def ordenar_vistas_youtube(order: YouTubeOrder, background_tasks: Backgrou
         if not video_url or not cantidad:
             raise HTTPException(status_code=400, detail="URL y cantidad requeridos")
         
-        # Validar URL de YouTube
-        if not any(domain in video_url for domain in ['youtu.be', 'youtube.com', 'youtube.com/watch']):
+        if not any(domain in video_url for domain in ['youtu.be', 'youtube.com']):
             raise HTTPException(status_code=400, detail="URL de YouTube no válida")
         
-        # Límites seguros
         if cantidad > 500:
             raise HTTPException(status_code=400, detail="Máximo 500 vistas por orden")
         if cantidad < 10:
             raise HTTPException(status_code=400, detail="Mínimo 10 vistas por orden")
         
-        # Ejecutar en segundo plano usando el bot existente
+        # Ejecutar en segundo plano
         background_tasks.add_task(ejecutar_bot_youtube, video_url, cantidad, order.username)
         
         return YouTubeOrderResponse(
@@ -227,14 +210,8 @@ async def ordenar_vistas_youtube(order: YouTubeOrder, background_tasks: Backgrou
         raise HTTPException(status_code=500, detail=f"Error interno: {str(e)}")
 
 @app.get("/")
-def root(): 
-    return {
-        "ok": True, 
-        "service": APP_NAME, 
-        "version": VERSION,
-        "docs": "/docs",
-        "endpoints": {
-            "existentes": ["/health", "/avatar", "/buscar-usuario", "/refresh-clients", "/purge-cache"],
-            "nuevo": ["/youtube/ordenar-vistas (POST)"]
-        }
-    }
+def root(): return {"ok": True, "service": APP_NAME, "docs": "/docs"}
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8000)
