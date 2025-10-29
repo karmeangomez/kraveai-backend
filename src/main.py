@@ -1,17 +1,17 @@
 # main.py
 # Backend para KraveAI (FastAPI)
-# Endpoints: /health, /avatar, /buscar-usuario, /refresh-clients, /purge-cache
+# Endpoints: /health, /avatar, /buscar-usuario, /refresh-clients, /purge-cache, /youtube/ordenar-vistas
 
-from fastapi import FastAPI, HTTPException, Query, Header
+from fastapi import FastAPI, HTTPException, Query, Header, BackgroundTasks
 from fastapi.responses import RedirectResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from pydantic import BaseModel, Field
 from typing import Dict, List, Optional
-import time, os
+import time, os, threading
 
 APP_NAME = "KraveAI API"
-VERSION = "1.0.3"
+VERSION = "1.0.4"  # Incrementamos versión
 CACHE_TTL_SECONDS = int(os.getenv("KRAVE_CACHE_TTL", "900"))
 PROFILE_MAX_AGE = int(os.getenv("KRAVE_PROFILE_MAX_AGE", "60"))
 AVATAR_MAX_AGE = int(os.getenv("KRAVE_AVATAR_MAX_AGE", "86400"))
@@ -38,10 +38,21 @@ class UserInfo(BaseModel):
     media_count: Optional[int] = None
     biography: Optional[str] = None
     is_verified: Optional[bool] = None
-    profile_pic_url: Optional[str] = None   # << añadimos foto
+    profile_pic_url: Optional[str] = None
 
 class RefreshReq(BaseModel):
     users: List[str] = []
+
+class YouTubeOrder(BaseModel):  # NUEVO MODELO
+    video_url: str
+    cantidad: int
+    username: Optional[str] = ""
+
+class YouTubeOrderResponse(BaseModel):  # NUEVO MODELO
+    success: bool
+    message: str
+    order_id: str
+
 class RefreshResp(BaseModel):
     usuarios: Dict[str, UserInfo] = {}
 
@@ -67,6 +78,41 @@ def json_cached(payload: dict, max_age: int = 0) -> JSONResponse:
     resp.headers["Cache-Control"] = f"public, max-age={max_age}" if max_age > 0 else "no-store"
     return resp
 
+# ===== YouTube Bot Integration =====
+def ejecutar_bot_youtube(video_url: str, cantidad_vistas: int, username: str = ""):
+    """Ejecuta el bot de YouTube en segundo plano"""
+    try:
+        print(f"🎯 Iniciando bot YouTube: {cantidad_vistas} vistas para {video_url}")
+        
+        # Importar y ejecutar el bot existente
+        from youtube_bot import YouTubeBot
+        
+        bot = YouTubeBot(
+            video_url=video_url,
+            views_count=cantidad_vistas,
+            min_duration=60,
+            max_duration=180,
+            job_id=f"main_{int(time.time())}",
+            use_proxies=True
+        )
+        
+        # Ejecutar en hilo separado para no bloquear
+        def run_bot():
+            try:
+                bot.start_campaign()
+                print(f"✅ Bot YouTube completado: {bot.successful}/{cantidad_vistas} vistas exitosas")
+            except Exception as e:
+                print(f"❌ Error en bot YouTube: {e}")
+        
+        thread = threading.Thread(target=run_bot, daemon=True)
+        thread.start()
+        
+        return {"status": "started", "vistas_solicitadas": cantidad_vistas}
+        
+    except Exception as e:
+        print(f"❌ Error iniciando bot YouTube: {e}")
+        return {"status": "error", "error": str(e)}
+
 # ===== Seed =====
 SEED: Dict[str, UserInfo] = {
     "cadillacf1": UserInfo(username="cadillacf1", full_name="Cadillac Formula 1 Team",
@@ -78,7 +124,6 @@ SEED: Dict[str, UserInfo] = {
     "pesopluma": UserInfo(username="pesopluma", full_name="Peso Pluma",
                           follower_count=17000000, following_count=210, media_count=900,
                           biography="Double P", is_verified=True),
-    # ... resto igual ...
 }
 
 def seed_or_stub(username: str) -> UserInfo:
@@ -100,9 +145,10 @@ def with_avatar(u: UserInfo) -> dict:
     d["profile_pic_url"] = f"/avatar?username={u.username}"
     return d
 
-# ===== Rutas =====
+# ===== Rutas EXISTENTES (NO TOCAR) =====
 @app.get("/health")
-def health(): return {"status": "ok", "name": APP_NAME, "version": VERSION}
+def health(): 
+    return {"status": "ok", "name": APP_NAME, "version": VERSION}
 
 @app.get("/avatar")
 def avatar(username: str = Query(...)):
@@ -145,5 +191,50 @@ def purge_cache(x_admin_token: Optional[str] = Header(default=None)):
     profile_cache.clear()
     return {"ok": True, "purged": True}
 
+# ===== NUEVA RUTA YOUTUBE =====
+@app.post("/youtube/ordenar-vistas", response_model=YouTubeOrderResponse)
+async def ordenar_vistas_youtube(order: YouTubeOrder, background_tasks: BackgroundTasks):
+    """NUEVO: Endpoint para ordenar vistas de YouTube desde el frontend existente"""
+    try:
+        video_url = order.video_url.strip()
+        cantidad = order.cantidad
+        
+        if not video_url or not cantidad:
+            raise HTTPException(status_code=400, detail="URL y cantidad requeridos")
+        
+        # Validar URL de YouTube
+        if not any(domain in video_url for domain in ['youtu.be', 'youtube.com', 'youtube.com/watch']):
+            raise HTTPException(status_code=400, detail="URL de YouTube no válida")
+        
+        # Límites seguros
+        if cantidad > 500:
+            raise HTTPException(status_code=400, detail="Máximo 500 vistas por orden")
+        if cantidad < 10:
+            raise HTTPException(status_code=400, detail="Mínimo 10 vistas por orden")
+        
+        # Ejecutar en segundo plano usando el bot existente
+        background_tasks.add_task(ejecutar_bot_youtube, video_url, cantidad, order.username)
+        
+        return YouTubeOrderResponse(
+            success=True,
+            message=f"✅ Orden recibida: {cantidad} vistas para YouTube",
+            order_id=f"yt_{int(time.time())}"
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error interno: {str(e)}")
+
 @app.get("/")
-def root(): return {"ok": True, "service": APP_NAME, "docs": "/docs"}
+def root(): 
+    return {
+        "ok": True, 
+        "service": APP_NAME, 
+        "version": VERSION,
+        "docs": "/docs",
+        "endpoints": {
+            "existentes": ["/health", "/avatar", "/buscar-usuario", "/refresh-clients", "/purge-cache"],
+            "nuevo": ["/youtube/ordenar-vistas (POST)"]
+        }
+    }
