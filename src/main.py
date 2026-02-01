@@ -275,6 +275,49 @@ def with_avatar(u: UserInfo) -> dict:
     d["profile_pic_url"] = f"/avatar?username={u.username}"
     return d
 
+# ===== NUEVO: User-Agents para rotar y evitar bloqueos =====
+USER_AGENTS = [
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36',
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:132.0) Gecko/20100101 Firefox/132.0',
+]
+
+# ===== NUEVO: Función para obtener avatar real de Instagram =====
+def get_real_instagram_hd_avatar(username: str) -> str | None:
+    u = username.strip().lstrip("@").lower()
+    if not u:
+        return None
+
+    url = f"https://i.instagram.com/api/v1/users/web_profile_info/?username={u}"
+
+    headers = {
+        'User-Agent': random.choice(USER_AGENTS),
+        'Accept': '*/*',
+        'Accept-Language': 'en-US,en;q=0.9,es;q=0.8',
+        'Referer': 'https://www.instagram.com/',
+        'X-IG-App-ID': '936619743392459',  # Clave para evitar 401 en muchos casos
+        'X-ASBD-ID': '129477',
+        'X-IG-WWW-Claim': '0',
+    }
+
+    try:
+        resp = requests.get(url, headers=headers, timeout=8)
+        if resp.status_code == 200:
+            data = resp.json()
+            user = data.get("data", {}).get("user")
+            if user:
+                # Prioridad: HD
+                hd_info = user.get("hd_profile_pic_url_info", {})
+                if hd_url := hd_info.get("url"):
+                    return hd_url
+                # Fallback normal
+                if normal_url := user.get("profile_pic_url"):
+                    return normal_url
+    except Exception as e:
+        print(f"Error fetching real IG avatar for {u}: {e}")
+
+    return None
+
 # ===== RUTAS EXISTENTES - MEJORADAS =====
 @app.get("/health")
 def health(): 
@@ -291,7 +334,15 @@ def health():
 def avatar(username: str = Query(...)):
     u = username.strip().lstrip("@")
     
-    # MÚLTIPLES FALLBACKS para avatares
+    # Intento principal: obtener URL real HD de Instagram
+    real_url = get_real_instagram_hd_avatar(u)
+    
+    if real_url:
+        resp = RedirectResponse(url=real_url, status_code=302)
+        resp.headers["Cache-Control"] = f"public, max-age={AVATAR_MAX_AGE}"
+        return resp
+    
+    # Si falla → fallback a generados (tus providers originales)
     avatar_providers = [
         f"https://unavatar.io/instagram/{u}",
         f"https://unavatar.io/twitter/{u}",
@@ -299,7 +350,7 @@ def avatar(username: str = Query(...)):
         f"https://ui-avatars.com/api/?name={u}&background=random"
     ]
     
-    # Intentar con el primer proveedor (unavatar.io)
+    # Usamos el primero que definiste originalmente
     resp = RedirectResponse(url=avatar_providers[0], status_code=302)
     resp.headers["Cache-Control"] = f"public, max-age={AVATAR_MAX_AGE}"
     return resp
