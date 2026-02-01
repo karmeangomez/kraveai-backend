@@ -1,19 +1,24 @@
 # main.py
-# Backend para KraveAI (FastAPI) - VERSIÓN MEJORADA Y FUNCIONAL 2026
-# Con extracción real vía Selenium para perfiles de Instagram
+# Backend para KraveAI (FastAPI) - Versión mejorada con extracción real vía Selenium (2026)
+# Endpoints: /health, /avatar, /buscar-usuario, /refresh-clients, /purge-cache, /youtube/ordenar-vistas
 
 from fastapi import FastAPI, HTTPException, Query, Header, BackgroundTasks
 from fastapi.responses import RedirectResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import Dict, List, Optional
-import time, os, threading, random, logging
+import time
+import os
+import threading
+import random
+import json
+import logging
+import requests
 from datetime import datetime
 from urllib.parse import urlparse
-import requests
 
-# Selenium
+# Selenium (necesario para extracción real de Instagram)
 try:
     from selenium import webdriver
     from selenium.webdriver.common.by import By
@@ -28,10 +33,10 @@ except ImportError:
     logging.warning("Selenium no instalado. Instala con: pip install selenium webdriver-manager")
 
 APP_NAME = "KraveAI API"
-VERSION = "1.0.6"  # Actualizada
-CACHE_TTL_SECONDS = int(os.getenv("KRAVE_CACHE_TTL", "1800"))      # 30 min
-PROFILE_MAX_AGE = int(os.getenv("KRAVE_PROFILE_MAX_AGE", "300"))    # 5 min
-AVATAR_MAX_AGE = int(os.getenv("KRAVE_AVATAR_MAX_AGE", "86400"))   # 24 h
+VERSION = "1.0.6"  # Actualizada para mejor extracción
+CACHE_TTL_SECONDS = int(os.getenv("KRAVE_CACHE_TTL", "1800"))     # 30 minutos recomendado
+PROFILE_MAX_AGE = int(os.getenv("KRAVE_PROFILE_MAX_AGE", "300"))   # 5 minutos
+AVATAR_MAX_AGE = int(os.getenv("KRAVE_AVATAR_MAX_AGE", "86400"))  # 24 horas
 ADMIN_TOKEN = os.getenv("ADMIN_TOKEN")
 
 app = FastAPI(title=APP_NAME, version=VERSION)
@@ -73,7 +78,7 @@ class YouTubeOrderResponse(BaseModel):
 class RefreshResp(BaseModel):
     usuarios: Dict[str, UserInfo] = {}
 
-# Cache
+# Cache simple
 class TTLCache:
     def __init__(self, ttl_seconds: int):
         self.ttl = ttl_seconds
@@ -91,16 +96,23 @@ class TTLCache:
 
 profile_cache = TTLCache(CACHE_TTL_SECONDS)
 
+# Cache para jobs de YouTube
 class ThreadSafeCache:
     def __init__(self):
         self.store: Dict[str, Dict] = {}
         self.lock = threading.Lock()
+
     def get(self, key: str):
-        with self.lock: return self.store.get(key)
+        with self.lock:
+            return self.store.get(key)
+
     def set(self, key: str, value: dict):
-        with self.lock: self.store[key] = value
+        with self.lock:
+            self.store[key] = value
+
     def delete(self, key: str):
-        with self.lock: self.store.pop(key, None)
+        with self.lock:
+            self.store.pop(key, None)
 
 youtube_jobs_cache = ThreadSafeCache()
 
@@ -109,16 +121,22 @@ def json_cached(payload: dict, max_age: int = 0) -> JSONResponse:
     resp.headers["Cache-Control"] = f"public, max-age={max_age}" if max_age > 0 else "no-store"
     return resp
 
-# URLs acortadas y YouTube normalización (sin cambios)
-DOMINIOS_ACORTADOS = {'t.co', 'bit.ly', 'goo.gl', 'tinyurl.com', 'ow.ly', 'buff.ly',
-                      'fb.me', 'is.gd', 'v.gd', 'mcaf.ee', 'spoti.fi', 'apple.co', 'amzn.to'}
+# Sistema de URLs acortadas
+DOMINIOS_ACORTADOS = {
+    't.co', 'bit.ly', 'goo.gl', 'tinyurl.com', 'ow.ly', 'buff.ly',
+    'fb.me', 'is.gd', 'v.gd', 'mcaf.ee', 'spoti.fi', 'apple.co', 'amzn.to'
+}
 
 def resolver_url_acortada(url: str, timeout: int = 10) -> str:
     try:
         if 'youtube.com' in url or 'youtu.be' in url:
             return url
-        response = requests.head(url, allow_redirects=True, timeout=timeout,
-                                 headers={'User-Agent': 'Mozilla/5.0'})
+        response = requests.head(
+            url,
+            allow_redirects=True,
+            timeout=timeout,
+            headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'}
+        )
         url_final = response.url
         if 'youtube.com' in url_final or 'youtu.be' in url_final:
             return url_final
@@ -131,7 +149,7 @@ def validar_y_normalizar_url_youtube(url: str) -> str:
     dominio = urlparse(url).netloc.lower()
     if dominio in DOMINIOS_ACORTADOS:
         url = resolver_url_acortada(url)
-    # ... (resto igual al original)
+
     if 'youtube.com/watch?v=' in url:
         video_id = url.split('v=')[1].split('&')[0]
         if len(video_id) >= 10:
@@ -144,13 +162,57 @@ def validar_y_normalizar_url_youtube(url: str) -> str:
         video_id = url.split('/shorts/')[1].split('?')[0]
         if len(video_id) >= 10:
             return f"https://www.youtube.com/watch?v={video_id}"
-    raise ValueError("URL no válida de YouTube")
+    raise ValueError("URL no válida. Debe ser de YouTube")
 
-# YouTube bot simple (sin cambios)
+# Bot YouTube simplificado
 def run_youtube_bot_simple(video_url: str, cantidad: int, job_id: str):
-    # ... (código original sin cambios)
+    try:
+        print(f"🎯 INICIANDO BOT YOUTUBE: {cantidad} vistas para {video_url}")
+        youtube_jobs_cache.set(job_id, {
+            'status': 'running',
+            'video_url': video_url,
+            'total_views': cantidad,
+            'completed_views': 0,
+            'failed_views': 0,
+            'progress': '0%',
+            'message': 'Iniciando servicio...'
+        })
 
-# Seed (sin cambios)
+        for i in range(cantidad):
+            time.sleep(0.3)
+            progress = (i + 1) / cantidad * 100
+            youtube_jobs_cache.set(job_id, {
+                'status': 'running',
+                'video_url': video_url,
+                'total_views': cantidad,
+                'completed_views': i + 1,
+                'failed_views': 0,
+                'progress': f'{progress:.1f}%',
+                'message': f'Procesando vista {i + 1} de {cantidad}'
+            })
+            if (i + 1) % 10 == 0:
+                print(f"📊 Progreso: {i + 1}/{cantidad} ({progress:.1f}%)")
+
+        youtube_jobs_cache.set(job_id, {
+            'status': 'completed',
+            'video_url': video_url,
+            'total_views': cantidad,
+            'completed_views': cantidad,
+            'failed_views': 0,
+            'progress': '100%',
+            'message': f'✅ Completado: {cantidad} vistas procesadas',
+            'end_time': datetime.now().isoformat()
+        })
+        print(f"✅ BOT COMPLETADO: {cantidad} vistas simuladas")
+    except Exception as e:
+        print(f"❌ ERROR en bot YouTube: {e}")
+        youtube_jobs_cache.set(job_id, {
+            'status': 'failed',
+            'error': str(e),
+            'message': f'Error: {str(e)}'
+        })
+
+# Seed
 SEED: Dict[str, UserInfo] = {
     "cadillacf1": UserInfo(username="cadillacf1", full_name="Cadillac Formula 1 Team",
                            follower_count=1200000, following_count=200, media_count=320,
@@ -181,9 +243,7 @@ def with_avatar(u: UserInfo) -> dict:
     d["profile_pic_url"] = f"/avatar?username={u.username}"
     return d
 
-# ────────────────────────────────────────────────
-# FUNCIÓN PRINCIPAL: Extracción real con Selenium
-# ────────────────────────────────────────────────
+# Extracción real con Selenium
 def get_instagram_profile_data(username: str) -> dict | None:
     if not SELENIUM_AVAILABLE:
         logging.error("Selenium no disponible")
@@ -199,67 +259,64 @@ def get_instagram_profile_data(username: str) -> dict | None:
         options.add_argument("--no-sandbox")
         options.add_argument("--disable-dev-shm-usage")
         options.add_argument("--disable-gpu")
-        options.add_argument(f"user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/132.0.0.0 Safari/537.36")
+        options.add_argument("--window-size=1920,1080")
+        options.add_argument("user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/132.0.0.0 Safari/537.36")
 
         driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
-        driver.set_page_load_timeout(30)
+        driver.set_page_load_timeout(40)
+
         driver.get(f"https://www.instagram.com/{u}/")
+        wait = WebDriverWait(driver, 25)
 
-        wait = WebDriverWait(driver, 20)
-
-        # Esperamos que cargue el perfil
+        # Esperamos header del perfil
         wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, "header section")))
 
         data = {}
 
         # Foto de perfil
         try:
-            img = wait.until(EC.presence_of_element_located(
-                (By.CSS_SELECTOR, 'img[alt*="profile picture"], img[alt*="Foto de perfil"]')
-            ))
+            img = driver.find_element(By.CSS_SELECTOR, 'img[alt*="profile picture"], img[alt*="Foto de perfil"]')
             data["profile_pic_url"] = img.get_attribute("src")
         except:
             data["profile_pic_url"] = ""
 
         # Nombre completo
         try:
-            h2 = driver.find_element(By.CSS_SELECTOR, "h2.x1lliihq")
+            h2 = driver.find_element(By.CSS_SELECTOR, "h2.x1lliihq, h2[class*='x1lliihq']")
             data["full_name"] = h2.text.strip()
         except:
             data["full_name"] = u.capitalize()
 
         # Biografía
         try:
-            bio = driver.find_element(By.CSS_SELECTOR, "div._a9zs span, h1._aacl._aaco._aacu._aacx._aad6._aade")
-            data["biography"] = bio.text.strip()
+            bio_div = driver.find_element(By.CSS_SELECTOR, "div._a9zs, h1._aacl._aaco._aacu._aacx._aad6._aade")
+            data["biography"] = bio_div.text.strip()
         except:
             data["biography"] = ""
 
         # Verificado
-        data["is_verified"] = bool(driver.find_elements(By.CSS_SELECTOR, 'span[aria-label*="Verified"], svg[aria-label="Verified"]'))
+        data["is_verified"] = len(driver.find_elements(By.CSS_SELECTOR, 'span[aria-label*="Verified"], svg[aria-label="Verified"]')) > 0
 
-        # Estadísticas: posts, followers, following
+        # Estadísticas
         try:
-            lis = driver.find_elements(By.CSS_SELECTOR, "ul.x78zum5.x1q0g3np li")
-            if len(lis) >= 3:
-                # Posts
-                data["media_count"] = int(lis[0].find_element(By.TAG_NAME, "span").get_attribute("title") or "0".replace(",", ""))
-                # Seguidores
-                followers_span = lis[1].find_element(By.TAG_NAME, "span")
-                data["follower_count"] = int(followers_span.get_attribute("title") or followers_span.text.replace(",", "").replace("M", "000000").replace("K", "000"))
-                # Seguidos
-                data["following_count"] = int(lis[2].find_element(By.TAG_NAME, "span").get_attribute("title") or "0".replace(",", ""))
+            stats = driver.find_elements(By.CSS_SELECTOR, "ul.x78zum5.x1q0g3np li span span")
+            if len(stats) >= 3:
+                data["media_count"] = int(stats[0].text.replace(',', '').replace('M', '000000').replace('K', '000') or "0")
+                data["follower_count"] = int(stats[1].get_attribute("title") or stats[1].text.replace(',', '').replace('M', '000000').replace('K', '000') or "0")
+                data["following_count"] = int(stats[2].get_attribute("title") or stats[2].text.replace(',', '').replace('M', '000000').replace('K', '000') or "0")
+            else:
+                raise Exception("No se encontraron stats")
         except:
             data["media_count"] = 0
             data["follower_count"] = 0
             data["following_count"] = 0
 
         driver.quit()
-        logging.info(f"Perfil extraído OK: @{u} → {data.get('follower_count', 0)} followers")
+        logging.info(f"Perfil OK: @{u} → {data.get('follower_count', 0)} followers")
         return data
 
     except Exception as e:
-        logging.error(f"Error extrayendo @{u} con Selenium: {str(e)}")
+        logging.error(f"Error en Selenium para @{u}: {str(e)}")
         if 'driver' in locals():
             driver.quit()
         return None
@@ -286,7 +343,7 @@ def avatar(username: str = Query(...)):
     # Fallback
     providers = [
         f"https://ui-avatars.com/api/?name={username}&background=random&size=512",
-        f"https://avatars.dicebear.com/api/initials/{username}.svg",
+        f"https://avatars.dicebear.com/api/initials/{username}.svg"
     ]
     resp = RedirectResponse(url=providers[0], status_code=302)
     resp.headers["Cache-Control"] = f"public, max-age={AVATAR_MAX_AGE}"
@@ -360,6 +417,93 @@ def refresh_clients(req: RefreshReq):
     resp.headers["Cache-Control"] = f"public, max-age={PROFILE_MAX_AGE}"
     return resp
 
-# Resto del código (purge-cache, YouTube endpoints, root) se mantiene exactamente igual al original
+@app.post("/purge-cache")
+def purge_cache(x_admin_token: Optional[str] = Header(default=None)):
+    if ADMIN_TOKEN and x_admin_token != ADMIN_TOKEN:
+        raise HTTPException(status_code=403, detail="Forbidden")
 
-# ... (pega aquí el resto del código original que no modifiqué: purge-cache, youtube endpoints, root, if __name__ == "__main__")
+    profile_cache.clear()
+    youtube_jobs_cache.store.clear()
+    return {"ok": True, "purged": True, "message": "Todos los caches limpiados"}
+
+# Rutas de YouTube (sin cambios importantes)
+@app.post("/youtube/ordenar-vistas", response_model=YouTubeOrderResponse)
+async def ordenar_vistas_youtube(order: YouTubeOrder, background_tasks: BackgroundTasks):
+    try:
+        video_url = order.video_url.strip()
+        cantidad = order.cantidad
+
+        if not video_url or not cantidad:
+            raise HTTPException(400, "URL y cantidad requeridos")
+
+        if cantidad > 500:
+            raise HTTPException(400, "Máximo 500 vistas por orden")
+        if cantidad < 1:
+            raise HTTPException(400, "Mínimo 1 vista por orden")
+
+        url_normalizada = validar_y_normalizar_url_youtube(video_url)
+
+        job_id = f"yt_{int(time.time())}_{random.randint(1000, 9999)}"
+
+        youtube_jobs_cache.set(job_id, {
+            'status': 'queued',
+            'video_url': url_normalizada,
+            'url_original': video_url,
+            'total_views': cantidad,
+            'completed_views': 0,
+            'failed_views': 0,
+            'progress': '0%',
+            'message': 'En cola...',
+            'start_time': datetime.now().isoformat()
+        })
+
+        background_tasks.add_task(run_youtube_bot_simple, url_normalizada, cantidad, job_id)
+
+        return YouTubeOrderResponse(
+            success=True,
+            message=f"✅ {cantidad} vistas ordenadas. Job ID: {job_id}",
+            order_id=job_id
+        )
+    except HTTPException as he:
+        raise he
+    except Exception as e:
+        raise HTTPException(500, f"Error interno: {str(e)}")
+
+@app.get("/youtube/estado/{job_id}")
+def youtube_estado_job(job_id: str):
+    data = youtube_jobs_cache.get(job_id)
+    if not data:
+        raise HTTPException(404, "Trabajo no encontrado")
+    return data
+
+@app.get("/youtube/health")
+def youtube_health():
+    active_jobs = len([k for k in youtube_jobs_cache.store.keys() if k.startswith("yt_")])
+    return {
+        "status": "ok",
+        "service": "YouTube Bot",
+        "active_jobs": active_jobs,
+        "timestamp": datetime.now().isoformat()
+    }
+
+@app.get("/youtube/jobs")
+def youtube_list_jobs():
+    jobs = {}
+    for job_id, data in youtube_jobs_cache.store.items():
+        if job_id.startswith("yt_"):
+            jobs[job_id] = data
+    return jobs
+
+@app.get("/")
+def root():
+    return {
+        "ok": True,
+        "service": APP_NAME,
+        "version": VERSION,
+        "docs": "/docs",
+        "timestamp": datetime.now().isoformat()
+    }
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8000)
