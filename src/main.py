@@ -282,75 +282,41 @@ USER_AGENTS = [
     'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:132.0) Gecko/20100101 Firefox/132.0',
 ]
 
-# ===== Función para obtener datos de Instagram con Selenium =====
-def get_instagram_profile_data(username: str) -> dict | None:
+# ===== NUEVO: Función para obtener avatar real de Instagram =====
+def get_real_instagram_hd_avatar(username: str) -> str | None:
     u = username.strip().lstrip("@").lower()
     if not u:
         return None
 
+    url = f"https://i.instagram.com/api/v1/users/web_profile_info/?username={u}"
+
+    headers = {
+        'User-Agent': random.choice(USER_AGENTS),
+        'Accept': '*/*',
+        'Accept-Language': 'en-US,en;q=0.9,es;q=0.8',
+        'Referer': 'https://www.instagram.com/',
+        'X-IG-App-ID': '936619743392459',  # Clave para evitar 401 en muchos casos
+        'X-ASBD-ID': '129477',
+        'X-IG-WWW-Claim': '0',
+    }
+
     try:
-        options = Options()
-        options.add_argument("--headless")
-        options.add_argument("--no-sandbox")
-        options.add_argument("--disable-dev-shm-usage")
-        options.add_argument("user-agent=" + random.choice(USER_AGENTS))
-
-        driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
-        driver.get(f"https://www.instagram.com/{u}/")
-
-        wait = WebDriverWait(driver, 10)
-        wait.until(EC.presence_of_element_located((By.TAG_NAME, "header")))
-
-        # Extraer foto de perfil
-        try:
-            img = driver.find_element(By.CSS_SELECTOR, 'img[alt*="profile picture"]')
-            profile_pic_url = img.get_attribute('src')
-        except:
-            profile_pic_url = None
-
-        # Nombre completo
-        try:
-            full_name = driver.find_element(By.CSS_SELECTOR, 'h2').text
-        except:
-            full_name = None
-
-        # Biografía
-        try:
-            biography = driver.find_element(By.CSS_SELECTOR, 'div[class*="_a9zs"]').text
-        except:
-            biography = None
-
-        # Verificado
-        is_verified = bool(driver.find_elements(By.CSS_SELECTOR, 'span[aria-label="Verified"]'))
-
-        # Estadísticas (publicaciones, seguidores, seguidos)
-        try:
-            stats = driver.find_elements(By.CSS_SELECTOR, 'ul li span span')
-            media_count = int(stats[0].text.replace(',', ''))
-            follower_count = int(stats[1].text.replace(',', ''))
-            following_count = int(stats[2].text.replace(',', ''))
-        except:
-            media_count = None
-            follower_count = None
-            following_count = None
-
-        driver.quit()
-
-        return {
-            "full_name": full_name,
-            "biography": biography,
-            "is_verified": is_verified,
-            "media_count": media_count,
-            "follower_count": follower_count,
-            "following_count": following_count,
-            "profile_pic_url": profile_pic_url
-        }
-
+        resp = requests.get(url, headers=headers, timeout=8)
+        if resp.status_code == 200:
+            data = resp.json()
+            user = data.get("data", {}).get("user")
+            if user:
+                # Prioridad: HD
+                hd_info = user.get("hd_profile_pic_url_info", {})
+                if hd_url := hd_info.get("url"):
+                    return hd_url
+                # Fallback normal
+                if normal_url := user.get("profile_pic_url"):
+                    return normal_url
     except Exception as e:
-        print(f"Error al obtener datos de {u}: {e}")
-        if 'driver' in locals():
-            driver.quit()
-        return None
+        print(f"Error fetching real IG avatar for {u}: {e}")
+
+    return None
 
 # ===== RUTAS EXISTENTES - MEJORADAS =====
 @app.get("/health")
@@ -368,10 +334,11 @@ def health():
 def avatar(username: str = Query(...)):
     u = username.strip().lstrip("@")
     
-    # Intento principal: obtener URL real HD de Instagram con Selenium
-    profile_data = get_instagram_profile_data(u)
-    if profile_data and profile_data["profile_pic_url"]:
-        resp = RedirectResponse(url=profile_data["profile_pic_url"], status_code=302)
+    # Intento principal: obtener URL real HD de Instagram
+    real_url = get_real_instagram_hd_avatar(u)
+    
+    if real_url:
+        resp = RedirectResponse(url=real_url, status_code=302)
         resp.headers["Cache-Control"] = f"public, max-age={AVATAR_MAX_AGE}"
         return resp
     
@@ -397,24 +364,9 @@ def buscar_usuario(username: str = Query(...)):
     if cached: 
         return json_cached({"usuario": cached}, PROFILE_MAX_AGE)
     
-    # Obtener datos reales con Selenium
-    profile_data = get_instagram_profile_data(u)
-    
-    if profile_data:
-        info = UserInfo(
-            username=u,
-            full_name=profile_data["full_name"],
-            follower_count=profile_data["follower_count"],
-            following_count=profile_data["following_count"],
-            media_count=profile_data["media_count"],
-            biography=profile_data["biography"],
-            is_verified=profile_data["is_verified"],
-            profile_pic_url=profile_data["profile_pic_url"]
-        )
-    else:
-        info = seed_or_stub(u)
-    
-    payload = info.dict()
+    # Generar datos del usuario
+    info = seed_or_stub(u)
+    payload = with_avatar(info)
     
     # Guardar en cache
     profile_cache.set(f"user:{u}", payload)
@@ -437,24 +389,9 @@ def refresh_clients(req: RefreshReq):
             result[u] = UserInfo(**cached)
             continue
         
-        # Obtener datos reales con Selenium
-        profile_data = get_instagram_profile_data(u)
-        
-        if profile_data:
-            info = UserInfo(
-                username=u,
-                full_name=profile_data["full_name"],
-                follower_count=profile_data["follower_count"],
-                following_count=profile_data["following_count"],
-                media_count=profile_data["media_count"],
-                biography=profile_data["biography"],
-                is_verified=profile_data["is_verified"],
-                profile_pic_url=profile_data["profile_pic_url"]
-            )
-        else:
-            info = seed_or_stub(u)
-        
-        payload = info.dict()
+        # Generar datos del usuario
+        info = seed_or_stub(u)
+        payload = with_avatar(info)
         profile_cache.set(f"user:{u}", payload)
         result[u] = UserInfo(**payload)
     
